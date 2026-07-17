@@ -1,0 +1,953 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '../lib/AuthContext'
+import { isAgingStock } from '../lib/aging'
+import { downloadInvoicePdf, createInvoiceNumber } from '../lib/invoicePdf'
+import { supabase } from '../lib/supabaseClient'
+import { logAuditEvent } from '../lib/auditLog'
+
+function Parts() {
+  const { currentStaff, loading } = useAuth()
+  const [parts, setParts] = useState([])
+  const [branches, setBranches] = useState([])
+  const [donorVehicles, setDonorVehicles] = useState([])
+  const [loadingParts, setLoadingParts] = useState(true)
+  const [loadingBranches, setLoadingBranches] = useState(true)
+  const [loadingVehicles, setLoadingVehicles] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [branchFilter, setBranchFilter] = useState('all')
+  const [showAgingOnly, setShowAgingOnly] = useState(false)
+  const currencyOptions = ['AED', 'USD']
+
+  const [form, setForm] = useState({
+    part_name: '',
+    oem_number: '',
+    category: '',
+    condition: 'excellent',
+    cost: '',
+    asking_price: '',
+    currency: 'AED',
+    donor_vehicle_id: '',
+    branch_id: '',
+    status: 'in_stock',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const listRef = useRef(null)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [transferTarget, setTransferTarget] = useState(null)
+  const [transferBranchId, setTransferBranchId] = useState('')
+  const [transfering, setTransfering] = useState(false)
+  const [transferMessage, setTransferMessage] = useState('')
+  const [saleTarget, setSaleTarget] = useState(null)
+  const [salePrice, setSalePrice] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [customerContact, setCustomerContact] = useState('')
+  const [selling, setSelling] = useState(false)
+  const [saleMessage, setSaleMessage] = useState('')
+  const [saleInvoice, setSaleInvoice] = useState(null)
+
+  const canManageBranches = currentStaff?.role === 'company_admin'
+
+  const fetchBranches = async () => {
+    if (!currentStaff?.company_id) {
+      setBranches([])
+      setLoadingBranches(false)
+      return
+    }
+
+    setLoadingBranches(true)
+    const { data, error } = await supabase
+      .from('branches')
+      .select('id, name')
+      .eq('company_id', currentStaff.company_id)
+      .order('name', { ascending: true })
+
+    if (!error) {
+      setBranches(data ?? [])
+    } else {
+      console.error('Error fetching branches:', error)
+      setBranches([])
+    }
+
+    setLoadingBranches(false)
+  }
+
+  const fetchDonorVehicles = async (branchId) => {
+    if (!currentStaff?.company_id) {
+      setDonorVehicles([])
+      setLoadingVehicles(false)
+      return
+    }
+
+    setLoadingVehicles(true)
+    let query = supabase
+      .from('donor_vehicles')
+      .select('id, make, model, year')
+      .eq('company_id', currentStaff.company_id)
+      .is('deleted_at', null)
+
+    if (currentStaff?.role === 'branch_staff') {
+      query = query.eq('branch_id', currentStaff.branch_id)
+    } else if (branchId) {
+      query = query.eq('branch_id', branchId)
+    }
+
+    const { data, error } = await query.order('make', { ascending: true })
+
+    if (!error) {
+      setDonorVehicles(data ?? [])
+    } else {
+      console.error('Error fetching donor vehicles:', error)
+      setDonorVehicles([])
+    }
+
+    setLoadingVehicles(false)
+  }
+
+  const fetchParts = async () => {
+    if (!currentStaff?.company_id) {
+      setParts([])
+      setLoadingParts(false)
+      return
+    }
+
+    setLoadingParts(true)
+    let query = supabase
+      .from('parts')
+      .select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id, date_added, created_at, donor_vehicles(make, model, year)')
+      .eq('company_id', currentStaff.company_id)
+      .order('part_name', { ascending: true })
+
+    if (currentStaff?.role === 'branch_staff') {
+      query = query.eq('branch_id', currentStaff.branch_id)
+    }
+
+    const { data, error } = await query
+
+    if (!error) {
+      setParts(data ?? [])
+    } else {
+      console.error('Error fetching parts:', error)
+      setParts([])
+    }
+
+    setLoadingParts(false)
+  }
+
+  useEffect(() => {
+    fetchBranches()
+    fetchParts()
+  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
+
+  useEffect(() => {
+    if (currentStaff?.role === 'branch_staff') {
+      fetchDonorVehicles(currentStaff.branch_id)
+      setForm((prev) => ({ ...prev, branch_id: currentStaff.branch_id }))
+    } else if (canManageBranches) {
+      if (form.branch_id) {
+        fetchDonorVehicles(form.branch_id)
+      } else {
+        setDonorVehicles([])
+      }
+    } else {
+      setDonorVehicles([])
+    }
+  }, [currentStaff?.branch_id, currentStaff?.role, form.branch_id, canManageBranches])
+
+  const filteredParts = useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase()
+
+    return parts.filter((part) => {
+      const matchesSearch =
+        !needle ||
+        part.part_name?.toLowerCase().includes(needle) ||
+        part.oem_number?.toLowerCase().includes(needle)
+
+      const matchesBranch = branchFilter === 'all' || String(part.branch_id) === branchFilter
+      const matchesAging = !showAgingOnly || isAgingStock(part)
+
+      return matchesSearch && matchesBranch && matchesAging
+    })
+  }, [branchFilter, parts, searchTerm, showAgingOnly])
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+        <p className="text-lg text-slate-300">Loading...</p>
+      </main>
+    )
+  }
+
+  if (currentStaff?.role !== 'company_admin' && currentStaff?.role !== 'branch_staff') {
+    return <Navigate to="/" replace />
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    if (!form.part_name.trim() || !form.category.trim() || !form.cost || !form.asking_price) {
+      setErrorMessage('Please fill in part name, category, cost, and asking price.')
+      return
+    }
+
+    const payload = {
+      part_name: form.part_name.trim(),
+      oem_number: form.oem_number.trim() || null,
+      category: form.category.trim(),
+      condition: form.condition,
+      cost: Number(form.cost),
+      asking_price: Number(form.asking_price),
+      currency: form.currency || 'AED',
+      donor_vehicle_id: form.donor_vehicle_id || null,
+      company_id: currentStaff.company_id,
+      branch_id: currentStaff.role === 'branch_staff' ? currentStaff.branch_id : form.branch_id || null,
+      status: form.status || 'in_stock',
+    }
+
+    setSubmitting(true)
+    if (editingId) {
+      const { data: existingPart, error: lookupError } = await supabase
+        .from('parts')
+        .select('*')
+        .eq('id', editingId)
+        .single()
+
+      if (lookupError) {
+        setErrorMessage(lookupError.message || 'Unable to load existing part data for auditing.')
+        setSubmitting(false)
+        return
+      }
+
+      const snapshot = existingPart ? {
+        id: existingPart.id,
+        part_name: existingPart.part_name,
+        oem_number: existingPart.oem_number,
+        category: existingPart.category,
+        condition: existingPart.condition,
+        cost: existingPart.cost,
+        asking_price: existingPart.asking_price,
+        currency: existingPart.currency,
+        status: existingPart.status,
+        company_id: existingPart.company_id,
+        branch_id: existingPart.branch_id,
+        donor_vehicle_id: existingPart.donor_vehicle_id,
+      } : null
+
+      const { data, error } = await supabase
+        .from('parts')
+        .update(payload)
+        .eq('id', editingId)
+        .select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id')
+        .single()
+
+      if (error) {
+        setErrorMessage(error.message)
+      } else {
+        if (snapshot && snapshot.donor_vehicle_id && payload.donor_vehicle_id !== snapshot.donor_vehicle_id) {
+          await logAuditEvent({
+            tableName: 'parts',
+            recordId: editingId,
+            action: 'unlink_foreign_key',
+            performedBy: currentStaff.id,
+            companyId: currentStaff.company_id,
+            snapshot,
+          })
+        }
+
+        setParts((prev) => prev.map((p) => (p.id === data.id ? data : p)))
+        setEditingId(null)
+        setShowAddModal(false)
+        setSuccessMessage('Part updated successfully.')
+        requestAnimationFrame(() => listRef.current?.focus())
+      }
+    } else {
+      const { data, error } = await supabase.from('parts').insert([payload]).select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id').single()
+
+      if (error) {
+        setErrorMessage(error.message)
+      } else {
+        setParts((prev) => [data, ...prev])
+        setForm({
+          part_name: '',
+          oem_number: '',
+          category: '',
+          condition: 'excellent',
+          cost: '',
+          asking_price: '',
+          currency: 'AED',
+          donor_vehicle_id: '',
+          branch_id: currentStaff.role === 'branch_staff' ? currentStaff.branch_id : '',
+          status: 'in_stock',
+        })
+        setShowAddModal(false)
+        setSuccessMessage('Part added successfully.')
+        requestAnimationFrame(() => listRef.current?.focus())
+      }
+    }
+
+    setSubmitting(false)
+  }
+
+  const startEditPart = (part) => {
+    setEditingId(part.id)
+    setForm({
+      part_name: part.part_name || '',
+      oem_number: part.oem_number || '',
+      category: part.category || '',
+      condition: part.condition || 'excellent',
+      cost: part.cost || '',
+      asking_price: part.asking_price || '',
+      currency: part.currency || 'AED',
+      donor_vehicle_id: part.donor_vehicle_id || '',
+      branch_id: part.branch_id || (currentStaff.role === 'branch_staff' ? currentStaff.branch_id : ''),
+      status: part.status || 'in_stock',
+    })
+    setErrorMessage('')
+    setSuccessMessage('')
+    setShowAddModal(true)
+  }
+
+  const handleDeletePart = async (part) => {
+    if (!part) return
+    if (part.status === 'sold' || part.status === 'transferred') return
+
+    const allowed = currentStaff.role === 'company_admin' || part.branch_id === currentStaff.branch_id
+    if (!allowed) {
+      setErrorMessage('You do not have permission to delete this part.')
+      return
+    }
+
+    const ok = window.confirm(`Are you sure you want to delete ${part.part_name}? This cannot be undone.`)
+    if (!ok) return
+
+    const { data: existingPart, error: lookupError } = await supabase
+      .from('parts')
+      .select('*')
+      .eq('id', part.id)
+      .single()
+
+    if (lookupError) {
+      setErrorMessage(lookupError.message || 'Unable to load part data for auditing.')
+      return
+    }
+
+    const { error } = await supabase.from('parts').delete().eq('id', part.id)
+    if (error) {
+      setErrorMessage(error.message)
+    } else {
+      if (existingPart) {
+        await logAuditEvent({
+          tableName: 'parts',
+          recordId: part.id,
+          action: 'delete',
+          performedBy: currentStaff.id,
+          companyId: currentStaff.company_id,
+          snapshot: existingPart,
+        })
+      }
+      setParts((prev) => prev.filter((p) => p.id !== part.id))
+      setSuccessMessage('Part deleted.')
+    }
+  }
+
+  const badgeClasses = {
+    in_stock: 'bg-emerald-500/20 text-emerald-400',
+    sold: 'bg-slate-500/20 text-slate-300',
+    reserved: 'bg-amber-500/20 text-amber-400',
+    pending: 'bg-cyan-500/20 text-cyan-400',
+  }
+
+  const openTransferModal = (part) => {
+    setTransferTarget(part)
+    setTransferBranchId('')
+    setTransferMessage('')
+  }
+
+  const openSaleModal = (part) => {
+    setSaleTarget(part)
+    setSalePrice(part.asking_price || '')
+    setCustomerName('')
+    setCustomerContact('')
+    setSaleMessage('')
+  }
+
+  const confirmTransfer = async () => {
+    if (!transferTarget || !transferBranchId) {
+      setTransferMessage('Please choose a destination branch.')
+      return
+    }
+
+    setTransfering(true)
+    setTransferMessage('')
+
+    const { error: transferError } = await supabase.from('transfers').insert([
+      {
+        company_id: currentStaff.company_id,
+        from_branch_id: transferTarget.branch_id,
+        to_branch_id: transferBranchId,
+        part_id: transferTarget.id,
+        transferred_by: currentStaff.id,
+      },
+    ])
+
+    if (transferError) {
+      setTransferMessage(transferError.message)
+      setTransfering(false)
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from('parts')
+      .update({ branch_id: transferBranchId })
+      .eq('id', transferTarget.id)
+
+    if (updateError) {
+      setTransferMessage(updateError.message)
+      setTransfering(false)
+      return
+    }
+
+    setParts((prev) => prev.map((part) => (part.id === transferTarget.id ? { ...part, branch_id: transferBranchId } : part)))
+    setTransferTarget(null)
+    setTransferBranchId('')
+    setTransferMessage('Part transferred successfully.')
+    setTransfering(false)
+  }
+
+  const confirmSale = async () => {
+    if (!saleTarget) {
+      setSaleMessage('No part selected.')
+      return
+    }
+
+    if (!salePrice) {
+      setSaleMessage('Please enter a sale price.')
+      return
+    }
+
+    setSelling(true)
+    setSaleMessage('')
+
+    const { data: branchData, error: branchError } = await supabase
+      .from('branches')
+      .select('name')
+      .eq('id', saleTarget.branch_id)
+      .maybeSingle()
+
+    const branchName = !branchError && branchData?.name ? branchData.name : 'Branch'
+    let generatedInvoiceNumber = createInvoiceNumber(branchName, 1)
+
+    const { data: latestSale, error: latestSaleError } = await supabase
+      .from('sales')
+      .select('invoice_number')
+      .eq('company_id', currentStaff.company_id)
+      .eq('branch_id', saleTarget.branch_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!latestSaleError && latestSale?.invoice_number) {
+      const match = latestSale.invoice_number.match(/-(\d+)$/)
+      if (match) {
+        generatedInvoiceNumber = createInvoiceNumber(branchName, Number(match[1]) + 1)
+      }
+    }
+
+    const { data: saleData, error: saleInsertError } = await supabase.from('sales').insert([
+      {
+        company_id: currentStaff.company_id,
+        branch_id: saleTarget.branch_id,
+        part_id: saleTarget.id,
+        sold_by: currentStaff.id,
+        sale_price: Number(salePrice),
+        customer_name: customerName || null,
+        customer_contact: customerContact || null,
+        invoice_number: generatedInvoiceNumber,
+      },
+    ]).select('id, invoice_number, created_at, customer_name, customer_contact, sale_price, branch_id, part_id').single()
+
+    if (saleInsertError) {
+      setSaleMessage(saleInsertError.message)
+      setSelling(false)
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from('parts')
+      .update({ status: 'sold', date_sold: new Date().toISOString() })
+      .eq('id', saleTarget.id)
+
+    if (updateError) {
+      setSaleMessage(updateError.message)
+      setSelling(false)
+      return
+    }
+
+    setParts((prev) => prev.map((part) => (part.id === saleTarget.id ? { ...part, status: 'sold', date_sold: new Date().toISOString() } : part)))
+    setSalePrice('')
+    setCustomerName('')
+    setCustomerContact('')
+    setSaleInvoice(saleData)
+    setSaleMessage('Part marked as sold. You can download the invoice below.')
+    setSelling(false)
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+          <h1 className="text-3xl font-semibold">Parts Inventory</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            Track parts by company and branch, and link them to donor vehicles.
+          </p>
+        </div>
+
+        <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30 focus:outline-none">
+          <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-4 md:flex-row md:items-center md:justify-between">
+            <h2 className="text-xl font-semibold">Inventory List</h2>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="flex flex-col gap-3 md:flex-row">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  placeholder="Search by part name or OEM"
+                />
+                {canManageBranches ? (
+                  <select
+                    value={branchFilter}
+                    onChange={(event) => setBranchFilter(event.target.value)}
+                    className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  >
+                    <option value="all">All branches</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                    ))}
+                  </select>
+                ) : null}
+                <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={showAgingOnly}
+                    onChange={(event) => setShowAgingOnly(event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-cyan-500"
+                  />
+                  Show aging stock only
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMessage('')
+                  setSuccessMessage('')
+                  setShowAddModal(true)
+                }}
+                className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+              >
+                + Add Part
+              </button>
+            </div>
+          </div>
+
+          {loadingParts ? (
+            <div className="p-6 text-slate-400">Loading parts...</div>
+          ) : filteredParts.length === 0 ? (
+            <div className="p-6 text-slate-400">No parts match the current filters.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
+                <thead className="bg-slate-950/70 text-slate-400">
+                  <tr>
+                    <th className="px-6 py-3 font-medium">Part</th>
+                    <th className="px-6 py-3 font-medium">Source Vehicle</th>
+                    <th className="px-6 py-3 font-medium">Condition</th>
+                    <th className="px-6 py-3 font-medium">Cost</th>
+                    <th className="px-6 py-3 font-medium">Asking Price</th>
+                    <th className="px-6 py-3 font-medium">Status</th>
+                    <th className="px-6 py-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800 bg-slate-900/70">
+                  {filteredParts.map((part) => (
+                    <tr key={part.id} className="align-middle">
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-white">{part.part_name}</div>
+                        <div className="text-xs text-slate-400">{part.oem_number ?? '—'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {part.donor_vehicles ? (
+                          <div
+                            className="max-w-[180px] truncate text-sm text-slate-200"
+                            title={`${part.donor_vehicles.make || ''} ${part.donor_vehicles.model || ''} ${part.donor_vehicles.year || ''}`.trim()}
+                          >
+                            {`${part.donor_vehicles.make || ''} ${part.donor_vehicles.model || ''} ${part.donor_vehicles.year || ''}`.trim() || '—'}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">{part.condition}</td>
+                      <td className="px-6 py-4">{`${part.currency || 'AED'} ${Number(part.cost).toFixed(2)}`}</td>
+                      <td className="px-6 py-4">{`${part.currency || 'AED'} ${Number(part.asking_price).toFixed(2)}`}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClasses[part.status] || 'bg-slate-500/20 text-slate-300'}`}>
+                            {part.status?.replace('_', ' ')}
+                          </span>
+                          {isAgingStock(part) ? (
+                            <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-400">
+                              Aging 60+
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          {(currentStaff.role === 'company_admin' || part.branch_id === currentStaff.branch_id) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEditPart(part)}
+                                className="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
+                              >
+                                Edit
+                              </button>
+
+                              {part.status !== 'sold' && part.status !== 'transferred' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePart(part)}
+                                  className="rounded-lg bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
+                                >
+                                  Delete
+                                </button>
+                              ) : null}
+
+                              {part.status === 'in_stock' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => openTransferModal(part)}
+                                    className="rounded-lg bg-cyan-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+                                  >
+                                    Transfer
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openSaleModal(part)}
+                                    className="rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
+                                  >
+                                    Mark as Sold
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showAddModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <div className="w-full max-w-5xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
+            <h3 className="text-xl font-semibold">{editingId ? 'Edit Part' : 'Add Part'}</h3>
+            <form onSubmit={handleSubmit} className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <label className="text-sm text-slate-300">
+                Part Name
+                <input
+                  type="text"
+                  value={form.part_name}
+                  onChange={(event) => setForm((prev) => ({ ...prev, part_name: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  placeholder="Headlight Assembly"
+                />
+              </label>
+              <label className="text-sm text-slate-300">
+                OEM Number
+                <input
+                  type="text"
+                  value={form.oem_number}
+                  onChange={(event) => setForm((prev) => ({ ...prev, oem_number: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  placeholder="123456"
+                />
+              </label>
+              <label className="text-sm text-slate-300">
+                Category
+                <input
+                  type="text"
+                  value={form.category}
+                  onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  placeholder="Body"
+                />
+              </label>
+              <label className="text-sm text-slate-300">
+                Condition
+                <select
+                  value={form.condition}
+                  onChange={(event) => setForm((prev) => ({ ...prev, condition: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                >
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="for parts">For Parts</option>
+                </select>
+              </label>
+              <label className="text-sm text-slate-300">
+                Cost
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.cost}
+                  onChange={(event) => setForm((prev) => ({ ...prev, cost: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  placeholder="120.00"
+                  disabled={editingId && (form.status === 'sold' || form.status === 'transferred')}
+                />
+              </label>
+              <label className="text-sm text-slate-300">
+                Asking Price
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.asking_price}
+                  onChange={(event) => setForm((prev) => ({ ...prev, asking_price: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  placeholder="180.00"
+                />
+              </label>
+              <label className="text-sm text-slate-300">
+                Currency
+                <select
+                  value={form.currency}
+                  onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                >
+                  {currencyOptions.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {canManageBranches ? (
+                <label className="text-sm text-slate-300">
+                  Branch
+                  <select
+                    value={form.branch_id}
+                    onChange={(event) => setForm((prev) => ({ ...prev, branch_id: event.target.value, donor_vehicle_id: '' }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    disabled={loadingBranches}
+                  >
+                    <option value="">Select branch</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <label className="text-sm text-slate-300">
+                Donor Vehicle
+                <select
+                  value={form.donor_vehicle_id}
+                  onChange={(event) => setForm((prev) => ({ ...prev, donor_vehicle_id: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  disabled={loadingVehicles || (canManageBranches && !form.branch_id && currentStaff.role !== 'branch_staff') || (editingId && (form.status === 'sold' || form.status === 'transferred'))}
+                >
+                  <option value="">None</option>
+                  {donorVehicles.map((vehicle) => (
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {vehicle.make} {vehicle.model} ({vehicle.year})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm text-slate-300">
+                Status
+                <select
+                  value={form.status}
+                  onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                >
+                  <option value="in_stock">In Stock</option>
+                  <option value="sold">Sold</option>
+                  <option value="reserved">Reserved</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </label>
+              {errorMessage ? <p className="mt-2 text-sm text-red-400 md:col-span-2 xl:col-span-3">{errorMessage}</p> : null}
+              {successMessage ? <p className="mt-2 text-sm text-emerald-400 md:col-span-2 xl:col-span-3">{successMessage}</p> : null}
+              <div className="mt-2 flex justify-end gap-3 md:col-span-2 xl:col-span-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false)
+                    setErrorMessage('')
+                    setSuccessMessage('')
+                  }}
+                  className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? 'Saving...' : editingId ? 'Save Changes' : 'Add Part'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {saleTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
+            <h3 className="text-xl font-semibold">Mark Part as Sold</h3>
+            <p className="mt-2 text-sm text-slate-400">
+              Record the sale for {saleTarget.part_name}.
+            </p>
+            <label className="mt-4 block text-sm text-slate-300">
+              Sale Price
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={salePrice}
+                onChange={(event) => setSalePrice(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+              />
+            </label>
+            <label className="mt-4 block text-sm text-slate-300">
+              Customer Name (optional)
+              <input
+                type="text"
+                value={customerName}
+                onChange={(event) => setCustomerName(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+              />
+            </label>
+            <label className="mt-4 block text-sm text-slate-300">
+              Customer Contact (optional)
+              <input
+                type="text"
+                value={customerContact}
+                onChange={(event) => setCustomerContact(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+              />
+            </label>
+            {saleMessage ? <p className={`mt-4 text-sm ${saleMessage.includes('Part marked as sold') ? 'text-emerald-400' : 'text-red-400'}`}>{saleMessage}</p> : null}
+            {saleInvoice ? (
+              <button
+                type="button"
+                onClick={() => downloadInvoicePdf({
+                  supabaseClient: supabase,
+                  companyId: currentStaff.company_id,
+                  branchId: saleInvoice.branch_id,
+                  partId: saleInvoice.part_id,
+                  sale: saleInvoice,
+                })}
+                className="mt-4 rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
+              >
+                Download Invoice
+              </button>
+            ) : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSaleTarget(null)
+                  setSalePrice('')
+                  setCustomerName('')
+                  setCustomerContact('')
+                  setSaleInvoice(null)
+                  setSaleMessage('')
+                }}
+                className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmSale}
+                disabled={selling}
+                className="rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {selling ? 'Saving...' : 'Confirm Sale'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {transferTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
+            <h3 className="text-xl font-semibold">Transfer Part</h3>
+            <p className="mt-2 text-sm text-slate-400">
+              Move {transferTarget.part_name} to another branch.
+            </p>
+            <label className="mt-4 block text-sm text-slate-300">
+              Destination Branch
+              <select
+                value={transferBranchId}
+                onChange={(event) => setTransferBranchId(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+              >
+                <option value="">Select destination branch</option>
+                {branches
+                  .filter((branch) => String(branch.id) !== String(transferTarget.branch_id))
+                  .map((branch) => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+              </select>
+            </label>
+            {transferMessage ? <p className="mt-4 text-sm text-red-400">{transferMessage}</p> : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setTransferTarget(null)
+                  setTransferBranchId('')
+                  setTransferMessage('')
+                }}
+                className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmTransfer}
+                disabled={transfering}
+                className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {transfering ? 'Transferring...' : 'Confirm Transfer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </main>
+  )
+}
+
+export default Parts
