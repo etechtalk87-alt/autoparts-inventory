@@ -70,6 +70,11 @@ function Login() {
             Sign up
           </Link>
         </p>
+        <p className="mt-2 text-center text-sm text-slate-400">
+          <Link to="/forgot-password" className="font-semibold text-cyan-400 transition hover:text-cyan-300">
+            Forgot password?
+          </Link>
+        </p>
       </form>
     </main>
   )

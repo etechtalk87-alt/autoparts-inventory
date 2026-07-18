@@ -7,11 +7,13 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [session, setSession] = useState(null)
   const [currentStaff, setCurrentStaff] = useState(null)
+  const [needsCompanySetup, setNeedsCompanySetup] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const fetchStaffForUser = async (authUser) => {
     if (!authUser?.id) {
       setCurrentStaff(null)
+      setNeedsCompanySetup(false)
       return
     }
 
@@ -22,11 +24,22 @@ export function AuthProvider({ children }) {
       .maybeSingle()
 
     if (!error) {
-      setCurrentStaff(data)
+      if (data) {
+        setCurrentStaff(data)
+        setNeedsCompanySetup(false)
+      } else {
+        setCurrentStaff(null)
+        setNeedsCompanySetup(true)
+      }
     } else {
       console.error('Error fetching staff record:', error)
       setCurrentStaff(null)
+      setNeedsCompanySetup(false)
     }
+  }
+
+  const refreshStaff = async () => {
+    await fetchStaffForUser(user)
   }
 
   useEffect(() => {
@@ -85,6 +98,7 @@ export function AuthProvider({ children }) {
       setSession(null)
       setUser(null)
       setCurrentStaff(null)
+      setNeedsCompanySetup(false)
     }
 
     setLoading(false)
@@ -96,11 +110,13 @@ export function AuthProvider({ children }) {
       user,
       session,
       currentStaff,
+      needsCompanySetup,
       loading,
       signIn,
       signOut,
+      refreshStaff,
     }),
-    [user, session, currentStaff, loading],
+    [user, session, currentStaff, needsCompanySetup, loading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
