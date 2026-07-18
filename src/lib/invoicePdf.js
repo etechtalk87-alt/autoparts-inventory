@@ -82,6 +82,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'right',
   },
+  paymentStatus: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  balanceDue: {
+    marginTop: 8,
+    fontWeight: 'bold',
+    fontSize: 12,
+    color: '#dc2626',
+  },
   footer: {
     marginTop: 24,
     borderTopWidth: 1,
@@ -153,6 +167,23 @@ function InvoiceDocument({ invoice }) {
       ),
       createElement(
         View,
+        { style: styles.paymentStatus },
+        createElement(
+          View,
+          null,
+          createElement(Text, { style: styles.muted }, 'Payment Status:'),
+          createElement(Text, { style: styles.secondary }, invoice.paymentStatusLabel || 'Unpaid'),
+        ),
+        createElement(
+          View,
+          { style: { textAlign: 'right' } },
+          invoice.balanceDue !== undefined && invoice.balanceDue > 0
+            ? createElement(Text, { style: styles.balanceDue }, `Balance Due: ${invoice.currency} ${invoice.balanceDue}`)
+            : createElement(Text, { style: styles.muted }, `Total: ${invoice.currency} ${invoice.salePrice}`),
+        ),
+      ),
+      createElement(
+        View,
         { style: styles.footer },
         createElement(Text, { style: styles.footerText }, 'Thank you for your business'),
       ),
@@ -203,6 +234,50 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     }
   }
 
+  // Fetch customer name from customers table if customer_id is present
+  let customerName = sale?.customer_name || 'Walk-in Customer'
+  if (sale?.customer_id && supabaseClient) {
+    const { data: customerData } = await supabaseClient
+      .from('customers')
+      .select('full_name')
+      .eq('id', sale.customer_id)
+      .maybeSingle()
+
+    if (customerData?.full_name) {
+      customerName = customerData.full_name
+    }
+  }
+
+  // Calculate payment status label and balance due
+  const salePrice = Number(sale?.sale_price ?? 0)
+  const amountPaid = Number(sale?.amount_paid ?? 0)
+  const paymentStatus = sale?.payment_status || 'unpaid'
+
+  let paymentStatusLabel = 'Unpaid'
+  let balanceDue = salePrice
+
+  switch (paymentStatus) {
+    case 'paid_in_full':
+      paymentStatusLabel = 'Paid in Full'
+      balanceDue = 0
+      break
+    case 'partial':
+      paymentStatusLabel = 'Partial Payment'
+      balanceDue = salePrice - amountPaid
+      break
+    case 'credit':
+      paymentStatusLabel = 'On Credit'
+      balanceDue = salePrice
+      break
+    case 'unpaid':
+      paymentStatusLabel = 'Unpaid'
+      balanceDue = salePrice
+      break
+    default:
+      paymentStatusLabel = 'Unpaid'
+      balanceDue = salePrice
+  }
+
   return {
     companyName: companyData?.name || 'Auto Parts Inventory',
     branchName: branchData?.name || 'Branch',
@@ -213,10 +288,13 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     oemNumber: partData?.oem_number || '—',
     condition: partData?.condition || '—',
     donorVehicle: donorVehicleText,
-    salePrice: Number(sale?.sale_price ?? 0).toFixed(2),
+    salePrice: salePrice.toFixed(2),
     currency: partData?.currency || sale?.currency || 'AED',
-    customerName: sale?.customer_name || 'Walk-in Customer',
+    customerName,
     customerContact: sale?.customer_contact || '—',
+    paymentStatus,
+    paymentStatusLabel,
+    balanceDue: balanceDue.toFixed(2),
   }
 }
 

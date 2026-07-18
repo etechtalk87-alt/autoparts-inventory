@@ -48,6 +48,26 @@ function Parts() {
   const [selling, setSelling] = useState(false)
   const [saleMessage, setSaleMessage] = useState('')
   const [saleInvoice, setSaleInvoice] = useState(null)
+  const [customers, setCustomers] = useState([])
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null)
+  const [selectedCustomerName, setSelectedCustomerName] = useState('')
+  const [paymentStatus, setPaymentStatus] = useState('paid_in_full')
+  const [amountPaid, setAmountPaid] = useState('')
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [filteredCustomers, setFilteredCustomers] = useState([])
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const searchTimerRef = useRef(null)
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
+  const [newCustomerForm, setNewCustomerForm] = useState({
+    full_name: '',
+    phone: '',
+    email: '',
+    address: '',
+    country: '',
+    notes: '',
+  })
+  const [creatingCustomer, setCreatingCustomer] = useState(false)
 
   const canManageBranches = currentStaff?.role === 'company_admin'
 
@@ -156,6 +176,52 @@ function Parts() {
       setDonorVehicles([])
     }
   }, [currentStaff?.branch_id, currentStaff?.role, form.branch_id, canManageBranches])
+
+  // Fetch customers for customer selector
+  useEffect(() => {
+    // Debounced server-backed search: queries customers by name or phone
+    if (!currentStaff?.company_id) {
+      setFilteredCustomers([])
+      return
+    }
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+
+    const query = customerSearch.trim()
+    if (!query) {
+      // show a small set of recent/first customers for quick select
+      searchTimerRef.current = setTimeout(async () => {
+        setSearchLoading(true)
+        const { data, error } = await supabase
+          .from('customers')
+          .select('id, full_name, phone')
+          .eq('company_id', currentStaff.company_id)
+          .order('full_name', { ascending: true })
+          .limit(5)
+
+        if (!error) setFilteredCustomers(data ?? [])
+        setSearchLoading(false)
+      }, 150)
+      return
+    }
+
+    setSearchLoading(true)
+    searchTimerRef.current = setTimeout(async () => {
+      const q = query.replace("%", "\\%")
+      // Use OR filtering for name or phone
+      const filter = `full_name.ilike.%${q}%,phone.ilike.%${q}%`
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, full_name, phone')
+        .eq('company_id', currentStaff.company_id)
+        .or(filter)
+        .order('full_name', { ascending: true })
+        .limit(10)
+
+      if (!error) setFilteredCustomers(data ?? [])
+      setSearchLoading(false)
+    }, 300)
+  }, [customerSearch, currentStaff?.company_id])
 
   const filteredParts = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase()
@@ -371,9 +437,72 @@ function Parts() {
   const openSaleModal = (part) => {
     setSaleTarget(part)
     setSalePrice(part.asking_price || '')
-    setCustomerName('')
-    setCustomerContact('')
+    setSelectedCustomerId(null)
+    setSelectedCustomerName('')
+    setPaymentStatus('paid_in_full')
+    setAmountPaid('')
+    setCustomerSearch('')
+    setShowCustomerDropdown(false)
+    setShowNewCustomerForm(false)
+    setNewCustomerForm({
+      full_name: '',
+      phone: '',
+      email: '',
+      address: '',
+      country: '',
+      notes: '',
+    })
     setSaleMessage('')
+  }
+
+  const handleCreateNewCustomer = async (e) => {
+    e.preventDefault()
+
+    if (!newCustomerForm.full_name.trim()) {
+      setSaleMessage('Please enter customer name.')
+      return
+    }
+
+    setCreatingCustomer(true)
+
+    const { data, error } = await supabase
+      .from('customers')
+      .insert([
+        {
+          company_id: currentStaff.company_id,
+          full_name: newCustomerForm.full_name,
+          phone: newCustomerForm.phone || null,
+          email: newCustomerForm.email || null,
+          address: newCustomerForm.address || null,
+          country: newCustomerForm.country || null,
+          notes: newCustomerForm.notes || null,
+        },
+      ])
+      .select('id, full_name, phone')
+      .single()
+
+    if (error) {
+      setSaleMessage(`Error creating customer: ${error.message}`)
+      setCreatingCustomer(false)
+      return
+    }
+
+    // Add new customer to list
+    setCustomers((prev) => [...prev, data])
+    setSelectedCustomerId(data.id)
+    setSelectedCustomerName(data.full_name || '')
+    setShowNewCustomerForm(false)
+    setNewCustomerForm({
+      full_name: '',
+      phone: '',
+      email: '',
+      address: '',
+      country: '',
+      notes: '',
+    })
+    setCustomerSearch('')
+    setSaleMessage('')
+    setCreatingCustomer(false)
   }
 
   const confirmTransfer = async () => {
@@ -430,6 +559,25 @@ function Parts() {
       return
     }
 
+    if (!selectedCustomerId) {
+      setSaleMessage('Please select or create a customer.')
+      return
+    }
+
+    // Validate amount_paid
+    let finalAmountPaid = 0
+    if (paymentStatus === 'paid_in_full') {
+      finalAmountPaid = Number(salePrice)
+    } else if (paymentStatus === 'partial') {
+      finalAmountPaid = Number(amountPaid || 0)
+      if (finalAmountPaid <= 0 || finalAmountPaid >= Number(salePrice)) {
+        setSaleMessage('Partial payment must be greater than 0 and less than sale price.')
+        return
+      }
+    } else if (paymentStatus === 'credit') {
+      finalAmountPaid = 0
+    }
+
     setSelling(true)
     setSaleMessage('')
 
@@ -458,6 +606,8 @@ function Parts() {
       }
     }
 
+    const dbPaymentStatus = paymentStatus === 'paid_in_full' ? 'paid' : paymentStatus
+
     const { data: saleData, error: saleInsertError } = await supabase.from('sales').insert([
       {
         company_id: currentStaff.company_id,
@@ -465,11 +615,14 @@ function Parts() {
         part_id: saleTarget.id,
         sold_by: currentStaff.id,
         sale_price: Number(salePrice),
-        customer_name: customerName || null,
-        customer_contact: customerContact || null,
+        customer_id: selectedCustomerId,
+        customer_name: null,
+        customer_contact: null,
+        payment_status: dbPaymentStatus,
+        amount_paid: finalAmountPaid,
         invoice_number: generatedInvoiceNumber,
       },
-    ]).select('id, invoice_number, created_at, customer_name, customer_contact, sale_price, branch_id, part_id').single()
+    ]).select('id, invoice_number, created_at, sale_price, amount_paid, payment_status, branch_id, part_id, customer_id').single()
 
     if (saleInsertError) {
       setSaleMessage(saleInsertError.message)
@@ -490,8 +643,11 @@ function Parts() {
 
     setParts((prev) => prev.map((part) => (part.id === saleTarget.id ? { ...part, status: 'sold', date_sold: new Date().toISOString() } : part)))
     setSalePrice('')
-    setCustomerName('')
-    setCustomerContact('')
+    setSelectedCustomerId(null)
+    setSelectedCustomerName('')
+    setPaymentStatus('paid_in_full')
+    setAmountPaid('')
+    setCustomerSearch('')
     setSaleInvoice(saleData)
     setSaleMessage('Part marked as sold. You can download the invoice below.')
     setSelling(false)
@@ -501,9 +657,9 @@ function Parts() {
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-          <h1 className="text-3xl font-semibold">Parts Inventory</h1>
+          <h1 className="text-3xl font-semibold">Spare Parts Inventory</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Track parts by company and branch, and link them to donor vehicles.
+            Track spare parts by company and branch, and link them to donor vehicles.
           </p>
         </div>
 
@@ -821,80 +977,299 @@ function Parts() {
 
       {saleTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
             <h3 className="text-xl font-semibold">Mark Part as Sold</h3>
             <p className="mt-2 text-sm text-slate-400">
               Record the sale for {saleTarget.part_name}.
             </p>
-            <label className="mt-4 block text-sm text-slate-300">
-              Sale Price
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={salePrice}
-                onChange={(event) => setSalePrice(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              />
-            </label>
-            <label className="mt-4 block text-sm text-slate-300">
-              Customer Name (optional)
-              <input
-                type="text"
-                value={customerName}
-                onChange={(event) => setCustomerName(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              />
-            </label>
-            <label className="mt-4 block text-sm text-slate-300">
-              Customer Contact (optional)
-              <input
-                type="text"
-                value={customerContact}
-                onChange={(event) => setCustomerContact(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              />
-            </label>
+
+            {!saleInvoice ? (
+              <>
+                {/* Sale Price */}
+                <label className="mt-4 block text-sm text-slate-300">
+                  Sale Price *
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={salePrice}
+                    onChange={(event) => setSalePrice(event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  />
+                </label>
+
+                {/* Customer Selector */}
+                <label className="mt-4 block text-sm text-slate-300">
+                  Customer *
+                  <div className="relative mt-1">
+                    <input
+                      type="text"
+                      value={selectedCustomerId ? selectedCustomerName : customerSearch}
+                      onChange={(event) => {
+                        setCustomerSearch(event.target.value)
+                        setSelectedCustomerId(null)
+                        setSelectedCustomerName('')
+                        setShowCustomerDropdown(true)
+                      }}
+                      onFocus={() => setShowCustomerDropdown(true)}
+                      placeholder="Search customer by name or phone..."
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    />
+                    {showCustomerDropdown && (
+                      <div className="absolute top-full mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 shadow-lg z-10">
+                        {filteredCustomers.length > 0 && (
+                          <div>
+                            {filteredCustomers.map((customer) => (
+                              <button
+                                key={customer.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCustomerId(customer.id)
+                                  setSelectedCustomerName(customer.full_name || '')
+                                  setCustomerSearch('')
+                                  setShowCustomerDropdown(false)
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-slate-800 border-b border-slate-800 last:border-b-0"
+                              >
+                                <div className="font-medium text-white">{customer.full_name}</div>
+                                {customer.phone && <div className="text-xs text-slate-400">{customer.phone}</div>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {filteredCustomers.length === 0 && customerSearch.trim() ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowNewCustomerForm(true)
+                              setShowCustomerDropdown(false)
+                              setNewCustomerForm((prev) => ({ ...prev, full_name: customerSearch }))
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-cyan-400 hover:bg-slate-800 border-t border-slate-700 font-medium"
+                          >
+                            + Add '{customerSearch}' as new customer
+                          </button>
+                        ) : customers.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowNewCustomerForm(true)
+                              setShowCustomerDropdown(false)
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-cyan-400 hover:bg-slate-800 border-t border-slate-700 font-medium"
+                          >
+                            + Add new customer
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </label>
+
+                {/* Inline New Customer Form */}
+                {showNewCustomerForm && (
+                  <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950/50 p-4">
+                    <h4 className="font-semibold text-white mb-3">Add New Customer</h4>
+                    <label className="block text-sm text-slate-300 mb-3">
+                      Full Name *
+                      <input
+                        type="text"
+                        value={newCustomerForm.full_name}
+                        onChange={(e) => setNewCustomerForm({ ...newCustomerForm, full_name: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                      />
+                    </label>
+                    <label className="block text-sm text-slate-300 mb-3">
+                      Phone
+                      <input
+                        type="tel"
+                        value={newCustomerForm.phone}
+                        onChange={(e) => setNewCustomerForm({ ...newCustomerForm, phone: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                      />
+                    </label>
+                    <label className="block text-sm text-slate-300 mb-3">
+                      Email
+                      <input
+                        type="email"
+                        value={newCustomerForm.email}
+                        onChange={(e) => setNewCustomerForm({ ...newCustomerForm, email: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                      />
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowNewCustomerForm(false)}
+                        className="flex-1 rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-600"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateNewCustomer}
+                        disabled={creatingCustomer}
+                        className="flex-1 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+                      >
+                        {creatingCustomer ? 'Creating...' : 'Create Customer'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Status */}
+                <fieldset className="mt-4">
+                  <legend className="text-sm font-medium text-slate-300">Payment Status *</legend>
+                  {!selectedCustomerId ? (
+                    <p className="mt-2 text-sm text-slate-400">Select or create a customer to enable payment options.</p>
+                  ) : null}
+                  <div className="mt-2 space-y-2">
+                    <label className={`flex items-center gap-3 ${!selectedCustomerId ? 'opacity-60' : ''}`}>
+                      <input
+                        type="radio"
+                        name="paymentStatus"
+                        value="paid_in_full"
+                        checked={paymentStatus === 'paid_in_full'}
+                        onChange={(e) => {
+                          setPaymentStatus(e.target.value)
+                          setAmountPaid('')
+                        }}
+                        className="h-4 w-4"
+                        disabled={!selectedCustomerId}
+                      />
+                      <span className="text-sm text-slate-300">Paid in Full</span>
+                    </label>
+                    <label className={`flex items-center gap-3 ${!selectedCustomerId ? 'opacity-60' : ''}`}>
+                      <input
+                        type="radio"
+                        name="paymentStatus"
+                        value="partial"
+                        checked={paymentStatus === 'partial'}
+                        onChange={(e) => setPaymentStatus(e.target.value)}
+                        className="h-4 w-4"
+                        disabled={!selectedCustomerId}
+                      />
+                      <span className="text-sm text-slate-300">Partial Payment</span>
+                    </label>
+                    <label className={`flex items-center gap-3 ${!selectedCustomerId ? 'opacity-60' : ''}`}>
+                      <input
+                        type="radio"
+                        name="paymentStatus"
+                        value="credit"
+                        checked={paymentStatus === 'credit'}
+                        onChange={(e) => {
+                          setPaymentStatus(e.target.value)
+                          setAmountPaid('')
+                        }}
+                        className="h-4 w-4"
+                        disabled={!selectedCustomerId}
+                      />
+                      <span className="text-sm text-slate-300">Full Credit</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                {/* Amount Paid (only for partial) */}
+                {paymentStatus === 'partial' && (
+                  <label className="mt-4 block text-sm text-slate-300">
+                    Amount Paid *
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={amountPaid}
+                      onChange={(event) => setAmountPaid(event.target.value)}
+                      placeholder={`Less than ${Number(salePrice).toFixed(2)}`}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    />
+                  </label>
+                )}
+              </>
+            ) : null}
+
             {saleMessage ? <p className={`mt-4 text-sm ${saleMessage.includes('Part marked as sold') ? 'text-emerald-400' : 'text-red-400'}`}>{saleMessage}</p> : null}
             {saleInvoice ? (
-              <button
-                type="button"
-                onClick={() => downloadInvoicePdf({
-                  supabaseClient: supabase,
-                  companyId: currentStaff.company_id,
-                  branchId: saleInvoice.branch_id,
-                  partId: saleInvoice.part_id,
-                  sale: saleInvoice,
-                })}
-                className="mt-4 rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
-              >
-                Download Invoice
-              </button>
-            ) : null}
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setSaleTarget(null)
-                  setSalePrice('')
-                  setCustomerName('')
-                  setCustomerContact('')
-                  setSaleInvoice(null)
-                  setSaleMessage('')
-                }}
-                className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmSale}
-                disabled={selling}
-                className="rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {selling ? 'Saving...' : 'Confirm Sale'}
-              </button>
-            </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => downloadInvoicePdf({
+                    supabaseClient: supabase,
+                    companyId: currentStaff.company_id,
+                    branchId: saleInvoice.branch_id,
+                    partId: saleInvoice.part_id,
+                    sale: saleInvoice,
+                  })}
+                  className="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
+                >
+                  Download Invoice
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSaleTarget(null)
+                    setSalePrice('')
+                    setSelectedCustomerId(null)
+                    setSelectedCustomerName('')
+                    setPaymentStatus('paid_in_full')
+                    setAmountPaid('')
+                    setCustomerSearch('')
+                    setShowCustomerDropdown(false)
+                    setShowNewCustomerForm(false)
+                    setNewCustomerForm({
+                      full_name: '',
+                      phone: '',
+                      email: '',
+                      address: '',
+                      country: '',
+                      notes: '',
+                    })
+                    setSaleInvoice(null)
+                    setSaleMessage('')
+                  }}
+                  className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSaleTarget(null)
+                    setSalePrice('')
+                    setSelectedCustomerId(null)
+                    setSelectedCustomerName('')
+                    setPaymentStatus('paid_in_full')
+                    setAmountPaid('')
+                    setCustomerSearch('')
+                    setShowCustomerDropdown(false)
+                    setShowNewCustomerForm(false)
+                    setNewCustomerForm({
+                      full_name: '',
+                      phone: '',
+                      email: '',
+                      address: '',
+                      country: '',
+                      notes: '',
+                    })
+                    setSaleInvoice(null)
+                    setSaleMessage('')
+                  }}
+                  className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmSale}
+                  disabled={selling}
+                  className="rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {selling ? 'Saving...' : 'Confirm Sale'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ) : null}

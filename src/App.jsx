@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Branches from './pages/Branches'
+import Customers from './pages/Customers'
 import DonorVehicles from './pages/DonorVehicles'
 import Parts from './pages/Parts'
 import PartsImport from './pages/PartsImport'
@@ -61,6 +62,10 @@ function App() {
           <Route
             path="/branches"
             element={currentStaff?.role === 'company_admin' ? <Branches /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/customers"
+            element={currentStaff?.role === 'company_admin' ? <Customers /> : <Navigate to="/" replace />}
           />
           <Route path="/donor-vehicles" element={<DonorVehicles />} />
           <Route path="/parts" element={<Parts />} />

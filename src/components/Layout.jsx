@@ -12,8 +12,9 @@ function Layout({ children }) {
   const navLinks = [
     { to: '/', label: 'Dashboard' },
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/branches', label: 'Branches' }] : []),
+    ...(currentStaff?.role === 'company_admin' ? [{ to: '/customers', label: 'Customers' }] : []),
     { to: '/donor-vehicles', label: 'Donor Vehicles' },
-    { to: '/parts', label: 'Parts' },
+    { to: '/parts', label: 'Spare Parts' },
     { to: '/parts/import', label: 'Import Parts' },
     { to: '/transfers', label: 'Transfers' },
     { to: '/sales', label: 'Sales' },

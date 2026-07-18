@@ -4,6 +4,18 @@ import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { logAuditEvent } from '../lib/auditLog'
 
+function formatCurrency(value, currency = 'AED') {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return '—'
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 2,
+  }).format(Number(value))
+}
+
 function DonorVehicles() {
   const { currentStaff, loading } = useAuth()
   const [vehicles, setVehicles] = useState([])
@@ -11,7 +23,7 @@ function DonorVehicles() {
   const [loadingVehicles, setLoadingVehicles] = useState(true)
   const [loadingBranches, setLoadingBranches] = useState(true)
   const [branchFilter, setBranchFilter] = useState('all')
-  const [form, setForm] = useState({ make: '', model: '', year: '', vin: '', notes: '' })
+  const [form, setForm] = useState({ make: '', model: '', year: '', vin: '', notes: '', purchase_price: '', purchase_currency: 'AED' })
   const [submitting, setSubmitting] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -57,7 +69,7 @@ function DonorVehicles() {
     setLoadingVehicles(true)
     let query = supabase
       .from('donor_vehicles')
-      .select('id, make, model, year, vin, notes, company_id, branch_id, branches(name)')
+      .select('id, make, model, year, vin, notes, purchase_price, purchase_currency, company_id, branch_id, branches(name)')
       .eq('company_id', currentStaff.company_id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
@@ -188,6 +200,8 @@ function DonorVehicles() {
       year: Number(form.year),
       vin: form.vin.trim() || null,
       notes: form.notes.trim() || null,
+      purchase_price: form.purchase_price !== '' ? Number(form.purchase_price) : null,
+      purchase_currency: form.purchase_price !== '' ? form.purchase_currency || 'AED' : null,
       company_id: currentStaff.company_id,
       branch_id: currentStaff.role === 'branch_staff' ? currentStaff.branch_id : form.branch_id || null,
     }
@@ -235,7 +249,16 @@ function DonorVehicles() {
 
   const startEditVehicle = (vehicle) => {
     setEditingId(vehicle.id)
-    setForm({ make: vehicle.make || '', model: vehicle.model || '', year: vehicle.year ? String(vehicle.year) : '', vin: vehicle.vin || '', notes: vehicle.notes || '', branch_id: vehicle.branch_id || '' })
+    setForm({
+      make: vehicle.make || '',
+      model: vehicle.model || '',
+      year: vehicle.year ? String(vehicle.year) : '',
+      vin: vehicle.vin || '',
+      notes: vehicle.notes || '',
+      purchase_price: vehicle.purchase_price != null ? String(vehicle.purchase_price) : '',
+      purchase_currency: vehicle.purchase_currency || 'AED',
+      branch_id: vehicle.branch_id || '',
+    })
     setErrorMessage('')
     setSuccessMessage('')
     setShowAddModal(true)
@@ -390,6 +413,7 @@ function DonorVehicles() {
                     <th className="px-6 py-3 font-medium">Model</th>
                     <th className="px-6 py-3 font-medium">Year</th>
                     <th className="px-6 py-3 font-medium">VIN</th>
+                    <th className="px-6 py-3 font-medium">Purchase Price</th>
                     <th className="px-6 py-3 font-medium">Branch</th>
                     <th className="px-6 py-3 font-medium">Notes</th>
                     <th className="px-6 py-3 font-medium">Actions</th>
@@ -402,6 +426,7 @@ function DonorVehicles() {
                       <td className="px-6 py-4">{vehicle.model}</td>
                       <td className="px-6 py-4">{vehicle.year}</td>
                       <td className="px-6 py-4">{vehicle.vin ?? '—'}</td>
+                      <td className="px-6 py-4">{vehicle.purchase_price != null ? formatCurrency(vehicle.purchase_price, vehicle.purchase_currency || 'AED') : '—'}</td>
                       <td className="px-6 py-4">{vehicle.branches?.name ?? '—'}</td>
                       <td className="px-6 py-4">{vehicle.notes ?? '—'}</td>
                       <td className="px-6 py-4">
@@ -507,6 +532,29 @@ function DonorVehicles() {
                   </select>
                 </label>
               ) : null}
+              <label className="text-sm text-slate-300">
+                Purchase Price
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.purchase_price}
+                  onChange={(event) => setForm((prev) => ({ ...prev, purchase_price: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  placeholder="5000.00"
+                />
+              </label>
+              <label className="text-sm text-slate-300">
+                Currency
+                <select
+                  value={form.purchase_currency}
+                  onChange={(event) => setForm((prev) => ({ ...prev, purchase_currency: event.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                >
+                  <option value="AED">AED</option>
+                  <option value="USD">USD</option>
+                </select>
+              </label>
               <label className="text-sm text-slate-300 md:col-span-2 xl:col-span-1">
                 Notes
                 <textarea
@@ -527,7 +575,7 @@ function DonorVehicles() {
                       setErrorMessage('')
                       setSuccessMessage('')
                       setEditingId(null)
-                      setForm({ make: '', model: '', year: '', vin: '', notes: '' })
+                      setForm({ make: '', model: '', year: '', vin: '', notes: '', purchase_price: '', purchase_currency: 'AED' })
                     }}
                     className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                   >

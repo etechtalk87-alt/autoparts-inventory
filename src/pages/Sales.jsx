@@ -4,6 +4,36 @@ import { useAuth } from '../lib/AuthContext'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
 import { supabase } from '../lib/supabaseClient'
 
+function getPaymentStatusColor(status) {
+  switch (status) {
+    case 'paid_in_full':
+      return 'bg-emerald-500/20 text-emerald-300'
+    case 'partial':
+      return 'bg-amber-500/20 text-amber-300'
+    case 'credit':
+      return 'bg-red-500/20 text-red-300'
+    case 'unpaid':
+      return 'bg-slate-500/20 text-slate-300'
+    default:
+      return 'bg-slate-500/20 text-slate-300'
+  }
+}
+
+function getPaymentStatusLabel(status) {
+  switch (status) {
+    case 'paid_in_full':
+      return 'Paid in Full'
+    case 'partial':
+      return 'Partial'
+    case 'credit':
+      return 'Credit'
+    case 'unpaid':
+      return 'Unpaid'
+    default:
+      return status
+  }
+}
+
 function Sales() {
   const { currentStaff, loading } = useAuth()
   const [sales, setSales] = useState([])
@@ -54,6 +84,9 @@ function Sales() {
         .select(`
           id,
           sale_price,
+          amount_paid,
+          payment_status,
+          customer_id,
           customer_name,
           customer_contact,
           created_at,
@@ -64,6 +97,7 @@ function Sales() {
           invoice_number,
           parts:part_id ( part_name, currency, oem_number, condition, donor_vehicle_id ),
           branches:branch_id ( name, location ),
+          customers:customer_id ( full_name ),
           sold_by_staff:sold_by ( id )
         `)
         .eq('company_id', currentStaff.company_id)
@@ -171,6 +205,7 @@ function Sales() {
                     <th className="px-6 py-3 font-medium">Branch</th>
                     <th className="px-6 py-3 font-medium">Sale Price</th>
                     <th className="px-6 py-3 font-medium">Customer</th>
+                    <th className="px-6 py-3 font-medium">Payment Status</th>
                     <th className="px-6 py-3 font-medium">Date</th>
                     <th className="px-6 py-3 font-medium">Sold By</th>
                     <th className="px-6 py-3 font-medium">Invoice</th>
@@ -182,7 +217,12 @@ function Sales() {
                       <td className="px-6 py-4">{sale.parts?.part_name ?? '—'}</td>
                       <td className="px-6 py-4">{sale.branches?.name ?? '—'}</td>
                       <td className="px-6 py-4">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
-                      <td className="px-6 py-4">{sale.customer_name || '—'}</td>
+                      <td className="px-6 py-4">{sale.customers?.full_name || sale.customer_name || '—'}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
+                          {getPaymentStatusLabel(sale.payment_status)}
+                        </span>
+                      </td>
                       <td className="px-6 py-4">{new Date(sale.created_at).toLocaleDateString()}</td>
                       <td className="px-6 py-4">{sale.sold_by_staff?.id ?? '—'}</td>
                       <td className="px-6 py-4">

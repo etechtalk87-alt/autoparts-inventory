@@ -307,7 +307,7 @@ function PartsImport() {
                 Download Template
               </button>
               <Link to="/parts" className="rounded-lg border border-slate-700 px-4 py-2 font-semibold text-slate-200 transition hover:bg-slate-800">
-                Back to Parts
+                Back to Spare Parts
               </Link>
             </div>
           </div>
