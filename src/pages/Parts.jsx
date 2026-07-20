@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { isAgingStock } from '../lib/aging'
 import { downloadInvoicePdf, createInvoiceNumber } from '../lib/invoicePdf'
@@ -16,7 +16,8 @@ function Parts() {
   const [loadingVehicles, setLoadingVehicles] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
-  const [showAgingOnly, setShowAgingOnly] = useState(false)
+  const [searchParams] = useSearchParams()
+  const [showAgingOnly, setShowAgingOnly] = useState(() => searchParams.get('aging') === 'true')
   const currencyOptions = ['AED', 'USD']
 
   const [form, setForm] = useState({
@@ -309,24 +310,38 @@ function Parts() {
         .update(payload)
         .eq('id', editingId)
         .select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id')
-        .single()
 
       if (error) {
         setErrorMessage(error.message)
+      } else if (!data || data.length === 0) {
+        setErrorMessage('Update failed - you may not have permission to modify this record.')
       } else {
+        const dataRow = data[0]
         if (snapshot && snapshot.donor_vehicle_id && payload.donor_vehicle_id !== snapshot.donor_vehicle_id) {
           await logAuditEvent({
             tableName: 'parts',
             recordId: editingId,
-            action: 'unlink_foreign_key',
+            action: 'update',
             performedBy: currentStaff.id,
             companyId: currentStaff.company_id,
-            snapshot,
+            snapshot: snapshot,
           })
         }
 
-        setParts((prev) => prev.map((p) => (p.id === data.id ? data : p)))
+        setParts((prev) => prev.map((p) => (p.id === dataRow.id ? dataRow : p)))
         setEditingId(null)
+        setForm({
+          part_name: '',
+          oem_number: '',
+          category: '',
+          condition: 'excellent',
+          cost: '',
+          asking_price: '',
+          currency: 'AED',
+          donor_vehicle_id: '',
+          branch_id: currentStaff.role === 'branch_staff' ? currentStaff.branch_id : '',
+          status: 'in_stock',
+        })
         setShowAddModal(false)
         setSuccessMessage('Part updated successfully.')
         requestAnimationFrame(() => listRef.current?.focus())
@@ -402,9 +417,15 @@ function Parts() {
       return
     }
 
-    const { error } = await supabase.from('parts').delete().eq('id', part.id)
+    const { data, error } = await supabase.from('parts').delete().eq('id', part.id).select('id')
     if (error) {
-      setErrorMessage(error.message)
+      if (error.code === '23503') {
+        setErrorMessage('This part cannot be deleted because it has sales history. Parts with existing sales records are protected to preserve invoice accuracy.')
+      } else {
+        setErrorMessage(error.message)
+      }
+    } else if (!data || data.length === 0) {
+      setErrorMessage('Update failed - you may not have permission to modify this record.')
     } else {
       if (existingPart) {
         await logAuditEvent({
@@ -530,13 +551,18 @@ function Parts() {
       return
     }
 
-    const { error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await supabase
       .from('parts')
       .update({ branch_id: transferBranchId })
       .eq('id', transferTarget.id)
+      .select('id')
 
     if (updateError) {
       setTransferMessage(updateError.message)
+      setTransfering(false)
+      return
+    } else if (!updateData || updateData.length === 0) {
+      setTransferMessage('Update failed - you may not have permission to modify this record.')
       setTransfering(false)
       return
     }
@@ -630,13 +656,36 @@ function Parts() {
       return
     }
 
-    const { error: updateError } = await supabase
+    if (finalAmountPaid > 0) {
+      const { error: paymentInsertError } = await supabase.from('payments').insert([{
+        company_id: currentStaff.company_id,
+        customer_id: selectedCustomerId,
+        sale_id: saleData.id,
+        amount: finalAmountPaid,
+        currency: saleTarget.currency || 'AED',
+        payment_method: 'initial_payment',
+        notes: 'Upfront payment at time of sale',
+        recorded_by: currentStaff.id,
+        payment_date: new Date().toISOString().split('T')[0]
+      }])
+
+      if (paymentInsertError) {
+        console.error('Failed to record initial payment:', paymentInsertError)
+      }
+    }
+
+    const { data: updateData, error: updateError } = await supabase
       .from('parts')
       .update({ status: 'sold', date_sold: new Date().toISOString() })
       .eq('id', saleTarget.id)
+      .select('id')
 
     if (updateError) {
       setSaleMessage(updateError.message)
+      setSelling(false)
+      return
+    } else if (!updateData || updateData.length === 0) {
+      setSaleMessage('Update failed - you may not have permission to modify this record.')
       setSelling(false)
       return
     }

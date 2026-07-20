@@ -157,13 +157,28 @@ function InvoiceDocument({ invoice }) {
           createElement(Text, { style: styles.col2 }, 'Details'),
           createElement(Text, { style: styles.col3 }, 'Amount'),
         ),
-        createElement(
-          View,
-          { style: styles.tableRow },
-          createElement(Text, { style: styles.col1 }, invoice.partName),
-          createElement(Text, { style: styles.col2 }, detailLine.join(' • ')),
-          createElement(Text, { style: styles.col3 }, `${invoice.currency} ${invoice.salePrice}`),
-        ),
+        ...(invoice.items || [
+          {
+            partName: invoice.partName,
+            oemNumber: invoice.oemNumber,
+            condition: invoice.condition,
+            donorVehicle: invoice.donorVehicle,
+            salePrice: invoice.salePrice,
+          },
+        ]).map((item, index) => {
+          const lineDetails = [
+            item.oemNumber ? `OEM: ${item.oemNumber}` : null,
+            item.condition ? `Condition: ${item.condition}` : null,
+            item.donorVehicle ? `Vehicle: ${item.donorVehicle}` : null,
+          ].filter(Boolean)
+          return createElement(
+            View,
+            { key: `${item.partName}-${index}`, style: styles.tableRow },
+            createElement(Text, { style: styles.col1 }, item.partName),
+            createElement(Text, { style: styles.col2 }, lineDetails.join(' • ')),
+            createElement(Text, { style: styles.col3 }, `${invoice.currency} ${item.salePrice}`),
+          )
+        }),
       ),
       createElement(
         View,
@@ -204,6 +219,80 @@ export function createInvoiceNumber(branchName, sequenceNumber) {
 }
 
 export async function fetchInvoicePayload({ supabaseClient, companyId, branchId, partId, sale }) {
+  const isInvoice = Boolean(sale?.invoice_id)
+  let invoiceData = null
+  let invoiceSales = []
+
+  if (isInvoice && supabaseClient) {
+    const invoicePromise = supabaseClient
+      .from('invoices')
+      .select('invoice_number, payment_status, amount_paid, currency, total_amount, created_at')
+      .eq('id', sale.invoice_id)
+      .maybeSingle()
+
+    const salesPromise = supabaseClient
+      .from('sales')
+      .select('id, sale_price, amount_paid, payment_status, created_at, part_id, customer_id, invoice_number, branch_id, company_id, parts:part_id ( part_name, oem_number, condition, currency, donor_vehicle_id ), customers:customer_id ( full_name )')
+      .eq('invoice_id', sale.invoice_id)
+
+    const [{ data: invoiceRow, error: invoiceRowError }, { data: salesRows, error: salesRowsError }] = await Promise.all([invoicePromise, salesPromise])
+
+    if (!invoiceRowError && !salesRowsError && Array.isArray(salesRows) && salesRows.length > 0) {
+      invoiceData = { invoiceRow, salesRows }
+    }
+  }
+
+  if (invoiceData) {
+    const { invoiceRow, salesRows } = invoiceData
+    const firstSale = salesRows[0]
+    const companyPromise = companyId && supabaseClient
+      ? supabaseClient.from('companies').select('name').eq('id', companyId).maybeSingle()
+      : Promise.resolve({ data: null })
+
+    const branchPromise = branchId && supabaseClient
+      ? supabaseClient.from('branches').select('name, location').eq('id', branchId).maybeSingle()
+      : Promise.resolve({ data: null })
+
+    const [companyResult, branchResult] = await Promise.all([companyPromise, branchPromise])
+    const companyData = !companyResult?.error ? companyResult?.data : null
+    const branchData = !branchResult?.error ? branchResult?.data : null
+
+    const items = salesRows.map((saleRow) => ({
+      partName: saleRow.parts?.part_name || 'Part',
+      oemNumber: saleRow.parts?.oem_number || '—',
+      condition: saleRow.parts?.condition || '—',
+      donorVehicle: saleRow.parts?.donor_vehicle_id ? `Part ID: ${saleRow.part_id}` : '—',
+      salePrice: Number(saleRow.sale_price || 0).toFixed(2),
+      currency: saleRow.parts?.currency || invoiceRow?.currency || 'AED',
+    }))
+
+    const itemCurrency = invoiceRow?.currency || items[0]?.currency || 'AED'
+    const customerName = firstSale.customers?.full_name || sale.customer_name || 'Walk-in Customer'
+
+    return {
+      companyName: companyData?.name || 'Auto Parts Inventory',
+      branchName: branchData?.name || 'Branch',
+      branchLocation: branchData?.location || '—',
+      invoiceNumber: invoiceRow?.invoice_number || firstSale.invoice_number || createInvoiceNumber(branchData?.name || 'Branch', firstSale.id || 1),
+      saleDate: invoiceRow?.created_at ? new Date(invoiceRow.created_at).toLocaleDateString() : new Date(firstSale.created_at).toLocaleDateString(),
+      items,
+      totalAmount: Number(invoiceRow?.total_amount ?? items.reduce((sum, item) => sum + Number(item.salePrice || 0), 0)).toFixed(2),
+      currency: itemCurrency,
+      customerName,
+      customerContact: sale.customer_contact || '—',
+      paymentStatus: invoiceRow?.payment_status || 'unpaid',
+      paymentStatusLabel:
+        invoiceRow?.payment_status === 'paid' || invoiceRow?.payment_status === 'paid_in_full'
+          ? 'Paid in Full'
+          : invoiceRow?.payment_status === 'partial'
+          ? 'Partial Payment'
+          : invoiceRow?.payment_status === 'credit'
+          ? 'On Credit'
+          : 'Unpaid',
+      balanceDue: (Number(invoiceRow?.total_amount ?? 0) - Number(invoiceRow?.amount_paid ?? 0)).toFixed(2),
+    }
+  }
+
   const companyPromise = companyId && supabaseClient
     ? supabaseClient.from('companies').select('name').eq('id', companyId).maybeSingle()
     : Promise.resolve({ data: null })
@@ -257,6 +346,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
   let balanceDue = salePrice
 
   switch (paymentStatus) {
+    case 'paid':
     case 'paid_in_full':
       paymentStatusLabel = 'Paid in Full'
       balanceDue = 0

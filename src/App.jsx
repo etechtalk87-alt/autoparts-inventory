@@ -9,6 +9,7 @@ import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Branches from './pages/Branches'
 import Customers from './pages/Customers'
+import CreateInvoice from './pages/CreateInvoice'
 import DonorVehicles from './pages/DonorVehicles'
 import Parts from './pages/Parts'
 import PartsImport from './pages/PartsImport'
@@ -77,6 +78,7 @@ function App() {
                 path="/customers"
                 element={currentStaff?.role === 'company_admin' ? <Customers /> : <Navigate to="/" replace />}
               />
+              <Route path="/invoices/new" element={<CreateInvoice />} />
               <Route path="/donor-vehicles" element={<DonorVehicles />} />
               <Route path="/parts" element={<Parts />} />
               <Route path="/parts/import" element={currentStaff?.role === 'company_admin' || currentStaff?.role === 'branch_staff' ? <PartsImport /> : <Navigate to="/parts" replace />} />

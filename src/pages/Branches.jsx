@@ -104,9 +104,11 @@ function Branches() {
     const ok = window.confirm(`Are you sure you want to delete ${branch.name}? This cannot be undone.`)
     if (!ok) return
 
-    const { error } = await supabase.from('branches').delete().eq('id', branch.id)
+    const { data, error } = await supabase.from('branches').delete().eq('id', branch.id).select()
     if (error) {
       setErrorMessage(error.message)
+    } else if (!data || data.length === 0) {
+      setErrorMessage('Update failed - you may not have permission to modify this record.')
     } else {
       setBranches((prev) => prev.filter((b) => b.id !== branch.id))
       setSuccessMessage('Branch deleted.')
@@ -136,12 +138,13 @@ function Branches() {
       })
       .eq('id', editingId)
       .select('id, name, location, company_id')
-      .single()
 
     if (error) {
       setErrorMessage(error.message)
+    } else if (!data || data.length === 0) {
+      setErrorMessage('Update failed - you may not have permission to modify this record.')
     } else {
-      setBranches((prev) => prev.map((branch) => (branch.id === data.id ? data : branch)))
+      setBranches((prev) => prev.map((branch) => (branch.id === data[0].id ? data[0] : branch)))
       setEditingId(null)
       setEditForm({ name: '', location: '' })
       setSuccessMessage('Branch updated successfully.')

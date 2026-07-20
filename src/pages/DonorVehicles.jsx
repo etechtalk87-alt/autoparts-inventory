@@ -214,12 +214,13 @@ function DonorVehicles() {
         .update(payload)
         .eq('id', editingId)
         .select('id, make, model, year, vin, notes, company_id, branch_id, branches(name)')
-        .single()
 
       if (error) {
         setErrorMessage(error.message)
+      } else if (!data || data.length === 0) {
+        setErrorMessage('Update failed - you may not have permission to modify this record.')
       } else {
-        setVehicles((prev) => prev.map((v) => (v.id === data.id ? data : v)))
+        setVehicles((prev) => prev.map((v) => (v.id === data[0].id ? data[0] : v)))
         setEditingId(null)
         setForm({ make: '', model: '', year: '', vin: '', notes: '' })
         setShowAddModal(false)

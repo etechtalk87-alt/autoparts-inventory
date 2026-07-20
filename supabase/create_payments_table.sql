@@ -5,6 +5,9 @@ CREATE TABLE IF NOT EXISTS payments (
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   sale_id UUID REFERENCES sales(id) ON DELETE SET NULL,
   amount NUMERIC(12, 2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'AED' CHECK (currency IN ('AED', 'USD')),
+  payment_method TEXT NOT NULL DEFAULT 'cash',
+  recorded_by UUID REFERENCES staff(id) ON DELETE SET NULL,
   payment_date DATE NOT NULL,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -14,6 +17,7 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS idx_payments_company_id ON payments(company_id);
 CREATE INDEX IF NOT EXISTS idx_payments_customer_id ON payments(customer_id);
 CREATE INDEX IF NOT EXISTS idx_payments_sale_id ON payments(sale_id);
+CREATE INDEX IF NOT EXISTS idx_payments_recorded_by ON payments(recorded_by);
 
 -- Enable RLS
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;

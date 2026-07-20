@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
 import { supabase } from '../lib/supabaseClient'
@@ -158,16 +158,18 @@ function Sales() {
         <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30">
           <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-4 md:flex-row md:items-center md:justify-between">
             <h2 className="text-xl font-semibold">Sales Records</h2>
-            <div className="flex flex-col gap-3 md:flex-row">
-              <label className="text-sm text-slate-300">
-                From
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="flex flex-col gap-3 md:flex-row">
+                <label className="text-sm text-slate-300">
+                  From
+                </label>
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(event) => setDateFrom(event.target.value)}
                   className="ml-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
                 />
-              </label>
+              </div>
               <label className="text-sm text-slate-300">
                 To
                 <input
@@ -190,6 +192,12 @@ function Sales() {
                 </select>
               ) : null}
             </div>
+            <Link
+              to="/invoices/new"
+              className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+            >
+              Create Invoice
+            </Link>
           </div>
 
           {loadingSales ? (

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
 import { DollarSign, TrendingUp, Car, Package, Receipt, Users, AlertCircle } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
-import { isAgingStock } from '../lib/aging'
 import { supabase } from '../lib/supabaseClient'
 
 function formatCurrency(value, currency = 'AED') {
@@ -34,94 +33,166 @@ function formatTrendLabel(period, date) {
   if (period === 'daily') {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
-
   if (period === 'weekly') {
     return `Wk ${getWeekNumber(date)}`
   }
-
   if (period === 'monthly') {
     return date.toLocaleDateString('en-US', { month: 'short' })
   }
-
   return String(date.getFullYear())
 }
 
 const categoryColors = ['#0ea5e9', '#f59e0b', '#10b981', '#a855f7', '#ef4444', '#14b8a6', '#f97316', '#8b5cf6', '#fb7185']
 
 function Dashboard() {
-  const { signOut, user, currentStaff } = useAuth()
-  const [parts, setParts] = useState([])
-  const [sales, setSales] = useState([])
+  const { user, currentStaff } = useAuth()
   const [branches, setBranches] = useState([])
-  const [donorVehicles, setDonorVehicles] = useState([])
   const [trendPeriod, setTrendPeriod] = useState('daily')
   const [companyName, setCompanyName] = useState('AutoParts Inventory')
   const [loading, setLoading] = useState(true)
 
+  // Dashboard Data from views
+  const [dashboardData, setDashboardData] = useState({
+    todaySales: [],
+    monthlySales: [],
+    agingStock: [],
+    receivables: [],
+    stockSummary: [],
+    activeCustomers: [],
+    avgDaysInStock: [],
+    totalInvoices: [],
+    donorVehicles: [],
+    partsByBranch: [],
+    branchBreakdown: []
+  })
+
+  // Trend data from views
+  const [salesByCategory, setSalesByCategory] = useState([])
+  const [salesDaily, setSalesDaily] = useState([])
+
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchCoreDashboardData = async () => {
       if (!currentStaff?.company_id) {
-        setParts([])
-        setSales([])
-        setBranches([])
         setLoading(false)
         return
       }
 
       setLoading(true)
 
-      const [partsResult, salesResult, branchesResult, donorVehiclesResult] = await Promise.all([
-        supabase
-          .from('parts')
-          .select('id, branch_id, currency, cost, status, date_added, created_at')
-          .eq('company_id', currentStaff.company_id)
-          .order('part_name', { ascending: true }),
-        supabase
-          .from('sales')
-          .select('id, branch_id, sale_price, created_at, part_id, customer_id, amount_paid, payment_status, parts:part_id ( currency, category )')
-          .eq('company_id', currentStaff.company_id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('branches')
-          .select('id, name')
-          .eq('company_id', currentStaff.company_id)
-          .order('name', { ascending: true }),
-        supabase
-          .from('donor_vehicles')
-          .select('id, branch_id, created_at')
-          .eq('company_id', currentStaff.company_id)
-          .order('created_at', { ascending: false }),
+      const companyFilter = currentStaff.company_id
+      const branchFilter = currentStaff.role === 'branch_staff' ? currentStaff.branch_id : null
+
+      const buildQuery = (view) => {
+        let q = supabase.from(view).select('*').eq('company_id', companyFilter)
+        if (branchFilter) q = q.eq('branch_id', branchFilter)
+        return q
+      }
+
+      const branchesPromise = supabase
+        .from('branches')
+        .select('id, name')
+        .eq('company_id', companyFilter)
+        .order('name', { ascending: true })
+
+      const activeCustomersPromise = supabase
+        .from('dashboard_active_customers')
+        .select('*')
+        .eq('company_id', companyFilter)
+
+      const [
+        branchesRes,
+        todayRes,
+        monthlyRes,
+        agingRes,
+        receivablesRes,
+        stockRes,
+        avgDaysRes,
+        invoicesRes,
+        donorRes,
+        partsByBranchRes,
+        branchBreakdownRes,
+        customersRes
+      ] = await Promise.all([
+        branchesPromise,
+        buildQuery('dashboard_sales_today'),
+        buildQuery('dashboard_sales_this_month'),
+        buildQuery('dashboard_aging_stock'),
+        buildQuery('dashboard_outstanding_receivables'),
+        buildQuery('dashboard_stock_summary'),
+        buildQuery('dashboard_avg_days_in_stock'),
+        buildQuery('dashboard_total_invoices'),
+        buildQuery('dashboard_donor_vehicles_this_month'),
+        buildQuery('dashboard_parts_by_branch'),
+        buildQuery('dashboard_branch_breakdown'),
+        activeCustomersPromise
       ])
 
-      if (!partsResult.error) {
-        setParts(partsResult.data ?? [])
-      } else {
-        setParts([])
-      }
-
-      if (!salesResult.error) {
-        setSales(salesResult.data ?? [])
-      } else {
-        setSales([])
-      }
-
-      if (!branchesResult.error) {
-        setBranches(branchesResult.data ?? [])
-      } else {
-        setBranches([])
-      }
-
-      if (!donorVehiclesResult.error) {
-        setDonorVehicles(donorVehiclesResult.data ?? [])
-      } else {
-        setDonorVehicles([])
-      }
+      setBranches(branchesRes.data || [])
+      
+      setDashboardData({
+        todaySales: todayRes.data || [],
+        monthlySales: monthlyRes.data || [],
+        agingStock: agingRes.data || [],
+        receivables: receivablesRes.data || [],
+        stockSummary: stockRes.data || [],
+        avgDaysInStock: avgDaysRes.data || [],
+        totalInvoices: invoicesRes.data || [],
+        donorVehicles: donorRes.data || [],
+        partsByBranch: partsByBranchRes.data || [],
+        branchBreakdown: branchBreakdownRes.data || [],
+        activeCustomers: customersRes.data || []
+      })
 
       setLoading(false)
     }
 
-    fetchDashboardData()
-  }, [currentStaff?.company_id])
+    fetchCoreDashboardData()
+  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
+
+  useEffect(() => {
+    const fetchTrendData = async () => {
+      if (!currentStaff?.company_id) return
+      
+      const now = new Date()
+      let startDate = new Date(0)
+
+      if (trendPeriod === 'daily') {
+        startDate = new Date(now)
+        startDate.setDate(now.getDate() - 29)
+        startDate.setHours(0, 0, 0, 0)
+      } else if (trendPeriod === 'weekly') {
+        startDate = new Date(now)
+        startDate.setDate(now.getDate() - 7 * 11)
+        startDate.setHours(0, 0, 0, 0)
+      } else if (trendPeriod === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+      }
+
+      const companyFilter = currentStaff.company_id
+      const branchFilter = currentStaff.role === 'branch_staff' ? currentStaff.branch_id : null
+
+      let categoryQ = supabase.from('dashboard_sales_by_category').select('*').eq('company_id', companyFilter)
+      let dailyQ = supabase.from('dashboard_sales_daily').select('*').eq('company_id', companyFilter)
+      
+      if (branchFilter) {
+        categoryQ = categoryQ.eq('branch_id', branchFilter)
+        dailyQ = dailyQ.eq('branch_id', branchFilter)
+      }
+      
+      if (trendPeriod !== 'yearly') {
+        const dateStr = startDate.toISOString().slice(0, 10)
+        categoryQ = categoryQ.gte('sale_date', dateStr)
+        dailyQ = dailyQ.gte('sale_date', dateStr)
+      }
+
+      const [catRes, dailyRes] = await Promise.all([categoryQ, dailyQ])
+      
+      if (!catRes.error) setSalesByCategory(catRes.data || [])
+      if (!dailyRes.error) setSalesDaily(dailyRes.data || [])
+    }
+
+    fetchTrendData()
+  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role, trendPeriod])
 
   useEffect(() => {
     const fetchCompanyName = async () => {
@@ -146,230 +217,126 @@ function Dashboard() {
     fetchCompanyName()
   }, [currentStaff?.company_id])
 
-  const scopedParts = useMemo(() => {
-    if (!currentStaff) {
-      return []
-    }
-
-    if (currentStaff.role === 'branch_staff') {
-      return parts.filter((part) => String(part.branch_id) === String(currentStaff.branch_id))
-    }
-
-    return parts
-  }, [currentStaff, parts])
-
-  const scopedSales = useMemo(() => {
-    if (!currentStaff) {
-      return []
-    }
-
-    if (currentStaff.role === 'branch_staff') {
-      return sales.filter((sale) => String(sale.branch_id) === String(currentStaff.branch_id))
-    }
-
-    return sales
-  }, [currentStaff, sales])
-
-  const inStockParts = useMemo(() => scopedParts.filter((part) => part.status === 'in_stock'), [scopedParts])
-  const soldParts = useMemo(() => scopedParts.filter((part) => part.status === 'sold'), [scopedParts])
-
-  const inventoryByCurrency = useMemo(() => {
-    const totals = inStockParts.reduce((accumulator, part) => {
-      const currency = part.currency || 'AED'
-      accumulator[currency] = accumulator[currency] || { currency, count: 0, value: 0 }
-      accumulator[currency].count += 1
-      accumulator[currency].value += Number(part.cost || 0)
-      return accumulator
+  // Process view data into the exact shapes needed by the UI
+  
+  const todaySalesByCurrency = useMemo(() => {
+    const totals = dashboardData.todaySales.reduce((acc, row) => {
+      const c = row.currency || 'AED'
+      acc[c] = (acc[c] || 0) + Number(row.total_revenue || 0)
+      return acc
     }, {})
+    return Object.entries(totals).map(([currency, amount]) => ({ currency, amount })).sort((a, b) => a.currency.localeCompare(b.currency))
+  }, [dashboardData.todaySales])
 
-    return Object.values(totals).sort((left, right) => left.currency.localeCompare(right.currency))
-  }, [inStockParts])
-
-  const monthlySales = useMemo(() => {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-
-    return scopedSales.filter((sale) => {
-      const saleDate = new Date(sale.created_at)
-      return saleDate >= start && saleDate < end
-    })
-  }, [scopedSales])
-
-  const salesByCurrency = useMemo(() => {
-    const totals = monthlySales.reduce((accumulator, sale) => {
-      const currency = sale.parts?.currency || 'AED'
-      accumulator[currency] = accumulator[currency] || { currency, count: 0, revenue: 0 }
-      accumulator[currency].count += 1
-      accumulator[currency].revenue += Number(sale.sale_price || 0)
-      return accumulator
+  const monthlySalesByCurrency = useMemo(() => {
+    const totals = dashboardData.monthlySales.reduce((acc, row) => {
+      const c = row.currency || 'AED'
+      acc[c] = (acc[c] || 0) + Number(row.total_revenue || 0)
+      return acc
     }, {})
+    return Object.entries(totals).map(([currency, amount]) => ({ currency, amount })).sort((a, b) => a.currency.localeCompare(b.currency))
+  }, [dashboardData.monthlySales])
 
-    return Object.values(totals).sort((left, right) => left.currency.localeCompare(right.currency))
-  }, [monthlySales])
+  const totalSalesCountThisMonth = useMemo(() => {
+    return dashboardData.monthlySales.reduce((sum, row) => sum + Number(row.sale_count || 0), 0)
+  }, [dashboardData.monthlySales])
 
+  const donorVehiclesAddedThisMonth = useMemo(() => {
+    return dashboardData.donorVehicles.reduce((sum, row) => sum + Number(row.vehicles_this_month || 0), 0)
+  }, [dashboardData.donorVehicles])
+
+  const totalPartsInStock = useMemo(() => {
+    return dashboardData.stockSummary.reduce((sum, row) => sum + Number(row.parts_count || 0), 0)
+  }, [dashboardData.stockSummary])
+
+  const totalInvoices = useMemo(() => {
+    return dashboardData.totalInvoices.reduce((sum, row) => sum + Number(row.invoice_count || 0), 0)
+  }, [dashboardData.totalInvoices])
+
+  const activeCustomersCount = useMemo(() => {
+    return dashboardData.activeCustomers.reduce((sum, row) => sum + Number(row.active_customer_count || 0), 0)
+  }, [dashboardData.activeCustomers])
+
+  const agingPartsCount = useMemo(() => {
+    return dashboardData.agingStock.reduce((sum, row) => sum + Number(row.aging_count || 0), 0)
+  }, [dashboardData.agingStock])
+
+  const outstandingReceivablesByCurrency = useMemo(() => {
+    const totals = dashboardData.receivables.reduce((acc, row) => {
+      const c = row.currency || 'AED'
+      const val = Number(row.outstanding_balance || 0)
+      acc[c] = (acc[c] || 0) + val
+      return acc
+    }, {})
+    return Object.entries(totals).map(([currency, amount]) => ({ currency, amount })).sort((a, b) => a.currency.localeCompare(b.currency))
+  }, [dashboardData.receivables])
+
+  const outstandingReceivablesHeadline = useMemo(() => {
+    if (outstandingReceivablesByCurrency.length === 0) {
+      return '0.00'
+    }
+
+    if (outstandingReceivablesByCurrency.length === 1) {
+      const [entry] = outstandingReceivablesByCurrency
+      return formatCurrency(entry.amount, entry.currency)
+    }
+
+    return 'Mixed currencies'
+  }, [outstandingReceivablesByCurrency])
+
+  // Admin specific charts processing
   const partsPerBranch = useMemo(() => {
-    return branches.map((branch) => ({
-      name: branch.name,
-      parts: scopedParts.filter((part) => String(part.branch_id) === String(branch.id)).length,
-    }))
-  }, [branches, scopedParts])
+    return branches.map((branch) => {
+      const bData = dashboardData.partsByBranch.filter(row => row.branch_id === branch.id)
+      const count = bData.reduce((sum, row) => sum + Number(row.parts_count || 0), 0)
+      return { name: branch.name, parts: count }
+    })
+  }, [branches, dashboardData.partsByBranch])
 
   const salesRevenuePerBranch = useMemo(() => {
     return branches.map((branch) => {
-      const branchSales = monthlySales.filter((sale) => String(sale.branch_id) === String(branch.id))
-      const totals = branchSales.reduce((accumulator, sale) => {
-        const currency = sale.parts?.currency || 'AED'
-        accumulator[currency] = (accumulator[currency] || 0) + Number(sale.sale_price || 0)
-        return accumulator
+      const bData = dashboardData.monthlySales.filter(row => row.branch_id === branch.id)
+      const totals = bData.reduce((acc, row) => {
+        const c = row.currency || 'AED'
+        acc[c] = (acc[c] || 0) + Number(row.total_revenue || 0)
+        return acc
       }, {})
-
       return {
         name: branch.name,
         AED: totals.AED || 0,
         USD: totals.USD || 0,
       }
     })
-  }, [branches, monthlySales])
+  }, [branches, dashboardData.monthlySales])
 
   const averageDaysInStockPerBranch = useMemo(() => {
-    const branchStats = {}
-    
-    // Initialize branch stats
-    branches.forEach((branch) => {
-      branchStats[branch.id] = { totalDays: 0, count: 0 }
-    })
-    
-    const today = new Date()
-    
-    // Process in-stock parts
-    inStockParts.forEach((part) => {
-      if (!part.date_added) return
-      
-      const dateAdded = new Date(part.date_added)
-      const daysInStock = Math.floor((today - dateAdded) / (1000 * 60 * 60 * 24))
-      
-      if (branchStats[part.branch_id]) {
-        branchStats[part.branch_id].totalDays += daysInStock
-        branchStats[part.branch_id].count += 1
-      }
-    })
-    
-    // Process sold parts
-    soldParts.forEach((part) => {
-      if (!part.date_added) return
-      
-      // Find the sale for this part
-      const sale = scopedSales.find((s) => s.part_id === part.id)
-      
-      if (!sale || !sale.created_at) return
-      
-      const dateAdded = new Date(part.date_added)
-      const dateSold = new Date(sale.created_at)
-      const daysInStock = Math.floor((dateSold - dateAdded) / (1000 * 60 * 60 * 24))
-      
-      if (branchStats[part.branch_id]) {
-        branchStats[part.branch_id].totalDays += daysInStock
-        branchStats[part.branch_id].count += 1
-      }
-    })
-    
-    // Calculate averages and format for chart
     return branches.map((branch) => {
-      const stats = branchStats[branch.id]
-      const average = stats.count > 0 ? Math.round(stats.totalDays / stats.count) : 0
-      return {
-        name: branch.name,
-        days: average,
-      }
+      const bData = dashboardData.avgDaysInStock.filter(row => row.branch_id === branch.id)
+      let sumDays = 0
+      let count = 0
+      bData.forEach(row => {
+        sumDays += Number(row.avg_days_in_stock || 0)
+        count += 1
+      })
+      const average = count > 0 ? Math.round(sumDays / count) : 0
+      return { name: branch.name, days: average }
     })
-  }, [branches, inStockParts, soldParts, scopedSales])
+  }, [branches, dashboardData.avgDaysInStock])
 
   const branchBreakdown = useMemo(() => {
     return branches.map((branch) => {
-      const branchParts = scopedParts.filter((part) => String(part.branch_id) === String(branch.id))
-      const inStockCount = branchParts.filter((part) => part.status === 'in_stock').length
-      const soldCount = branchParts.filter((part) => part.status === 'sold').length
-      return {
-        name: branch.name,
-        inStockCount,
-        soldCount,
-      }
-    })
-  }, [branches, scopedParts])
-
-  const totalPartsInStock = inStockParts.length
-  const totalPartsSold = soldParts.length
-  const agingPartsCount = useMemo(() => scopedParts.filter((part) => isAgingStock(part)).length, [scopedParts])
-  const soldToInStockRatio = totalPartsInStock > 0 ? (totalPartsSold / totalPartsInStock).toFixed(2) : '0.00'
-
-  const donorVehiclesAddedThisMonth = useMemo(() => {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-
-    return donorVehicles.filter((vehicle) => {
-      const createdAt = new Date(vehicle.created_at)
-      return createdAt >= start && createdAt < end && (currentStaff.role !== 'branch_staff' || String(vehicle.branch_id) === String(currentStaff.branch_id))
-    }).length
-  }, [donorVehicles, currentStaff])
-
-  const totalInvoices = useMemo(() => scopedSales.length, [scopedSales])
-
-  const activeCustomersCount = useMemo(() => {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - 90)
-
-    const recentSales = scopedSales.filter((sale) => {
-      const createdAt = new Date(sale.created_at)
-      return createdAt >= cutoff
-    })
-
-    return new Set(recentSales.map((sale) => sale.customer_id)).size
-  }, [scopedSales])
-
-  const todaySalesByCurrency = useMemo(() => {
-    const today = new Date()
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
-
-    const totals = scopedSales
-      .filter((sale) => {
-        const createdAt = new Date(sale.created_at)
-        return createdAt >= start && createdAt < end
+      const bData = dashboardData.branchBreakdown.filter(row => row.branch_id === branch.id)
+      let inStock = 0
+      let sold = 0
+      bData.forEach(row => {
+        inStock += Number(row.in_stock_count || 0)
+        sold += Number(row.sold_count || 0)
       })
-      .reduce((accumulator, sale) => {
-        const currency = sale.parts?.currency || 'AED'
-        accumulator[currency] = (accumulator[currency] || 0) + Number(sale.sale_price || 0)
-        return accumulator
-      }, {})
+      return { name: branch.name, inStockCount: inStock, soldCount: sold }
+    })
+  }, [branches, dashboardData.branchBreakdown])
 
-    return Object.entries(totals).map(([currency, amount]) => ({ currency, amount }))
-  }, [scopedSales])
-
-  const monthlySalesByCurrency = useMemo(() => {
-    const totals = monthlySales.reduce((accumulator, sale) => {
-      const currency = sale.parts?.currency || 'AED'
-      accumulator[currency] = (accumulator[currency] || 0) + Number(sale.sale_price || 0)
-      return accumulator
-    }, {})
-
-    return Object.entries(totals).map(([currency, amount]) => ({ currency, amount }))
-  }, [monthlySales])
-
-  const outstandingReceivablesByCurrency = useMemo(() => {
-    const totals = scopedSales.reduce((accumulator, sale) => {
-      if (sale.payment_status === 'partial' || sale.payment_status === 'credit') {
-        const currency = sale.parts?.currency || 'AED'
-        const balance = Number(sale.sale_price || 0) - Number(sale.amount_paid || 0)
-        accumulator[currency] = (accumulator[currency] || 0) + balance
-      }
-      return accumulator
-    }, {})
-
-    return Object.entries(totals).map(([currency, amount]) => ({ currency, amount }))
-  }, [scopedSales])
-
+  // Analytics Trends
   const analyticsTrendData = useMemo(() => {
     const now = new Date()
     const periods = []
@@ -404,7 +371,7 @@ function Dashboard() {
         periods.push({ key: `${start.getFullYear()}-${start.getMonth() + 1}`, label: formatTrendLabel('monthly', start), start, end })
       }
     } else {
-      const years = Array.from(new Set(scopedSales.map((sale) => new Date(sale.created_at).getFullYear()))).sort()
+      const years = Array.from(new Set(salesDaily.map((sale) => new Date(sale.sale_date).getFullYear()))).sort()
       years.forEach((year) => {
         const start = new Date(year, 0, 1)
         const end = new Date(year + 1, 0, 1)
@@ -417,10 +384,10 @@ function Dashboard() {
       return accumulator
     }, {})
 
-    scopedSales.forEach((sale) => {
-      const saleDate = new Date(sale.created_at)
-      const currency = sale.parts?.currency || 'AED'
-      const value = Number(sale.sale_price || 0)
+    salesDaily.forEach((sale) => {
+      const saleDate = new Date(sale.sale_date)
+      const currency = sale.currency || 'AED'
+      const value = Number(sale.total_revenue || 0)
       const period = periods.find((entry) => saleDate >= entry.start && saleDate < entry.end)
       if (period) {
         totals[period.key][currency] = (totals[period.key][currency] || 0) + value
@@ -428,39 +395,17 @@ function Dashboard() {
     })
 
     return Object.values(totals)
-  }, [scopedSales, trendPeriod])
+  }, [salesDaily, trendPeriod])
 
   const analyticsCategoryData = useMemo(() => {
-    const now = new Date()
-    let startDate = new Date(0)
-    let endDate = new Date(now)
-
-    if (trendPeriod === 'daily') {
-      startDate = new Date(now)
-      startDate.setDate(now.getDate() - 29)
-      startDate.setHours(0, 0, 0, 0)
-    } else if (trendPeriod === 'weekly') {
-      startDate = new Date(now)
-      startDate.setDate(now.getDate() - 7 * 11)
-      startDate.setHours(0, 0, 0, 0)
-    } else if (trendPeriod === 'monthly') {
-      startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
-    } else {
-      const years = scopedSales.map((sale) => new Date(sale.created_at).getFullYear())
-      const minYear = Math.min(...years, now.getFullYear())
-      startDate = new Date(minYear, 0, 1)
-    }
-
     const totals = {}
     const currencySet = new Set()
 
-    scopedSales.forEach((sale) => {
-      const saleDate = new Date(sale.created_at)
-      if (saleDate < startDate || saleDate > endDate) return
-      const category = sale.parts?.category || 'Uncategorized'
-      const value = Number(sale.sale_price || 0)
+    salesByCategory.forEach((sale) => {
+      const category = sale.category || 'Uncategorized'
+      const value = Number(sale.total_revenue || 0)
       totals[category] = (totals[category] || 0) + value
-      currencySet.add(sale.parts?.currency || 'AED')
+      currencySet.add(sale.currency || 'AED')
     })
 
     const currency = currencySet.size === 1 ? currencySet.values().next().value : null
@@ -473,7 +418,7 @@ function Dashboard() {
     const totalValue = data.reduce((sum, entry) => sum + entry.value, 0)
 
     return { data, currency, totalValue }
-  }, [scopedSales, trendPeriod])
+  }, [salesByCategory])
 
   if (loading) {
     return (
@@ -527,7 +472,7 @@ function Dashboard() {
                     ? formatCurrency(monthlySalesByCurrency[0].amount, monthlySalesByCurrency[0].currency)
                     : monthlySalesByCurrency.reduce((sum, entry) => sum + entry.amount, 0).toFixed(2)}
                 </p>
-                <p className="mt-1 text-sm text-slate-400">{monthlySales.length} {monthlySales.length === 1 ? 'sale' : 'sales'} this month</p>
+                <p className="mt-1 text-sm text-slate-400">{totalSalesCountThisMonth} {totalSalesCountThisMonth === 1 ? 'sale' : 'sales'} this month</p>
               </div>
               <TrendingUp className="h-6 w-6 text-emerald-400" />
             </div>
@@ -555,6 +500,17 @@ function Dashboard() {
             <p className="mt-3 text-sm text-slate-400">Currently in stock</p>
           </div>
 
+          <Link to="/parts?aging=true" className="block rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20 transition hover:border-orange-500/50 hover:bg-slate-800/80">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-400">Aging Stock</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{agingPartsCount}</p>
+              </div>
+              <AlertCircle className="h-6 w-6 text-orange-400" />
+            </div>
+            <p className="mt-3 text-sm text-slate-400">In stock over 60 days</p>
+          </Link>
+
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -581,7 +537,7 @@ function Dashboard() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Outstanding Receivables</p>
-                <p className="mt-2 text-3xl font-semibold text-white">{outstandingReceivablesByCurrency.reduce((sum, entry) => sum + entry.amount, 0).toFixed(2)}</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{outstandingReceivablesHeadline}</p>
               </div>
               <AlertCircle className="h-6 w-6 text-rose-400" />
             </div>
