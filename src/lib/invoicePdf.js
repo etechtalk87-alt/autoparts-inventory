@@ -145,7 +145,9 @@ function InvoiceDocument({ invoice }) {
         { style: styles.section },
         createElement(Text, { style: styles.sectionTitle }, 'Bill To'),
         createElement(Text, { style: styles.muted }, invoice.customerName),
-        createElement(Text, { style: styles.muted }, invoice.customerContact),
+        ...(invoice.customerContact
+          ? [createElement(Text, { key: 'customer-contact', style: styles.muted }, invoice.customerContact)]
+          : []),
       ),
       createElement(
         View,
@@ -194,7 +196,7 @@ function InvoiceDocument({ invoice }) {
           { style: { textAlign: 'right' } },
           invoice.balanceDue !== undefined && invoice.balanceDue > 0
             ? createElement(Text, { style: styles.balanceDue }, `Balance Due: ${invoice.currency} ${invoice.balanceDue}`)
-            : createElement(Text, { style: styles.muted }, `Total: ${invoice.currency} ${invoice.salePrice}`),
+            : createElement(Text, { style: styles.muted }, `Total: ${invoice.currency} ${invoice.totalAmount ?? invoice.salePrice}`),
         ),
       ),
       createElement(
@@ -232,7 +234,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
 
     const salesPromise = supabaseClient
       .from('sales')
-      .select('id, sale_price, amount_paid, payment_status, created_at, part_id, customer_id, invoice_number, branch_id, company_id, parts:part_id ( part_name, oem_number, condition, currency, donor_vehicle_id ), customers:customer_id ( full_name )')
+      .select('id, sale_price, amount_paid, payment_status, created_at, part_id, customer_id, invoice_number, branch_id, company_id, parts:part_id ( part_name, oem_number, condition, currency, donor_vehicle_id, donor_vehicles:donor_vehicle_id ( make, model, year ) ), customers:customer_id ( full_name, phone )')
       .eq('invoice_id', sale.invoice_id)
 
     const [{ data: invoiceRow, error: invoiceRowError }, { data: salesRows, error: salesRowsError }] = await Promise.all([invoicePromise, salesPromise])
@@ -257,17 +259,25 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     const companyData = !companyResult?.error ? companyResult?.data : null
     const branchData = !branchResult?.error ? branchResult?.data : null
 
-    const items = salesRows.map((saleRow) => ({
-      partName: saleRow.parts?.part_name || 'Part',
-      oemNumber: saleRow.parts?.oem_number || '—',
-      condition: saleRow.parts?.condition || '—',
-      donorVehicle: saleRow.parts?.donor_vehicle_id ? `Part ID: ${saleRow.part_id}` : '—',
-      salePrice: Number(saleRow.sale_price || 0).toFixed(2),
-      currency: saleRow.parts?.currency || invoiceRow?.currency || 'AED',
-    }))
+    const items = salesRows.map((saleRow) => {
+      const donorVehicle = saleRow.parts?.donor_vehicles
+      const donorVehicleText = donorVehicle
+        ? [donorVehicle.make, donorVehicle.model, donorVehicle.year].filter(Boolean).join(' ').trim() || '—'
+        : '—'
+
+      return {
+        partName: saleRow.parts?.part_name || 'Part',
+        oemNumber: saleRow.parts?.oem_number || '—',
+        condition: saleRow.parts?.condition || '—',
+        donorVehicle: donorVehicleText,
+        salePrice: Number(saleRow.sale_price || 0).toFixed(2),
+        currency: saleRow.parts?.currency || invoiceRow?.currency || 'AED',
+      }
+    })
 
     const itemCurrency = invoiceRow?.currency || items[0]?.currency || 'AED'
     const customerName = firstSale.customers?.full_name || sale.customer_name || 'Walk-in Customer'
+    const customerPhone = firstSale.customers?.phone || sale.customer_phone || ''
 
     return {
       companyName: companyData?.name || 'Auto Parts Inventory',
@@ -279,7 +289,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
       totalAmount: Number(invoiceRow?.total_amount ?? items.reduce((sum, item) => sum + Number(item.salePrice || 0), 0)).toFixed(2),
       currency: itemCurrency,
       customerName,
-      customerContact: sale.customer_contact || '—',
+      customerContact: customerPhone ? `Phone: ${customerPhone}` : '',
       paymentStatus: invoiceRow?.payment_status || 'unpaid',
       paymentStatusLabel:
         invoiceRow?.payment_status === 'paid' || invoiceRow?.payment_status === 'paid_in_full'
