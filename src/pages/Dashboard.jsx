@@ -13,41 +13,16 @@ function formatCurrency(value, currency = 'AED') {
   }).format(value || 0)
 }
 
-function getWeekStart(date) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  return d
-}
-
-function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
-}
-
-function formatTrendLabel(period, date) {
-  if (period === 'daily') {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }
-  if (period === 'weekly') {
-    return `Wk ${getWeekNumber(date)}`
-  }
-  if (period === 'monthly') {
-    return date.toLocaleDateString('en-US', { month: 'short' })
-  }
-  return String(date.getFullYear())
+function formatTrendLabel(date) {
+  return date.toLocaleDateString('en-US', { month: 'short' })
 }
 
 const categoryColors = ['#0ea5e9', '#f59e0b', '#10b981', '#a855f7', '#ef4444', '#14b8a6', '#f97316', '#8b5cf6', '#fb7185']
+const trendColors = ['#38bdf8', '#60a5fa', '#818cf8', '#a78bfa', '#f472b6', '#fb7185', '#fb923c', '#fbbf24', '#22c55e', '#14b8a6', '#0ea5e9', '#8b5cf6']
 
 function Dashboard() {
   const { user, currentStaff } = useAuth()
   const [branches, setBranches] = useState([])
-  const [trendPeriod, setTrendPeriod] = useState('daily')
   const [companyName, setCompanyName] = useState('AutoParts Inventory')
   const [loading, setLoading] = useState(true)
 
@@ -154,19 +129,8 @@ function Dashboard() {
       if (!currentStaff?.company_id) return
       
       const now = new Date()
-      let startDate = new Date(0)
-
-      if (trendPeriod === 'daily') {
-        startDate = new Date(now)
-        startDate.setDate(now.getDate() - 29)
-        startDate.setHours(0, 0, 0, 0)
-      } else if (trendPeriod === 'weekly') {
-        startDate = new Date(now)
-        startDate.setDate(now.getDate() - 7 * 11)
-        startDate.setHours(0, 0, 0, 0)
-      } else if (trendPeriod === 'monthly') {
-        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
-      }
+      const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+      startDate.setHours(0, 0, 0, 0)
 
       const companyFilter = currentStaff.company_id
       const branchFilter = currentStaff.role === 'branch_staff' ? currentStaff.branch_id : null
@@ -178,12 +142,10 @@ function Dashboard() {
         categoryQ = categoryQ.eq('branch_id', branchFilter)
         dailyQ = dailyQ.eq('branch_id', branchFilter)
       }
-      
-      if (trendPeriod !== 'yearly') {
-        const dateStr = startDate.toISOString().slice(0, 10)
-        categoryQ = categoryQ.gte('sale_date', dateStr)
-        dailyQ = dailyQ.gte('sale_date', dateStr)
-      }
+
+      const dateStr = startDate.toISOString().slice(0, 10)
+      categoryQ = categoryQ.gte('sale_date', dateStr)
+      dailyQ = dailyQ.gte('sale_date', dateStr)
 
       const [catRes, dailyRes] = await Promise.all([categoryQ, dailyQ])
       
@@ -192,7 +154,7 @@ function Dashboard() {
     }
 
     fetchTrendData()
-  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role, trendPeriod])
+  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
 
   useEffect(() => {
     const fetchCompanyName = async () => {
@@ -340,43 +302,12 @@ function Dashboard() {
   const analyticsTrendData = useMemo(() => {
     const now = new Date()
     const periods = []
+    const base = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    if (trendPeriod === 'daily') {
-      const base = new Date(now)
-      base.setHours(0, 0, 0, 0)
-      for (let i = 29; i >= 0; i -= 1) {
-        const start = new Date(base)
-        start.setDate(base.getDate() - i)
-        const end = new Date(start)
-        end.setDate(start.getDate() + 1)
-        periods.push({ key: start.toISOString().slice(0, 10), label: formatTrendLabel('daily', start), start, end })
-      }
-    } else if (trendPeriod === 'weekly') {
-      const base = new Date(now)
-      base.setHours(0, 0, 0, 0)
-      const offset = (base.getDay() + 6) % 7
-      base.setDate(base.getDate() - offset)
-      for (let i = 11; i >= 0; i -= 1) {
-        const start = new Date(base)
-        start.setDate(base.getDate() - i * 7)
-        const end = new Date(start)
-        end.setDate(start.getDate() + 7)
-        periods.push({ key: `${start.getFullYear()}-${getWeekNumber(start)}`, label: formatTrendLabel('weekly', start), start, end })
-      }
-    } else if (trendPeriod === 'monthly') {
-      const base = new Date(now.getFullYear(), now.getMonth(), 1)
-      for (let i = 11; i >= 0; i -= 1) {
-        const start = new Date(base.getFullYear(), base.getMonth() - i, 1)
-        const end = new Date(start.getFullYear(), start.getMonth() + 1, 1)
-        periods.push({ key: `${start.getFullYear()}-${start.getMonth() + 1}`, label: formatTrendLabel('monthly', start), start, end })
-      }
-    } else {
-      const years = Array.from(new Set(salesDaily.map((sale) => new Date(sale.sale_date).getFullYear()))).sort()
-      years.forEach((year) => {
-        const start = new Date(year, 0, 1)
-        const end = new Date(year + 1, 0, 1)
-        periods.push({ key: String(year), label: formatTrendLabel('yearly', start), start, end })
-      })
+    for (let i = 11; i >= 0; i -= 1) {
+      const start = new Date(base.getFullYear(), base.getMonth() - i, 1)
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 1)
+      periods.push({ key: `${start.getFullYear()}-${start.getMonth() + 1}`, label: formatTrendLabel(start), start, end })
     }
 
     const totals = periods.reduce((accumulator, period) => {
@@ -387,15 +318,27 @@ function Dashboard() {
     salesDaily.forEach((sale) => {
       const saleDate = new Date(sale.sale_date)
       const currency = sale.currency || 'AED'
-      const value = Number(sale.total_revenue || 0)
+      const revenue = Number(sale.total_revenue || 0)
       const period = periods.find((entry) => saleDate >= entry.start && saleDate < entry.end)
       if (period) {
-        totals[period.key][currency] = (totals[period.key][currency] || 0) + value
+        totals[period.key][currency] = (totals[period.key][currency] || 0) + revenue
       }
     })
 
     return Object.values(totals)
-  }, [salesDaily, trendPeriod])
+  }, [salesDaily])
+
+  const analyticsTrendBars = useMemo(() => {
+    const values = analyticsTrendData.map((entry) => ({
+      label: entry.label,
+      value: (entry.AED || 0) + (entry.USD || 0)
+    }))
+    const maxValue = values.reduce((max, item) => Math.max(max, item.value), 0) || 1
+    return values.map((item) => ({
+      ...item,
+      percentage: Math.max(2, (item.value / maxValue) * 100),
+    }))
+  }, [analyticsTrendData])
 
   const analyticsCategoryData = useMemo(() => {
     const totals = {}
@@ -629,39 +572,49 @@ function Dashboard() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold">Sales Analytics</h2>
-              <p className="mt-2 text-sm text-slate-400">Trend and category breakdown for the selected period.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {['daily', 'weekly', 'monthly', 'yearly'].map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  onClick={() => setTrendPeriod(period)}
-                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${trendPeriod === period ? 'border-cyan-400 bg-cyan-500 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-slate-800'}`}
-                >
-                  {period.charAt(0).toUpperCase() + period.slice(1)}
-                </button>
-              ))}
+              <p className="mt-2 text-sm text-slate-400">Monthly sales trend for the last 12 months.</p>
             </div>
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
-              <p className="text-sm text-slate-400">Revenue trend</p>
-              <div className="mt-4 h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analyticsTrendData} margin={{ bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="label" stroke="#94a3b8" tick={{ fill: '#94a3b8', angle: -35, textAnchor: 'end' }} interval={0} height={70} />
-                    <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8' }} />
-                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Legend verticalAlign="top" align="right" />
-                    <Bar dataKey="AED" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="USD" fill="#f59e0b" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <p className="text-sm text-slate-400">Sales Analytics</p>
+              <div className="mt-4">
+                <p className="text-sm text-slate-400">Monthly Sales</p>
+              </div>
+
+              <div className="mt-6 h-[360px]">
+                {analyticsTrendBars.length === 0 ? (
+                  <p className="text-sm text-slate-400">No sales data available for the last 12 months.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analyticsTrendBars} margin={{ top: 24, right: 0, left: 0, bottom: 36 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        stroke="#94a3b8"
+                        tick={{ fill: '#94a3b8', fontSize: 12 }}
+                        interval={0}
+                        minTickGap={8}
+                        height={32}
+                      />
+                      <YAxis
+                        stroke="#94a3b8"
+                        tick={{ fill: '#94a3b8', fontSize: 12 }}
+                        tickFormatter={(value) => formatCurrency(value)}
+                      />
+                      <Tooltip formatter={(value) => formatCurrency(value)} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
+                      <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                        {analyticsTrendBars.map((entry, index) => (
+                          <Cell key={entry.label} fill={trendColors[index % trendColors.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
+
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
               <p className="text-sm text-slate-400">Revenue by category</p>
               <div className="mt-4 flex h-80 flex-col items-center justify-center gap-4">
@@ -702,25 +655,45 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-          <h2 className="text-xl font-semibold">Branch breakdown</h2>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
-              <thead className="bg-slate-950/70 text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Branch</th>
-                  <th className="px-4 py-3 font-medium">In-stock</th>
-                  <th className="px-4 py-3 font-medium">Sold</th>
+        <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-md">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Branch breakdown</h2>
+              <p className="mt-1 text-sm text-slate-400">Inventory and sales performance by branch.</p>
+            </div>
+            <div className="rounded-full border border-slate-800/80 bg-slate-900/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+              Updated in real time
+            </div>
+          </div>
+
+          <div className="mt-6 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-800/90 bg-slate-900/90 text-slate-400">
+                  <th className="px-4 py-3 text-left font-medium">Branch</th>
+                  <th className="px-4 py-3 text-right font-medium">In-stock</th>
+                  <th className="px-4 py-3 text-right font-medium">Sold</th>
+                  <th className="px-4 py-3 text-right font-medium">Activity</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 bg-slate-900/70">
-                {branchBreakdown.map((branch) => (
-                  <tr key={branch.name}>
-                    <td className="px-4 py-3 font-medium text-white">{branch.name}</td>
-                    <td className="px-4 py-3">{branch.inStockCount}</td>
-                    <td className="px-4 py-3">{branch.soldCount}</td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-slate-800/80">
+                {branchBreakdown.map((branch, index) => {
+                  const total = branch.inStockCount + branch.soldCount
+                  const soldRatio = total > 0 ? Math.round((branch.soldCount / total) * 100) : 0
+                  return (
+                    <tr key={branch.name} className={`transition duration-200 ${index % 2 === 0 ? 'bg-slate-950/70' : 'bg-slate-900/70'} hover:bg-slate-900/90`}>
+                      <td className="px-4 py-4 font-medium text-white">{branch.name}</td>
+                      <td className="px-4 py-4 text-right text-slate-200">{branch.inStockCount}</td>
+                      <td className="px-4 py-4 text-right text-slate-200">{branch.soldCount}</td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{soldRatio}% sold</div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                          <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 transition-all duration-300" style={{ width: `${soldRatio}%` }} />
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

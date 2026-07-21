@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
@@ -29,7 +29,10 @@ function CreateInvoice() {
   const [selectedCustomerEmail, setSelectedCustomerEmail] = useState('')
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
   const [filteredCustomers, setFilteredCustomers] = useState([])
+  const [partSearch, setPartSearch] = useState('')
   const [lineItems, setLineItems] = useState([])
+  const [removingIds, setRemovingIds] = useState([])
+  const [justAddedId, setJustAddedId] = useState(null)
   const [paymentStatus, setPaymentStatus] = useState('paid_in_full')
   const [amountPaid, setAmountPaid] = useState('')
   const [invoiceMessage, setInvoiceMessage] = useState('')
@@ -40,6 +43,7 @@ function CreateInvoice() {
   const [newCustomerForm, setNewCustomerForm] = useState({ full_name: '', phone: '', email: '', address: '', country: '', notes: '' })
   const [creatingCustomer, setCreatingCustomer] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
+  const successRef = useRef(null)
 
   const canManageBranches = currentStaff?.role === 'company_admin'
   const branchScopeId = currentStaff?.role === 'branch_staff' ? currentStaff.branch_id : selectedBranchId
@@ -62,6 +66,11 @@ function CreateInvoice() {
 
   useEffect(() => {
     if (!currentStaff?.company_id) return
+
+    if (canManageBranches && !branchScopeId) {
+      setParts([])
+      return
+    }
 
     const fetchParts = async () => {
       let query = supabase
@@ -135,6 +144,18 @@ function CreateInvoice() {
     return lineItems.reduce((sum, item) => sum + Number(item.sale_price || 0), 0)
   }, [lineItems])
 
+  const filteredAvailableParts = useMemo(() => {
+    const query = partSearch.trim().toLowerCase()
+
+    if (!query) return parts
+
+    return parts.filter((part) => {
+      const haystack = `${part.part_name || ''} ${part.oem_number || ''}`.toLowerCase()
+      return haystack.includes(query)
+    })
+  }, [partSearch, parts])
+
+  const canCreateInvoice = Boolean(selectedCustomerId) && lineItems.length > 0
   const totalPaid = useMemo(() => {
     if (paymentStatus === 'paid_in_full') return totalAmount
     if (paymentStatus === 'credit') return 0
@@ -152,10 +173,17 @@ function CreateInvoice() {
       sale_price: Number(part.asking_price || 0),
       branch_id: part.branch_id,
     }])
+    setJustAddedId(part.id)
+    setTimeout(() => setJustAddedId(null), 700)
   }
 
   const handleRemoveLineItem = (partId) => {
-    setLineItems((prev) => prev.filter((item) => item.part_id !== partId))
+    // animate removal before actually removing from state
+    setRemovingIds((prev) => [...prev, partId])
+    setTimeout(() => {
+      setLineItems((prev) => prev.filter((item) => item.part_id !== partId))
+      setRemovingIds((prev) => prev.filter((id) => id !== partId))
+    }, 260)
   }
 
   const resetForm = () => {
@@ -170,6 +198,7 @@ function CreateInvoice() {
     setInvoiceMessage('')
     setSuccessMessage('')
     setCreatedInvoice(null)
+    setPartSearch('')
   }
 
   const handleCreateCustomer = async (event) => {
@@ -320,10 +349,37 @@ function CreateInvoice() {
       }
     }
 
-    setCreatedInvoice({ id: invoiceId, invoiceNumber, branchId })
+    setCreatedInvoice({
+      id: invoiceId,
+      invoiceNumber,
+      branchId,
+      branchName: selectedBranchName || 'Branch',
+      customerName: selectedCustomerName || 'Customer',
+      totalAmount,
+      itemCount: lineItems.length,
+      paymentStatus: dbPaymentStatus,
+      amountPaid: finalAmountPaid,
+      currency,
+    })
     setSuccessMessage(`Invoice ${invoiceNumber} created successfully.`)
     setInvoiceMessage('')
     setSubmitting(false)
+
+    // Clear selections after invoice creation
+    setSelectedCustomerId(null)
+    setSelectedCustomerName('')
+    setSelectedCustomerEmail('')
+    setCustomerSearch('')
+    setShowCustomerDropdown(false)
+    setLineItems([])
+    setPartSearch('')
+    setAmountPaid('')
+    setPaymentStatus('paid_in_full')
+
+    // Smooth scroll to the success panel
+    setTimeout(() => {
+      successRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
   }
 
   const handleDownloadInvoice = async () => {
@@ -359,28 +415,54 @@ function CreateInvoice() {
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
           <h1 className="text-3xl font-semibold">Create Invoice</h1>
           <p className="mt-2 text-sm text-slate-400">Build a multi-item invoice from in-stock parts.</p>
-          {successMessage ? (
-            <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-              <p className="font-semibold text-emerald-100">{successMessage}</p>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          {successMessage && createdInvoice ? (
+            <div ref={successRef} className="mt-6 rounded-3xl border border-emerald-500/20 bg-slate-950/90 p-5 shadow-xl shadow-emerald-500/10">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.35em] text-emerald-300/80">Invoice created</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-white">{createdInvoice.invoiceNumber}</h2>
+                  <p className="mt-1 text-sm text-slate-400">{createdInvoice.customerName} · {createdInvoice.branchName}</p>
+                </div>
+                <div className="rounded-3xl bg-slate-900/90 px-4 py-3 text-right text-sm text-slate-300 ring-1 ring-slate-700">
+                  <p className="text-slate-400">Items</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">{createdInvoice.itemCount}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-4">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Total</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{formatCurrency(createdInvoice.totalAmount, createdInvoice.currency)}</p>
+                </div>
+                <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-4">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Paid</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{formatCurrency(createdInvoice.amountPaid, createdInvoice.currency)}</p>
+                </div>
+                <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-4">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Status</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{createdInvoice.paymentStatus === 'paid' ? 'Paid' : createdInvoice.paymentStatus === 'paid_in_full' ? 'Paid in Full' : createdInvoice.paymentStatus === 'partial' ? 'Partial' : createdInvoice.paymentStatus === 'credit' ? 'Credit' : 'Unpaid'}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <button
                   type="button"
                   onClick={handleDownloadInvoice}
-                  className="rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
+                  className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-3 font-semibold text-slate-950 transition hover:bg-emerald-400"
                 >
                   Download Invoice
                 </button>
                 <button
                   type="button"
                   onClick={handleCreateAnother}
-                  className="rounded-lg border border-emerald-500 px-4 py-2 font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
+                  className="inline-flex items-center justify-center rounded-full border border-emerald-500 px-5 py-3 font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
                 >
                   Create Another
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate('/sales')}
-                  className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-slate-100 transition hover:bg-slate-600"
+                  className="inline-flex items-center justify-center rounded-full bg-slate-700 px-5 py-3 font-semibold text-slate-100 transition hover:bg-slate-600"
                 >
                   Go to Sales
                 </button>
@@ -503,27 +585,69 @@ function CreateInvoice() {
               ) : null}
 
               <div className="rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
-                <p className="font-semibold text-white">Available items</p>
-                {parts.length === 0 ? (
-                  <p className="mt-2 text-slate-400">No in-stock parts available for this branch.</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-white">Available items</p>
+                  <span className="text-xs text-slate-400">{filteredAvailableParts.length} shown</span>
+                </div>
+
+                <label className="mt-3 block text-xs uppercase tracking-wide text-slate-400">
+                  Search parts
+                  <input
+                    type="text"
+                    value={partSearch}
+                    onChange={(event) => setPartSearch(event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none"
+                    placeholder="Search by part name or OEM"
+                  />
+                </label>
+
+                {canManageBranches && !branchScopeId ? (
+                  <p className="mt-3 rounded-lg border border-dashed border-slate-700 bg-slate-900/70 p-3 text-slate-400">
+                    Select a branch to see available parts
+                  </p>
+                ) : filteredAvailableParts.length === 0 ? (
+                  <p className="mt-3 rounded-lg border border-dashed border-slate-700 bg-slate-900/70 p-3 text-slate-400">
+                    {partSearch.trim() ? 'No parts match your search for this branch.' : 'No in-stock parts available for this branch.'}
+                  </p>
                 ) : (
                   <div className="mt-3 space-y-2">
-                    {parts.map((part) => (
-                      <button
-                        key={part.id}
-                        type="button"
-                        onClick={() => handleAddLineItem(part)}
-                        className="w-full rounded-lg border border-slate-700 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
-                      >
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <p className="font-semibold text-white">{part.part_name}</p>
-                            <p className="text-slate-400">{part.oem_number || 'No OEM'}</p>
+                    {filteredAvailableParts.map((part) => {
+                      const alreadySelected = lineItems.some((item) => item.part_id === part.id)
+
+                      return (
+                        <button
+                          key={part.id}
+                          type="button"
+                          onClick={() => (alreadySelected ? handleRemoveLineItem(part.id) : handleAddLineItem(part))}
+                          aria-pressed={alreadySelected}
+                          className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition flex items-center justify-between ${alreadySelected ? 'border-emerald-500 bg-emerald-600/10 text-emerald-100 shadow-sm' : 'border-slate-700 text-slate-200 hover:bg-slate-800'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${alreadySelected ? 'bg-emerald-500 text-white shadow-md' : 'border border-slate-700 text-slate-400 bg-slate-900'}`}>
+                              {alreadySelected ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414-1.414L8 11.172 4.707 7.879a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8z" clipRule="evenodd" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+                                  <circle cx="10" cy="10" r="6" stroke="currentColor" strokeWidth="1.2" className="text-slate-400" />
+                                </svg>
+                              )}
+                            </div>
+
+                            <div>
+                              <p className="font-semibold text-white text-sm">{part.part_name}</p>
+                              <p className="text-slate-400 text-xs">{part.oem_number || 'No OEM'}</p>
+                            </div>
                           </div>
-                          <span>{formatCurrency(part.asking_price, part.currency)}</span>
-                        </div>
-                      </button>
-                    ))}
+
+                          <div className="flex flex-col items-end">
+                            <span className="text-sm font-medium">{formatCurrency(part.asking_price, part.currency)}</span>
+                            {alreadySelected ? <span className="text-xs text-emerald-300 mt-1">Added</span> : null}
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -531,48 +655,68 @@ function CreateInvoice() {
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
-            <h2 className="text-xl font-semibold">Invoice items</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">Invoice items</h2>
+              <span className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1 text-sm text-slate-300">
+                {lineItems.length} {lineItems.length === 1 ? 'item' : 'items'} selected
+              </span>
+            </div>
             {lineItems.length === 0 ? (
               <p className="mt-4 text-sm text-slate-400">No items selected yet.</p>
             ) : (
-              <div className="mt-4 space-y-4">
-                {lineItems.map((item) => (
-                  <div key={item.part_id} className="grid gap-3 rounded-2xl border border-slate-700 bg-slate-950 p-4 md:grid-cols-[1fr_120px_100px_80px]">
-                    <div>
-                      <p className="font-semibold text-white">{item.part_name}</p>
-                      <p className="text-slate-400 text-sm">{item.oem_number || 'No OEM'}</p>
-                      <p className="text-slate-400 text-sm">{item.currency}</p>
+              <div className="mt-4 space-y-4 divide-y divide-slate-800">
+                {lineItems.map((item, idx) => {
+                  const isRemoving = removingIds.includes(item.part_id)
+                  const isJustAdded = justAddedId === item.part_id
+
+                  return (
+                    <div
+                      key={item.part_id}
+                      className={`grid gap-4 rounded-2xl border p-5 items-center md:grid-cols-[1fr_160px_220px_120px] transition-all duration-200 ease-out ${isRemoving ? 'opacity-0 scale-95 h-0 p-0 m-0 overflow-hidden' : 'border-slate-600 bg-slate-950 shadow-sm shadow-black/20'} ${isJustAdded ? 'ring-2 ring-emerald-400' : ''}`}
+                      style={{ paddingTop: idx === 0 ? 20 : undefined }}
+                    >
+                      <div>
+                        <p className="font-semibold text-white">{item.part_name}</p>
+                        <p className="text-slate-400 text-sm">{item.oem_number || 'No OEM'}</p>
+                        <p className="text-slate-400 text-sm">{item.currency}</p>
+                      </div>
+
+                      <div className="text-sm">
+                        <div className="text-slate-400">Asking</div>
+                        <div className="mt-1 text-slate-200">{formatCurrency(item.asking_price, item.currency)}</div>
+                      </div>
+
+                      <div>
+                        <div className="text-sm text-slate-400">Sale Price</div>
+                        <div className="mt-1 flex items-center gap-3">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.sale_price}
+                            onChange={(event) => {
+                              const value = event.target.value
+                              setLineItems((prev) => prev.map((line) => (line.part_id === item.part_id ? { ...line, sale_price: value } : line)))
+                            }}
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLineItem(item.part_id)}
+                            className="rounded-md border border-rose-500 px-3 py-2 text-sm text-rose-400 transition hover:bg-rose-500/10"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-sm text-slate-400">Line Total</div>
+                        <div className="mt-1 text-slate-200 font-semibold">{formatCurrency(Number(item.sale_price || 0), item.currency)}</div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm text-slate-300">Asking</label>
-                      <p className="mt-1 text-slate-200">{formatCurrency(item.asking_price, item.currency)}</p>
-                    </div>
-                    <label className="block text-sm text-slate-300">
-                      Sale Price
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.sale_price}
-                        onChange={(event) => {
-                          const value = event.target.value
-                          setLineItems((prev) => prev.map((line) => line.part_id === item.part_id ? { ...line, sale_price: value } : line))
-                        }}
-                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                      />
-                    </label>
-                    <div className="flex items-end justify-between">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLineItem(item.part_id)}
-                        className="rounded-lg border border-rose-500 px-3 py-2 text-sm text-rose-400 transition hover:bg-rose-500/10"
-                      >
-                        Remove
-                      </button>
-                      <p className="text-sm text-slate-400">{formatCurrency(item.sale_price, item.currency)}</p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -639,22 +783,28 @@ function CreateInvoice() {
 
               <div className="rounded-2xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
                 <div className="flex items-center justify-between">
-                  <span>Total</span>
-                  <strong>{formatCurrency(totalAmount, lineItems[0]?.currency)}</strong>
+                  <span className="text-slate-400">Total</span>
+                  <strong className="text-xl font-bold text-white">{formatCurrency(totalAmount, lineItems[0]?.currency)}</strong>
                 </div>
-                <div className="flex items-center justify-between pt-2 text-slate-400">
+                <div className="mt-2 flex items-center justify-between text-slate-400">
                   <span>Paid</span>
                   <strong>{formatCurrency(totalPaid, lineItems[0]?.currency)}</strong>
                 </div>
               </div>
 
               {invoiceMessage ? <p className="text-sm text-rose-400">{invoiceMessage}</p> : null}
+              {!canCreateInvoice && !submitting ? (
+                <p className="text-sm text-slate-400" title="Select a customer and add at least one item to continue">
+                  Select a customer and add at least one item to continue
+                </p>
+              ) : null}
 
               <button
                 type="button"
-                disabled={submitting}
+                disabled={submitting || !canCreateInvoice}
                 onClick={handleConfirmInvoice}
                 className="w-full rounded-lg bg-cyan-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                title={!canCreateInvoice ? 'Select a customer and add at least one item to continue' : ''}
               >
                 {submitting ? 'Creating invoice...' : 'Create Invoice'}
               </button>
