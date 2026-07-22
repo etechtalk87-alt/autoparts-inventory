@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { BadgeCheck, Building2, MapPin, PencilLine, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -46,7 +47,7 @@ function Branches() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+      <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <p className="text-lg text-slate-300">Loading...</p>
       </main>
     )
@@ -152,18 +153,54 @@ function Branches() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+    <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-          <h1 className="text-3xl font-semibold">Branch Management</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Manage branches for your company and keep them scoped to your company workspace.
-          </p>
-        </div>
+        <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
+                <Sparkles size={16} />
+                Premium branch control
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Branch Management</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
+                Create, update, and organize every branch in your company workspace with a polished experience that feels as refined as your operations.
+              </p>
+            </div>
 
-        <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30 focus:outline-none">
-          <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-4 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-semibold">Existing Branches</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+                <div className="text-2xl font-semibold text-white">{branches.length}</div>
+                <div className="mt-1 text-sm text-slate-400">Configured branches</div>
+              </div>
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                  <BadgeCheck size={16} />
+                  Company-ready
+                </div>
+                <div className="mt-1 text-sm text-slate-300">Each branch stays scoped to your workspace.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {errorMessage ? (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            {errorMessage}
+          </div>
+        ) : null}
+        {successMessage ? (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            {successMessage}
+          </div>
+        ) : null}
+
+        <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-35px_rgba(0,0,0,0.9)] backdrop-blur-xl focus:outline-none">
+          <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Existing Branches</h2>
+              <p className="mt-1 text-sm text-slate-400">Review and refine your branch network with confidence.</p>
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -171,39 +208,71 @@ function Branches() {
                 setSuccessMessage('')
                 setShowAddModal(true)
               }}
-              className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
             >
-              + Add Branch
+              <Plus size={18} />
+              Add Branch
             </button>
           </div>
 
           {loadingBranches ? (
-            <div className="p-6 text-slate-400">Loading branches...</div>
+            <div className="flex items-center justify-center gap-3 p-10 text-slate-400">
+              <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-cyan-400" />
+              Loading branches...
+            </div>
           ) : branches.length === 0 ? (
-            <div className="p-6 text-slate-400">No branches found for this company yet.</div>
+            <div className="flex flex-col items-center justify-center gap-4 p-10 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5">
+                <Building2 size={28} className="mx-auto text-cyan-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">No branches yet</h3>
+                <p className="mt-1 text-sm text-slate-400">Add your first branch to start organizing operations across locations.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMessage('')
+                  setSuccessMessage('')
+                  setShowAddModal(true)
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+              >
+                <Plus size={18} />
+                Create branch
+              </button>
+            </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
+              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                 <thead className="bg-slate-950/70 text-slate-400">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Name</th>
+                    <th className="px-6 py-3 font-medium">Branch</th>
                     <th className="px-6 py-3 font-medium">Location</th>
                     <th className="px-6 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 bg-slate-900/70">
+                <tbody className="divide-y divide-white/10 bg-slate-900/50">
                   {branches.map((branch) => (
-                    <tr key={branch.id} className="align-middle">
+                    <tr key={branch.id} className="align-middle transition hover:bg-slate-800/60">
                       <td className="px-6 py-4">
                         {editingId === branch.id ? (
                           <input
                             type="text"
                             value={editForm.name}
                             onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))}
-                            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none ring-0 transition focus:border-cyan-400"
                           />
                         ) : (
-                          branch.name
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                              <Building2 size={18} />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-white">{branch.name}</div>
+                              <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">Branch</div>
+                            </div>
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -212,10 +281,13 @@ function Branches() {
                             type="text"
                             value={editForm.location}
                             onChange={(event) => setEditForm((prev) => ({ ...prev, location: event.target.value }))}
-                            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none ring-0 transition focus:border-cyan-400"
                           />
                         ) : (
-                          branch.location
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <MapPin size={16} className="text-slate-500" />
+                            {branch.location}
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -224,14 +296,14 @@ function Branches() {
                             <button
                               type="button"
                               onClick={handleUpdate}
-                              className="rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
+                              className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
                             >
                               Save
                             </button>
                             <button
                               type="button"
                               onClick={cancelEditing}
-                              className="rounded-lg bg-slate-700 px-3 py-2 font-semibold text-white transition hover:bg-slate-600"
+                              className="rounded-xl bg-slate-700 px-3 py-2 font-semibold text-white transition hover:bg-slate-600"
                             >
                               Cancel
                             </button>
@@ -241,15 +313,17 @@ function Branches() {
                             <button
                               type="button"
                               onClick={() => startEditing(branch)}
-                              className="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
+                              className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
                             >
+                              <PencilLine size={15} />
                               Edit
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteBranch(branch)}
-                              className="rounded-lg bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
+                              className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
                             >
+                              <Trash2 size={15} />
                               Delete
                             </button>
                           </div>
@@ -265,32 +339,41 @@ function Branches() {
       </div>
 
       {showAddModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
-            <h3 className="text-xl font-semibold">Add Branch</h3>
-            <form onSubmit={handleCreate} className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-white">Add Branch</h3>
+                <p className="mt-1 text-sm text-slate-400">Fill in the branch details and save it instantly.</p>
+              </div>
+              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                <Building2 size={20} />
+              </div>
+            </div>
+
+            <form onSubmit={handleCreate} className="mt-6 grid gap-4 md:grid-cols-2">
               <label className="text-sm text-slate-300 md:col-span-2">
-                Branch Name
+                <span className="mb-1.5 block font-medium">Branch Name</span>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                   placeholder="North Branch"
                 />
               </label>
               <label className="text-sm text-slate-300 md:col-span-2">
-                Location
+                <span className="mb-1.5 block font-medium">Location</span>
                 <input
                   type="text"
                   value={form.location}
                   onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                   placeholder="Nairobi"
                 />
               </label>
-              {errorMessage ? <p className="mt-2 text-sm text-red-400 md:col-span-2">{errorMessage}</p> : null}
-              {successMessage ? <p className="mt-2 text-sm text-emerald-400 md:col-span-2">{successMessage}</p> : null}
+              {errorMessage ? <p className="text-sm text-rose-400 md:col-span-2">{errorMessage}</p> : null}
+              {successMessage ? <p className="text-sm text-emerald-400 md:col-span-2">{successMessage}</p> : null}
               <div className="mt-2 flex justify-end gap-3 md:col-span-2">
                 <button
                   type="button"
@@ -299,14 +382,14 @@ function Branches() {
                     setErrorMessage('')
                     setSuccessMessage('')
                   }}
-                  className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+                  className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting ? 'Saving...' : 'Add Branch'}
                 </button>

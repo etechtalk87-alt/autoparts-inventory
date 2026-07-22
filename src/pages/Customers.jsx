@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
+import { BadgeCheck, CreditCard, ReceiptText, UsersRound, Wallet2 } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -445,8 +446,10 @@ function Customers() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
-        <p className="text-lg text-slate-300">Loading...</p>
+      <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          Loading customers...
+        </div>
       </main>
     )
   }
@@ -455,59 +458,111 @@ function Customers() {
     return <Navigate to="/" replace />
   }
 
+  const totalOutstandingBalance = Object.values(outstandingBalances).reduce((sum, balanceMap) => {
+    if (!balanceMap) return sum
+    return sum + Object.values(balanceMap).reduce((balanceSum, amount) => balanceSum + Number(amount || 0), 0)
+  }, 0)
+
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+    <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold">Customers</h1>
-              <p className="mt-2 text-sm text-slate-400">Manage customer information and outstanding balances.</p>
+        <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
+                <BadgeCheck size={16} />
+                Customer relationship hub
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Customers</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
+                Keep key client details, payment records, and outstanding balances organized in one polished workspace.
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={openAddModal}
-              className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
-            >
-              Add Customer
-            </button>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                  <UsersRound size={16} className="text-cyan-300" />
+                  Active customers
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-white">{customers.length}</div>
+              </div>
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                  <Wallet2 size={16} />
+                  Outstanding value
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-white">{totalOutstandingBalance.toFixed(2)}</div>
+              </div>
+            </div>
           </div>
+        </section>
+
+        {message ? (
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${messageType === 'success' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200' : 'border-rose-500/20 bg-rose-500/10 text-rose-200'}`}>
+            {message}
+          </div>
+        ) : null}
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
+          >
+            <UsersRound size={18} />
+            Add Customer
+          </button>
         </div>
 
         {loadingCustomers ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+          <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <p className="text-slate-400">Loading customers...</p>
           </div>
         ) : customers.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-            <p className="text-slate-400">No customers found. Add one to get started.</p>
+          <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-10 text-center shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5">
+              <UsersRound size={28} className="mx-auto text-cyan-300" />
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-white">No customers yet</h2>
+            <p className="mt-2 text-sm text-slate-400">Add your first customer to begin tracking payments and relationships.</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30">
+          <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
+              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                 <thead className="bg-slate-950/70 text-slate-400">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Name</th>
+                    <th className="px-6 py-3 font-medium">Customer</th>
                     <th className="px-6 py-3 font-medium">Phone</th>
                     <th className="px-6 py-3 font-medium">Outstanding Balance</th>
                     <th className="px-6 py-3 font-medium">Payment History</th>
                     {canManageCustomers ? <th className="px-6 py-3 font-medium">Actions</th> : null}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 bg-slate-900/70">
+                <tbody className="divide-y divide-white/10 bg-slate-900/50">
                   {customers.map((customer) => {
                     const balances = outstandingBalances[customer.id]
                     const hasBalances = balances && Object.keys(balances).some(k => balances[k] > 0)
                     
                     return (
                       <Fragment key={customer.id}>
-                        <tr>
-                          <td className="px-6 py-4 font-medium text-white">{customer.full_name}</td>
-                          <td className="px-6 py-4">{customer.phone || '—'}</td>
+                        <tr className="align-top transition hover:bg-slate-800/60">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                                <UsersRound size={18} />
+                              </div>
+                              <div>
+                                <div className="font-semibold text-white">{customer.full_name}</div>
+                                <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">Customer profile</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-slate-300">{customer.phone || '—'}</td>
                           <td className="px-6 py-4">
                             {!balances ? (
-                              'Calculating...'
+                              <span className="text-slate-400">Calculating...</span>
                             ) : hasBalances ? (
                               <div className="flex flex-col gap-1">
                                 {Object.entries(balances)
@@ -526,25 +581,27 @@ function Customers() {
                             <button
                               type="button"
                               onClick={() => toggleExpand(customer.id)}
-                              className="text-cyan-400 hover:text-cyan-300 transition underline text-sm"
+                              className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-sm font-medium text-cyan-200 transition hover:bg-cyan-400/20"
                             >
+                              <ReceiptText size={14} />
                               {expandedCustomer === customer.id ? 'Hide History' : 'View History'}
                             </button>
                           </td>
                           {canManageCustomers ? (
                             <td className="px-6 py-4">
-                              <div className="flex gap-2">
+                              <div className="flex flex-wrap gap-2">
                                 <button
                                   type="button"
                                   onClick={() => openPaymentModal(customer)}
-                                  className="rounded-lg bg-emerald-600/20 text-emerald-400 px-3 py-1.5 text-sm font-medium transition hover:bg-emerald-600/30 whitespace-nowrap"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600/20 px-3 py-1.5 text-sm font-medium text-emerald-300 transition hover:bg-emerald-600/30 whitespace-nowrap"
                                 >
+                                  <CreditCard size={15} />
                                   Record Payment
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => openEditModal(customer)}
-                                  className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-medium transition hover:bg-slate-600"
+                                  className="rounded-xl bg-slate-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-slate-600"
                                 >
                                   Edit
                                 </button>
@@ -554,14 +611,14 @@ function Customers() {
                         </tr>
                         {expandedCustomer === customer.id && (
                           <tr>
-                            <td colSpan={canManageCustomers ? 5 : 4} className="bg-slate-950/50 px-6 py-4 border-b-2 border-slate-800">
-                              <h4 className="font-semibold text-white mb-3">Payment History for {customer.full_name}</h4>
+                            <td colSpan={canManageCustomers ? 5 : 4} className="border-b border-white/10 bg-slate-950/50 px-6 py-4">
+                              <h4 className="mb-3 font-semibold text-white">Payment History for {customer.full_name}</h4>
                               {loadingHistory ? (
-                                <p className="text-slate-400 text-sm">Loading...</p>
+                                <p className="text-sm text-slate-400">Loading...</p>
                               ) : paymentHistory.length === 0 ? (
-                                <p className="text-slate-400 text-sm">No payments recorded yet.</p>
+                                <p className="text-sm text-slate-400">No payments recorded yet.</p>
                               ) : (
-                                <table className="min-w-full divide-y divide-slate-800 text-sm text-left bg-slate-900 rounded-lg overflow-hidden border border-slate-800">
+                                <table className="min-w-full overflow-hidden rounded-xl border border-white/10 bg-slate-900 text-left text-sm">
                                   <thead className="bg-slate-800 text-slate-300">
                                     <tr>
                                       <th className="px-4 py-2 font-medium">Date</th>
@@ -571,12 +628,12 @@ function Customers() {
                                       <th className="px-4 py-2 font-medium">Notes</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-slate-800">
+                                  <tbody className="divide-y divide-white/10">
                                     {paymentHistory.map(ph => (
                                       <tr key={ph.id}>
                                         <td className="px-4 py-2 text-slate-300">{ph.payment_date}</td>
-                                        <td className="px-4 py-2 text-white font-medium">{ph.currency || 'AED'} {Number(ph.amount).toFixed(2)}</td>
-                                        <td className="px-4 py-2 text-slate-300 capitalize">{ph.payment_method?.replace('_', ' ') || 'Cash'}</td>
+                                        <td className="px-4 py-2 font-medium text-white">{ph.currency || 'AED'} {Number(ph.amount).toFixed(2)}</td>
+                                        <td className="px-4 py-2 capitalize text-slate-300">{ph.payment_method?.replace('_', ' ') || 'Cash'}</td>
                                         <td className="px-4 py-2 text-cyan-400">{ph.sales?.invoice_number || 'General Payment'}</td>
                                         <td className="px-4 py-2 text-slate-400">{ph.notes || '—'}</td>
                                       </tr>
@@ -596,26 +653,25 @@ function Customers() {
           </div>
         )}
 
-        {/* Record Payment Modal */}
         {showPaymentModal && paymentCustomer && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-              <h2 className="text-xl font-semibold mb-4">Record Payment for {paymentCustomer.full_name}</h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
+              <h2 className="text-xl font-semibold text-white">Record Payment for {paymentCustomer.full_name}</h2>
               
-              <div className="mb-4 rounded-lg bg-slate-800 p-4 border border-slate-700">
-                <p className="text-sm text-slate-400 mb-2">Current Outstanding Balance:</p>
+              <div className="mb-4 mt-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                <p className="mb-2 text-sm text-slate-400">Current Outstanding Balance:</p>
                 {outstandingBalances[paymentCustomer.id] && Object.keys(outstandingBalances[paymentCustomer.id]).some(k => outstandingBalances[paymentCustomer.id][k] > 0) ? (
                   <div className="flex flex-col gap-1">
                     {Object.entries(outstandingBalances[paymentCustomer.id])
                       .filter(([_, amt]) => amt > 0)
                       .map(([curr, amt]) => (
-                        <span key={curr} className="font-semibold text-rose-400 text-lg">
+                        <span key={curr} className="text-lg font-semibold text-rose-400">
                           {curr} {Number(amt).toFixed(2)}
                         </span>
                       ))}
                   </div>
                 ) : (
-                  <span className="text-white text-lg font-semibold">0.00</span>
+                  <span className="text-lg font-semibold text-white">0.00</span>
                 )}
               </div>
 
@@ -629,7 +685,7 @@ function Customers() {
                       min="0.01"
                       value={paymentForm.amount}
                       onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                      className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                      className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                       required
                     />
                   </label>
@@ -638,7 +694,7 @@ function Customers() {
                     <select
                       value={paymentForm.currency}
                       onChange={(e) => setPaymentForm({ ...paymentForm, currency: e.target.value })}
-                      className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                      className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                     >
                       <option value="AED">AED</option>
                       <option value="USD">USD</option>
@@ -651,7 +707,7 @@ function Customers() {
                   <select
                     value={paymentForm.payment_method}
                     onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   >
                     <option value="cash">Cash</option>
                     <option value="bank_transfer">Bank Transfer</option>
@@ -664,7 +720,7 @@ function Customers() {
                   <select
                     value={paymentForm.sale_id}
                     onChange={(e) => setPaymentForm({ ...paymentForm, sale_id: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   >
                     <option value="">-- General Payment (Unlinked) --</option>
                     {loadingUnpaidSales ? (
@@ -688,7 +744,7 @@ function Customers() {
                   <textarea
                     value={paymentForm.notes}
                     onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                     rows="2"
                     placeholder="Reference #, cheque details, etc."
                   />
@@ -707,14 +763,14 @@ function Customers() {
                       setShowPaymentModal(false)
                       setMessage('')
                     }}
-                    className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+                    className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {submitting ? 'Saving...' : 'Record Payment'}
                   </button>
@@ -724,11 +780,10 @@ function Customers() {
           </div>
         )}
 
-        {/* Add/Edit Customer Modal */}
         {showAddModal ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-              <h2 className="text-xl font-semibold">{editingId ? 'Edit Customer' : 'Add Customer'}</h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
+              <h2 className="text-xl font-semibold text-white">{editingId ? 'Edit Customer' : 'Add Customer'}</h2>
               <form onSubmit={handleAddCustomer} className="mt-4 flex flex-col gap-4">
                 <label className="flex flex-col text-sm text-slate-300">
                   Full Name *
@@ -736,7 +791,7 @@ function Customers() {
                     type="text"
                     value={form.full_name}
                     onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                     required
                   />
                 </label>
@@ -746,7 +801,7 @@ function Customers() {
                     type="tel"
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   />
                 </label>
                 <label className="flex flex-col text-sm text-slate-300">
@@ -755,7 +810,7 @@ function Customers() {
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   />
                 </label>
                 <label className="flex flex-col text-sm text-slate-300">
@@ -764,7 +819,7 @@ function Customers() {
                     type="text"
                     value={form.address}
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   />
                 </label>
                 <label className="flex flex-col text-sm text-slate-300">
@@ -772,7 +827,7 @@ function Customers() {
                   <select
                     value={form.country}
                     onChange={(e) => setForm({ ...form, country: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   >
                     <option value="">Select a country</option>
                     {COUNTRIES.map((country) => (
@@ -787,15 +842,13 @@ function Customers() {
                   <textarea
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    className="mt-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                     rows="3"
                   />
                 </label>
 
                 {message ? (
-                  <p
-                    className={`text-sm ${messageType === 'success' ? 'text-emerald-400' : 'text-red-400'}`}
-                  >
+                  <p className={`text-sm ${messageType === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
                     {message}
                   </p>
                 ) : null}
@@ -807,14 +860,14 @@ function Customers() {
                       setShowAddModal(false)
                       setMessage('')
                     }}
-                    className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+                    className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {submitting ? 'Saving...' : editingId ? 'Update' : 'Add'} Customer
                   </button>

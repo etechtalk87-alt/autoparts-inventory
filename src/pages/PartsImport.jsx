@@ -86,7 +86,7 @@ function PartsImport() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+      <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <p className="text-lg text-slate-300">Loading...</p>
       </main>
     )
@@ -292,7 +292,7 @@ function PartsImport() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+    <main className="min-h-screen bg-transparent px-4 py-10 text-white">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

@@ -365,29 +365,37 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
-        <p className="text-lg text-slate-300">Loading dashboard...</p>
+      <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          Loading dashboard...
+        </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+    <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+        <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-400">Operations overview</p>
-              <h1 className="mt-2 text-3xl font-semibold">{companyName}</h1>
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
+                <TrendingUp className="h-4 w-4" />
+                Operations overview
+              </div>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight">{companyName}</h1>
               <p className="mt-2 text-sm text-slate-400">
                 Logged in as <span className="font-medium text-white">{user?.email}</span>
               </p>
             </div>
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+              Live performance snapshot
+            </div>
           </div>
-        </div>
+        </section>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Today's Sales</p>
@@ -406,7 +414,7 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">This Month's Sales</p>
@@ -421,7 +429,7 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Donor Vehicles Purchased</p>
@@ -432,7 +440,7 @@ function Dashboard() {
             <p className="mt-3 text-sm text-slate-400">Added this month</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Available Parts</p>
@@ -443,7 +451,7 @@ function Dashboard() {
             <p className="mt-3 text-sm text-slate-400">Currently in stock</p>
           </div>
 
-          <Link to="/parts?aging=true" className="block rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20 transition hover:border-orange-500/50 hover:bg-slate-800/80">
+          <Link to="/parts?aging=true" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-orange-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Aging Stock</p>
@@ -454,7 +462,7 @@ function Dashboard() {
             <p className="mt-3 text-sm text-slate-400">In stock over 60 days</p>
           </Link>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Total Invoices</p>
@@ -465,7 +473,7 @@ function Dashboard() {
             <p className="mt-3 text-sm text-slate-400">All-time sales invoices</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Active Customers</p>
@@ -476,7 +484,7 @@ function Dashboard() {
             <p className="mt-3 text-sm text-slate-400">With sales in last 90 days</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Outstanding Receivables</p>
@@ -498,7 +506,7 @@ function Dashboard() {
 
         {currentStaff?.role === 'company_admin' ? (
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+            <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
               <h2 className="text-xl font-semibold">Parts by branch</h2>
               <div className="mt-4 h-80">
                 <ResponsiveContainer width="100%" height="100%">
@@ -520,7 +528,7 @@ function Dashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+            <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
               <h2 className="text-xl font-semibold">Sales revenue by branch this month</h2>
               <div className="mt-4 h-80">
                 <ResponsiveContainer width="100%" height="100%">
@@ -544,7 +552,7 @@ function Dashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+            <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
               <h2 className="text-xl font-semibold">Average days in stock by branch</h2>
               <div className="mt-4 h-80">
                 <ResponsiveContainer width="100%" height="100%">
@@ -568,7 +576,7 @@ function Dashboard() {
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+        <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold">Sales Analytics</h2>
@@ -577,7 +585,7 @@ function Dashboard() {
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+            <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
               <p className="text-sm text-slate-400">Sales Analytics</p>
               <div className="mt-4">
                 <p className="text-sm text-slate-400">Monthly Sales</p>
@@ -615,7 +623,7 @@ function Dashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/20">
+            <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
               <p className="text-sm text-slate-400">Revenue by category</p>
               <div className="mt-4 flex h-80 flex-col items-center justify-center gap-4">
                 {analyticsCategoryData.data.length > 0 ? (
@@ -655,7 +663,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-md">
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">Branch breakdown</h2>

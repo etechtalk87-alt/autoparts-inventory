@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { BadgeCheck, Boxes, Package2, PencilLine, Plus, Search, Sparkles, Trash2, Warehouse } from 'lucide-react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { isAgingStock } from '../lib/aging'
@@ -242,8 +243,10 @@ function Parts() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
-        <p className="text-lg text-slate-300">Loading...</p>
+      <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          Loading inventory...
+        </div>
       </main>
     )
   }
@@ -703,40 +706,85 @@ function Parts() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+    <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-          <h1 className="text-3xl font-semibold">Spare Parts Inventory</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Track spare parts by company and branch, and link them to donor vehicles.
-          </p>
-        </div>
+        <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
+                <Sparkles size={16} />
+                Inventory control center
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Spare Parts Inventory</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
+                Track spare parts by company and branch, and link them to donor vehicles in a more refined operational workspace.
+              </p>
+            </div>
 
-        <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30 focus:outline-none">
-          <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-4 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-semibold">Inventory List</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                  <Boxes size={16} className="text-cyan-300" />
+                  Visible inventory
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-white">{filteredParts.length}</div>
+              </div>
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                  <BadgeCheck size={16} />
+                  Branch ready
+                </div>
+                <div className="mt-2 text-sm text-slate-300">Each part remains aligned to your branch workflow.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {errorMessage ? (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            {errorMessage}
+          </div>
+        ) : null}
+        {successMessage ? (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            {successMessage}
+          </div>
+        ) : null}
+
+        <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl focus:outline-none">
+          <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Inventory List</h2>
+              <p className="mt-1 text-sm text-slate-400">Search, filter, and manage parts without losing context.</p>
+            </div>
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="flex flex-col gap-3 md:flex-row">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                  placeholder="Search by part name or OEM"
-                />
+                <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
+                  <Search size={15} className="text-cyan-300" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    className="bg-transparent text-white outline-none"
+                    placeholder="Search by part name or OEM"
+                  />
+                </label>
                 {canManageBranches ? (
-                  <select
-                    value={branchFilter}
-                    onChange={(event) => setBranchFilter(event.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                  >
-                    <option value="all">All branches</option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>{branch.name}</option>
-                    ))}
-                  </select>
+                  <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
+                    <Warehouse size={15} className="text-cyan-300" />
+                    <select
+                      value={branchFilter}
+                      onChange={(event) => setBranchFilter(event.target.value)}
+                      className="bg-transparent text-white outline-none"
+                    >
+                      <option value="all">All branches</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>{branch.name}</option>
+                      ))}
+                    </select>
+                  </label>
                 ) : null}
-                <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300">
+                <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
                   <input
                     type="checkbox"
                     checked={showAgingOnly}
@@ -753,20 +801,29 @@ function Parts() {
                   setSuccessMessage('')
                   setShowAddModal(true)
                 }}
-                className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
               >
-                + Add Part
+                <Plus size={18} />
+                Add Part
               </button>
             </div>
           </div>
 
           {loadingParts ? (
-            <div className="p-6 text-slate-400">Loading parts...</div>
+            <div className="p-8 text-slate-400">Loading parts...</div>
           ) : filteredParts.length === 0 ? (
-            <div className="p-6 text-slate-400">No parts match the current filters.</div>
+            <div className="flex flex-col items-center justify-center gap-4 p-10 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-700 p-5">
+                <Package2 size={28} className="mx-auto text-cyan-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">No parts found</h3>
+                <p className="mt-1 text-sm text-slate-400">Try adjusting your search or branch filters to reveal more inventory.</p>
+              </div>
+            </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
+              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                 <thead className="bg-slate-950/70 text-slate-400">
                   <tr>
                     <th className="px-6 py-3 font-medium">Part</th>
@@ -778,12 +835,19 @@ function Parts() {
                     <th className="px-6 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 bg-slate-900/70">
+                <tbody className="divide-y divide-white/10 bg-slate-900/50">
                   {filteredParts.map((part) => (
-                    <tr key={part.id} className="align-middle">
+                    <tr key={part.id} className="align-middle transition hover:bg-slate-800/60">
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-white">{part.part_name}</div>
-                        <div className="text-xs text-slate-400">{part.oem_number ?? '—'}</div>
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                            <Package2 size={16} />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-white">{part.part_name}</div>
+                            <div className="text-xs text-slate-400">{part.oem_number ?? '—'}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         {part.donor_vehicles ? (
@@ -797,9 +861,9 @@ function Parts() {
                           <span className="text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">{part.condition}</td>
-                      <td className="px-6 py-4">{`${part.currency || 'AED'} ${Number(part.cost).toFixed(2)}`}</td>
-                      <td className="px-6 py-4">{`${part.currency || 'AED'} ${Number(part.asking_price).toFixed(2)}`}</td>
+                      <td className="px-6 py-4 text-slate-300">{part.condition}</td>
+                      <td className="px-6 py-4 font-semibold text-white">{`${part.currency || 'AED'} ${Number(part.cost).toFixed(2)}`}</td>
+                      <td className="px-6 py-4 font-semibold text-white">{`${part.currency || 'AED'} ${Number(part.asking_price).toFixed(2)}`}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClasses[part.status] || 'bg-slate-500/20 text-slate-300'}`}>
@@ -819,8 +883,9 @@ function Parts() {
                               <button
                                 type="button"
                                 onClick={() => startEditPart(part)}
-                                className="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
+                                className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
                               >
+                                <PencilLine size={15} />
                                 Edit
                               </button>
 
@@ -828,8 +893,9 @@ function Parts() {
                                 <button
                                   type="button"
                                   onClick={() => handleDeletePart(part)}
-                                  className="rounded-lg bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
                                 >
+                                  <Trash2 size={15} />
                                   Delete
                                 </button>
                               ) : null}
@@ -839,14 +905,14 @@ function Parts() {
                                   <button
                                     type="button"
                                     onClick={() => openTransferModal(part)}
-                                    className="rounded-lg bg-cyan-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+                                    className="rounded-xl bg-cyan-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
                                   >
                                     Transfer
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => openSaleModal(part)}
-                                    className="rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
+                                    className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
                                   >
                                     Mark as Sold
                                   </button>

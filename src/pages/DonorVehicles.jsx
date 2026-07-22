@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { CarFront, BadgeCheck, PencilLine, Plus, Sparkles, Trash2, Warehouse } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -102,8 +103,10 @@ function DonorVehicles() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
-        <p className="text-lg text-slate-300">Loading...</p>
+      <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          Loading donor vehicles...
+        </div>
       </main>
     )
   }
@@ -357,26 +360,66 @@ function DonorVehicles() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+    <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-          <h1 className="text-3xl font-semibold">Donor Vehicles</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Record donor vehicles for your company and assign them to the right branch.
-          </p>
-        </div>
+        <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
+                <Sparkles size={16} />
+                Vehicle intake workspace
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Donor Vehicles</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
+                Record donor vehicles for your company and assign them to the right branch with a refined operational flow.
+              </p>
+            </div>
 
-        <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30 focus:outline-none">
-          <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-4 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-semibold">Existing Vehicles</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                  <CarFront size={16} className="text-cyan-300" />
+                  Vehicles tracked
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-white">{visibleVehicles.length}</div>
+              </div>
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                  <BadgeCheck size={16} />
+                  Branch aligned
+                </div>
+                <div className="mt-2 text-sm text-slate-300">Every vehicle stays connected to your branch structure.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {errorMessage ? (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            {errorMessage}
+          </div>
+        ) : null}
+        {successMessage ? (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            {successMessage}
+          </div>
+        ) : null}
+
+        <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl focus:outline-none">
+          <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Existing Vehicles</h2>
+              <p className="mt-1 text-sm text-slate-400">Monitor and manage the donor vehicles available across your branches.</p>
+            </div>
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               {canManageBranch ? (
-                <label className="text-sm text-slate-300">
-                  <span className="mr-2">Filter by branch</span>
+                <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
+                  <Warehouse size={15} className="text-cyan-300" />
+                  <span>Branch</span>
                   <select
                     value={branchFilter}
                     onChange={(event) => setBranchFilter(event.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="bg-transparent text-white outline-none"
                   >
                     <option value="all">All branches</option>
                     {branches.map((branch) => (
@@ -394,20 +437,29 @@ function DonorVehicles() {
                   setSuccessMessage('')
                   setShowAddModal(true)
                 }}
-                className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
               >
-                + Add Vehicle
+                <Plus size={18} />
+                Add Vehicle
               </button>
             </div>
           </div>
 
           {loadingVehicles ? (
-            <div className="p-6 text-slate-400">Loading vehicles...</div>
+            <div className="p-8 text-slate-400">Loading vehicles...</div>
           ) : visibleVehicles.length === 0 ? (
-            <div className="p-6 text-slate-400">No donor vehicles found.</div>
+            <div className="flex flex-col items-center justify-center gap-4 p-10 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5">
+                <CarFront size={28} className="mx-auto text-cyan-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">No donor vehicles yet</h3>
+                <p className="mt-1 text-sm text-slate-400">Add your first vehicle to start organizing your donor inventory.</p>
+              </div>
+            </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
+              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                 <thead className="bg-slate-950/70 text-slate-400">
                   <tr>
                     <th className="px-6 py-3 font-medium">Make</th>
@@ -420,22 +472,35 @@ function DonorVehicles() {
                     <th className="px-6 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 bg-slate-900/70">
+                <tbody className="divide-y divide-white/10 bg-slate-900/50">
                   {visibleVehicles.map((vehicle) => (
-                    <tr key={vehicle.id} className="align-middle">
-                      <td className="px-6 py-4">{vehicle.make}</td>
-                      <td className="px-6 py-4">{vehicle.model}</td>
-                      <td className="px-6 py-4">{vehicle.year}</td>
-                      <td className="px-6 py-4">{vehicle.vin ?? '—'}</td>
-                      <td className="px-6 py-4">{vehicle.purchase_price != null ? formatCurrency(vehicle.purchase_price, vehicle.purchase_currency || 'AED') : '—'}</td>
-                      <td className="px-6 py-4">{vehicle.branches?.name ?? '—'}</td>
-                      <td className="px-6 py-4">{vehicle.notes ?? '—'}</td>
+                    <tr key={vehicle.id} className="align-middle transition hover:bg-slate-800/60">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                            <CarFront size={16} />
+                          </div>
+                          <div className="font-semibold text-white">{vehicle.make}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-300">{vehicle.model}</td>
+                      <td className="px-6 py-4 text-slate-300">{vehicle.year}</td>
+                      <td className="px-6 py-4 text-slate-300">{vehicle.vin ?? '—'}</td>
+                      <td className="px-6 py-4 font-semibold text-white">{vehicle.purchase_price != null ? formatCurrency(vehicle.purchase_price, vehicle.purchase_currency || 'AED') : '—'}</td>
+                      <td className="px-6 py-4 text-slate-300">{vehicle.branches?.name ?? '—'}</td>
+                      <td className="px-6 py-4 text-slate-300">{vehicle.notes ?? '—'}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-2">
                           {(currentStaff.role === 'company_admin' || vehicle.branch_id === currentStaff.branch_id) && (
                             <>
-                              <button type="button" onClick={() => startEditVehicle(vehicle)} className="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200">Edit</button>
-                              <button type="button" onClick={() => handleDeleteVehicle(vehicle)} className="rounded-lg bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500">Delete</button>
+                              <button type="button" onClick={() => startEditVehicle(vehicle)} className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200">
+                                <PencilLine size={15} />
+                                Edit
+                              </button>
+                              <button type="button" onClick={() => handleDeleteVehicle(vehicle)} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500">
+                                <Trash2 size={15} />
+                                Delete
+                              </button>
                             </>
                           )}
                         </div>
@@ -450,42 +515,42 @@ function DonorVehicles() {
       </div>
 
       {showAddModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
-            <h3 className="text-xl font-semibold">{editingId ? 'Edit Donor Vehicle' : 'Add Donor Vehicle'}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
+            <h3 className="text-xl font-semibold text-white">{editingId ? 'Edit Donor Vehicle' : 'Add Donor Vehicle'}</h3>
             <form onSubmit={handleSubmit} className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <label className="text-sm text-slate-300">
-                Make
+                <span className="mb-1.5 block font-medium">Make</span>
                 <input
                   type="text"
                   value={form.make}
                   onChange={(event) => setForm((prev) => ({ ...prev, make: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                   placeholder="Toyota"
                 />
               </label>
               <label className="text-sm text-slate-300">
-                Model
+                <span className="mb-1.5 block font-medium">Model</span>
                 <input
                   type="text"
                   value={form.model}
                   onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                   placeholder="Corolla"
                 />
               </label>
               <label className="text-sm text-slate-300">
-                Year
+                <span className="mb-1.5 block font-medium">Year</span>
                 <input
                   type="number"
                   value={form.year}
                   onChange={(event) => setForm((prev) => ({ ...prev, year: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                   placeholder="2020"
                 />
               </label>
               <label className="text-sm text-slate-300">
-                VIN (optional)
+                <span className="mb-1.5 block font-medium">VIN (optional)</span>
                 <div className="mt-1 flex flex-col gap-2 sm:flex-row">
                   <input
                     type="text"
@@ -497,14 +562,14 @@ function DonorVehicles() {
                         setVinFeedback(null)
                       }
                     }}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                     placeholder="1HGCM82633A004352"
                   />
                   <button
                     type="button"
                     onClick={handleDecodeVin}
                     disabled={decodingVin || !form.vin.trim()}
-                    className="rounded-lg border border-cyan-500 px-3 py-2 text-sm font-semibold text-cyan-400 transition hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-xl border border-cyan-500 px-3 py-2 text-sm font-semibold text-cyan-400 transition hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {decodingVin ? 'Decoding...' : 'Decode VIN'}
                   </button>
@@ -517,11 +582,11 @@ function DonorVehicles() {
               </label>
               {canManageBranch ? (
                 <label className="text-sm text-slate-300">
-                  Branch
+                  <span className="mb-1.5 block font-medium">Branch</span>
                   <select
                     value={form.branch_id ?? ''}
                     onChange={(event) => setForm((prev) => ({ ...prev, branch_id: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                     disabled={loadingBranches}
                   >
                     <option value="">Select branch</option>
@@ -534,34 +599,34 @@ function DonorVehicles() {
                 </label>
               ) : null}
               <label className="text-sm text-slate-300">
-                Purchase Price
+                <span className="mb-1.5 block font-medium">Purchase Price</span>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   value={form.purchase_price}
                   onChange={(event) => setForm((prev) => ({ ...prev, purchase_price: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                   placeholder="5000.00"
                 />
               </label>
               <label className="text-sm text-slate-300">
-                Currency
+                <span className="mb-1.5 block font-medium">Currency</span>
                 <select
                   value={form.purchase_currency}
                   onChange={(event) => setForm((prev) => ({ ...prev, purchase_currency: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                 >
                   <option value="AED">AED</option>
                   <option value="USD">USD</option>
                 </select>
               </label>
               <label className="text-sm text-slate-300 md:col-span-2 xl:col-span-1">
-                Notes
+                <span className="mb-1.5 block font-medium">Notes</span>
                 <textarea
                   value={form.notes}
                   onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
-                  className="mt-1 min-h-24 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="mt-1 min-h-24 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                   placeholder="Condition, damage, or other notes"
                 />
               </label>
@@ -578,14 +643,14 @@ function DonorVehicles() {
                       setEditingId(null)
                       setForm({ make: '', model: '', year: '', vin: '', notes: '', purchase_price: '', purchase_currency: 'AED' })
                     }}
-                    className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
+                    className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {submitting ? 'Saving...' : editingId ? 'Save Changes' : 'Add Vehicle'}
                   </button>

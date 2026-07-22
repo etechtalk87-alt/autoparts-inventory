@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { CalendarRange, FileText, Package2, ReceiptText, Sparkles } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
@@ -135,8 +136,10 @@ function Sales() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
-        <p className="text-lg text-slate-300">Loading...</p>
+      <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          Loading sales...
+        </div>
       </main>
     )
   }
@@ -145,45 +148,77 @@ function Sales() {
     return <Navigate to="/" replace />
   }
 
-  return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-          <h1 className="text-3xl font-semibold">Sales History</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Review sold parts, customer details, and branch-level sales activity.
-          </p>
-        </div>
+  const revenueTotal = filteredSales.reduce((sum, sale) => sum + Number(sale.sale_price || 0), 0)
 
-        <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30">
-          <div className="flex flex-col gap-4 border-b border-slate-800 px-6 py-4 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-semibold">Sales Records</h2>
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
-              <div className="flex flex-col gap-3 md:flex-row">
-                <label className="text-sm text-slate-300">
-                  From
-                </label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(event) => setDateFrom(event.target.value)}
-                  className="ml-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                />
+  return (
+    <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+        <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
+                <Sparkles size={16} />
+                Sales command center
               </div>
-              <label className="text-sm text-slate-300">
-                To
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(event) => setDateTo(event.target.value)}
-                  className="ml-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                />
-              </label>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Sales History</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
+                Review sold parts, customer details, and branch-level sales activity with a more refined operational view.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                  <ReceiptText size={16} className="text-cyan-300" />
+                  Visible sales
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-white">{filteredSales.length}</div>
+              </div>
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                  <FileText size={16} />
+                  Revenue tracked
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-white">{revenueTotal.toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Sales Records</h2>
+              <p className="mt-1 text-sm text-slate-400">Filter by time range and branch to focus on the right operations.</p>
+            </div>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
+                  <CalendarRange size={15} className="text-cyan-300" />
+                  <span>From</span>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(event) => setDateFrom(event.target.value)}
+                    className="bg-transparent text-white outline-none"
+                  />
+                </label>
+                <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
+                  <CalendarRange size={15} className="text-cyan-300" />
+                  <span>To</span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(event) => setDateTo(event.target.value)}
+                    className="bg-transparent text-white outline-none"
+                  />
+                </label>
+              </div>
               {canManageBranches ? (
                 <select
                   value={branchFilter}
                   onChange={(event) => setBranchFilter(event.target.value)}
-                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                  className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white outline-none"
                 >
                   <option value="all">All branches</option>
                   {branches.map((branch) => (
@@ -194,19 +229,20 @@ function Sales() {
             </div>
             <Link
               to="/invoices/new"
-              className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
             >
+              <Package2 size={18} />
               Create Invoice
             </Link>
           </div>
 
           {loadingSales ? (
-            <div className="p-6 text-slate-400">Loading sales...</div>
+            <div className="p-8 text-slate-400">Loading sales...</div>
           ) : filteredSales.length === 0 ? (
-            <div className="p-6 text-slate-400">No sales found for the selected scope.</div>
+            <div className="p-8 text-center text-slate-400">No sales found for the selected scope.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
+              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                 <thead className="bg-slate-950/70 text-slate-400">
                   <tr>
                     <th className="px-6 py-3 font-medium">Part</th>
@@ -219,20 +255,27 @@ function Sales() {
                     <th className="px-6 py-3 font-medium">Invoice</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 bg-slate-900/70">
+                <tbody className="divide-y divide-white/10 bg-slate-900/50">
                   {filteredSales.map((sale) => (
-                    <tr key={sale.id} className="align-middle">
-                      <td className="px-6 py-4">{sale.parts?.part_name ?? '—'}</td>
-                      <td className="px-6 py-4">{sale.branches?.name ?? '—'}</td>
-                      <td className="px-6 py-4">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
-                      <td className="px-6 py-4">{sale.customers?.full_name || sale.customer_name || '—'}</td>
+                    <tr key={sale.id} className="align-middle transition hover:bg-slate-800/60">
                       <td className="px-6 py-4">
-                        <span className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                            <Package2 size={16} />
+                          </div>
+                          <div className="font-medium text-white">{sale.parts?.part_name ?? '—'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-300">{sale.branches?.name ?? '—'}</td>
+                      <td className="px-6 py-4 font-semibold text-white">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
+                      <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || '—'}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
                           {getPaymentStatusLabel(sale.payment_status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4">{new Date(sale.created_at).toLocaleDateString()}</td>
-                      <td className="px-6 py-4">{sale.sold_by_staff?.id ?? '—'}</td>
+                      <td className="px-6 py-4 text-slate-300">{new Date(sale.created_at).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-slate-300">{sale.sold_by_staff?.id ?? '—'}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-2">
                           <span className="text-xs text-slate-400">{sale.invoice_number || '—'}</span>
@@ -245,7 +288,7 @@ function Sales() {
                               partId: sale.part_id,
                               sale,
                             })}
-                            className="rounded-lg bg-amber-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
+                            className="rounded-xl bg-amber-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
                           >
                             Download Invoice
                           </button>
