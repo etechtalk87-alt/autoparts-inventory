@@ -44,6 +44,8 @@ function Sales() {
   const [branchFilter, setBranchFilter] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
 
   const canManageBranches = currentStaff?.role === 'company_admin'
 
@@ -133,6 +135,23 @@ function Sales() {
       return matchesBranch && fromOk && toOk
     })
   }, [branchFilter, dateFrom, dateTo, sales])
+
+  const pagedSales = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredSales.slice(startIndex, startIndex + itemsPerPage)
+  }, [currentPage, itemsPerPage, filteredSales])
+
+  const totalPages = Math.max(1, Math.ceil(filteredSales.length / itemsPerPage))
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [branchFilter, dateFrom, dateTo])
 
   if (loading) {
     return (
@@ -241,64 +260,92 @@ function Sales() {
           ) : filteredSales.length === 0 ? (
             <div className="p-8 text-center text-slate-400">No sales found for the selected scope.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-                <thead className="bg-slate-950/70 text-slate-400">
-                  <tr>
-                    <th className="px-6 py-3 font-medium">Part</th>
-                    <th className="px-6 py-3 font-medium">Branch</th>
-                    <th className="px-6 py-3 font-medium">Sale Price</th>
-                    <th className="px-6 py-3 font-medium">Customer</th>
-                    <th className="px-6 py-3 font-medium">Payment Status</th>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Sold By</th>
-                    <th className="px-6 py-3 font-medium">Invoice</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10 bg-slate-900/50">
-                  {filteredSales.map((sale) => (
-                    <tr key={sale.id} className="align-middle transition hover:bg-slate-800/60">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
-                            <Package2 size={16} />
-                          </div>
-                          <div className="font-medium text-white">{sale.parts?.part_name ?? '—'}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-300">{sale.branches?.name ?? '—'}</td>
-                      <td className="px-6 py-4 font-semibold text-white">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
-                      <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || '—'}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
-                          {getPaymentStatusLabel(sale.payment_status)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-300">{new Date(sale.created_at).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-slate-300">{sale.sold_by_staff?.id ?? '—'}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-2">
-                          <span className="text-xs text-slate-400">{sale.invoice_number || '—'}</span>
-                          <button
-                            type="button"
-                            onClick={() => downloadInvoicePdf({
-                              supabaseClient: supabase,
-                              companyId: sale.company_id,
-                              branchId: sale.branch_id,
-                              partId: sale.part_id,
-                              sale,
-                            })}
-                            className="rounded-xl bg-amber-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
-                          >
-                            Download Invoice
-                          </button>
-                        </div>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-white/10 text-left text-sm">
+                  <thead className="bg-slate-950/70 text-slate-400">
+                    <tr>
+                      <th className="px-6 py-3 font-medium">Part</th>
+                      <th className="px-6 py-3 font-medium">Branch</th>
+                      <th className="px-6 py-3 font-medium">Sale Price</th>
+                      <th className="px-6 py-3 font-medium">Customer</th>
+                      <th className="px-6 py-3 font-medium">Payment Status</th>
+                      <th className="px-6 py-3 font-medium">Date</th>
+                      <th className="px-6 py-3 font-medium">Sold By</th>
+                      <th className="px-6 py-3 font-medium">Invoice</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-white/10 bg-slate-900/50">
+                    {pagedSales.map((sale) => (
+                      <tr key={sale.id} className="align-middle transition hover:bg-slate-800/60">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                              <Package2 size={16} />
+                            </div>
+                            <div className="font-medium text-white">{sale.parts?.part_name ?? '—'}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-300">{sale.branches?.name ?? '—'}</td>
+                        <td className="px-6 py-4 font-semibold text-white">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
+                        <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || '—'}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
+                            {getPaymentStatusLabel(sale.payment_status)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-300">{new Date(sale.created_at).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-slate-300">{sale.sold_by_staff?.id ?? '—'}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-2">
+                            <span className="text-xs text-slate-400">{sale.invoice_number || '—'}</span>
+                            <button
+                              type="button"
+                              onClick={() => downloadInvoicePdf({
+                                supabaseClient: supabase,
+                                companyId: sale.company_id,
+                                branchId: sale.branch_id,
+                                partId: sale.part_id,
+                                sale,
+                              })}
+                              className="rounded-xl bg-amber-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
+                            >
+                              Download Invoice
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {totalPages > 1 ? (
+                <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-400">
+                    Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredSales.length)} of {filteredSales.length} sales
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-slate-300">Page {currentPage} of {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </div>

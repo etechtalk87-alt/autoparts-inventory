@@ -55,7 +55,7 @@ function Dashboard() {
       setLoading(true)
 
       const companyFilter = currentStaff.company_id
-      const branchFilter = currentStaff.role === 'branch_staff' ? currentStaff.branch_id : null
+      const branchFilter = currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : null
 
       const buildQuery = (view) => {
         let q = supabase.from(view).select('*').eq('company_id', companyFilter)
@@ -122,7 +122,7 @@ function Dashboard() {
     }
 
     fetchCoreDashboardData()
-  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
+  }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
 
   useEffect(() => {
     const fetchTrendData = async () => {
@@ -133,7 +133,7 @@ function Dashboard() {
       startDate.setHours(0, 0, 0, 0)
 
       const companyFilter = currentStaff.company_id
-      const branchFilter = currentStaff.role === 'branch_staff' ? currentStaff.branch_id : null
+      const branchFilter = currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : null
 
       let categoryQ = supabase.from('dashboard_sales_by_category').select('*').eq('company_id', companyFilter)
       let dailyQ = supabase.from('dashboard_sales_daily').select('*').eq('company_id', companyFilter)
@@ -154,7 +154,7 @@ function Dashboard() {
     }
 
     fetchTrendData()
-  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
+  }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
 
   useEffect(() => {
     const fetchCompanyName = async () => {

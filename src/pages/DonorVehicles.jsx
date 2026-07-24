@@ -24,6 +24,8 @@ function DonorVehicles() {
   const [loadingVehicles, setLoadingVehicles] = useState(true)
   const [loadingBranches, setLoadingBranches] = useState(true)
   const [branchFilter, setBranchFilter] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
   const [form, setForm] = useState({ make: '', model: '', year: '', vin: '', notes: '', purchase_price: '', purchase_currency: 'AED' })
   const [submitting, setSubmitting] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -100,6 +102,17 @@ function DonorVehicles() {
     if (branchFilter === 'all') return vehicles
     return vehicles.filter((vehicle) => String(vehicle.branch_id) === branchFilter)
   }, [branchFilter, vehicles])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [branchFilter, vehicles])
+
+  const pagedVehicles = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return visibleVehicles.slice(startIndex, startIndex + itemsPerPage)
+  }, [currentPage, itemsPerPage, visibleVehicles])
+
+  const totalPages = Math.max(1, Math.ceil(visibleVehicles.length / itemsPerPage))
 
   if (loading) {
     return (
@@ -458,58 +471,86 @@ function DonorVehicles() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-                <thead className="bg-slate-950/70 text-slate-400">
-                  <tr>
-                    <th className="px-6 py-3 font-medium">Make</th>
-                    <th className="px-6 py-3 font-medium">Model</th>
-                    <th className="px-6 py-3 font-medium">Year</th>
-                    <th className="px-6 py-3 font-medium">VIN</th>
-                    <th className="px-6 py-3 font-medium">Purchase Price</th>
-                    <th className="px-6 py-3 font-medium">Branch</th>
-                    <th className="px-6 py-3 font-medium">Notes</th>
-                    <th className="px-6 py-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10 bg-slate-900/50">
-                  {visibleVehicles.map((vehicle) => (
-                    <tr key={vehicle.id} className="align-middle transition hover:bg-slate-800/60">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
-                            <CarFront size={16} />
-                          </div>
-                          <div className="font-semibold text-white">{vehicle.make}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-300">{vehicle.model}</td>
-                      <td className="px-6 py-4 text-slate-300">{vehicle.year}</td>
-                      <td className="px-6 py-4 text-slate-300">{vehicle.vin ?? '—'}</td>
-                      <td className="px-6 py-4 font-semibold text-white">{vehicle.purchase_price != null ? formatCurrency(vehicle.purchase_price, vehicle.purchase_currency || 'AED') : '—'}</td>
-                      <td className="px-6 py-4 text-slate-300">{vehicle.branches?.name ?? '—'}</td>
-                      <td className="px-6 py-4 text-slate-300">{vehicle.notes ?? '—'}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          {(currentStaff.role === 'company_admin' || vehicle.branch_id === currentStaff.branch_id) && (
-                            <>
-                              <button type="button" onClick={() => startEditVehicle(vehicle)} className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200">
-                                <PencilLine size={15} />
-                                Edit
-                              </button>
-                              <button type="button" onClick={() => handleDeleteVehicle(vehicle)} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500">
-                                <Trash2 size={15} />
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-white/10 text-left text-sm">
+                  <thead className="bg-slate-950/70 text-slate-400">
+                    <tr>
+                      <th className="px-6 py-3 font-medium">Make</th>
+                      <th className="px-6 py-3 font-medium">Model</th>
+                      <th className="px-6 py-3 font-medium">Year</th>
+                      <th className="px-6 py-3 font-medium">VIN</th>
+                      <th className="px-6 py-3 font-medium">Purchase Price</th>
+                      <th className="px-6 py-3 font-medium">Branch</th>
+                      <th className="px-6 py-3 font-medium">Notes</th>
+                      <th className="px-6 py-3 font-medium">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-white/10 bg-slate-900/50">
+                    {pagedVehicles.map((vehicle) => (
+                      <tr key={vehicle.id} className="align-middle transition hover:bg-slate-800/60">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                              <CarFront size={16} />
+                            </div>
+                            <div className="font-semibold text-white">{vehicle.make}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-300">{vehicle.model}</td>
+                        <td className="px-6 py-4 text-slate-300">{vehicle.year}</td>
+                        <td className="px-6 py-4 text-slate-300">{vehicle.vin ?? '—'}</td>
+                        <td className="px-6 py-4 font-semibold text-white">{vehicle.purchase_price != null ? formatCurrency(vehicle.purchase_price, vehicle.purchase_currency || 'AED') : '—'}</td>
+                        <td className="px-6 py-4 text-slate-300">{vehicle.branches?.name ?? '—'}</td>
+                        <td className="px-6 py-4 text-slate-300">{vehicle.notes ?? '—'}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-2">
+                            {(currentStaff.role === 'company_admin' || vehicle.branch_id === currentStaff.branch_id) && (
+                              <>
+                                <button type="button" onClick={() => startEditVehicle(vehicle)} className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200">
+                                  <PencilLine size={15} />
+                                  Edit
+                                </button>
+                                <button type="button" onClick={() => handleDeleteVehicle(vehicle)} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500">
+                                  <Trash2 size={15} />
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {totalPages > 1 ? (
+                <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-400">
+                    Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, visibleVehicles.length)} of {visibleVehicles.length} vehicles
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-slate-300">Page {currentPage} of {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </div>

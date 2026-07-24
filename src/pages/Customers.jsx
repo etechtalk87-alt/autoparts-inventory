@@ -145,6 +145,21 @@ function Customers() {
   }, [currentStaff?.company_id])
 
   const [outstandingBalances, setOutstandingBalances] = useState({})
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
+
+  const visibleCustomers = useMemo(() => customers, [customers])
+  const pagedCustomers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return visibleCustomers.slice(startIndex, startIndex + itemsPerPage)
+  }, [currentPage, itemsPerPage, visibleCustomers])
+  const totalPages = Math.max(1, Math.ceil(visibleCustomers.length / itemsPerPage))
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const fetchBalances = async () => {
     const balances = {}
@@ -541,7 +556,7 @@ function Customers() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10 bg-slate-900/50">
-                  {customers.map((customer) => {
+                  {pagedCustomers.map((customer) => {
                     const balances = outstandingBalances[customer.id]
                     const hasBalances = balances && Object.keys(balances).some(k => balances[k] > 0)
                     
@@ -650,6 +665,32 @@ function Customers() {
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 ? (
+              <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-400">
+                  Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, visibleCustomers.length)} of {visibleCustomers.length} customers
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-slate-300">Page {currentPage} of {totalPages}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 

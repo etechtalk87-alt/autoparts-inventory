@@ -19,6 +19,8 @@ function Parts() {
   const [branchFilter, setBranchFilter] = useState('all')
   const [searchParams] = useSearchParams()
   const [showAgingOnly, setShowAgingOnly] = useState(() => searchParams.get('aging') === 'true')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
   const currencyOptions = ['AED', 'USD']
 
   const [form, setForm] = useState({
@@ -240,6 +242,23 @@ function Parts() {
       return matchesSearch && matchesBranch && matchesAging
     })
   }, [branchFilter, parts, searchTerm, showAgingOnly])
+
+  const pagedParts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredParts.slice(startIndex, startIndex + itemsPerPage)
+  }, [currentPage, itemsPerPage, filteredParts])
+
+  const totalPages = Math.max(1, Math.ceil(filteredParts.length / itemsPerPage))
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, branchFilter, showAgingOnly])
 
   if (loading) {
     return (
@@ -822,111 +841,139 @@ function Parts() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-                <thead className="bg-slate-950/70 text-slate-400">
-                  <tr>
-                    <th className="px-6 py-3 font-medium">Part</th>
-                    <th className="px-6 py-3 font-medium">Source Vehicle</th>
-                    <th className="px-6 py-3 font-medium">Condition</th>
-                    <th className="px-6 py-3 font-medium">Cost</th>
-                    <th className="px-6 py-3 font-medium">Asking Price</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10 bg-slate-900/50">
-                  {filteredParts.map((part) => (
-                    <tr key={part.id} className="align-middle transition hover:bg-slate-800/60">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
-                            <Package2 size={16} />
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-white/10 text-left text-sm">
+                  <thead className="bg-slate-950/70 text-slate-400">
+                    <tr>
+                      <th className="px-6 py-3 font-medium">Part</th>
+                      <th className="px-6 py-3 font-medium">Source Vehicle</th>
+                      <th className="px-6 py-3 font-medium">Condition</th>
+                      <th className="px-6 py-3 font-medium">Cost</th>
+                      <th className="px-6 py-3 font-medium">Asking Price</th>
+                      <th className="px-6 py-3 font-medium">Status</th>
+                      <th className="px-6 py-3 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10 bg-slate-900/50">
+                    {pagedParts.map((part) => (
+                      <tr key={part.id} className="align-middle transition hover:bg-slate-800/60">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                              <Package2 size={16} />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-white">{part.part_name}</div>
+                              <div className="text-xs text-slate-400">{part.oem_number ?? '—'}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-semibold text-white">{part.part_name}</div>
-                            <div className="text-xs text-slate-400">{part.oem_number ?? '—'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {part.donor_vehicles ? (
-                          <div
-                            className="max-w-[180px] truncate text-sm text-slate-200"
-                            title={`${part.donor_vehicles.make || ''} ${part.donor_vehicles.model || ''} ${part.donor_vehicles.year || ''}`.trim()}
-                          >
-                            {`${part.donor_vehicles.make || ''} ${part.donor_vehicles.model || ''} ${part.donor_vehicles.year || ''}`.trim() || '—'}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-slate-300">{part.condition}</td>
-                      <td className="px-6 py-4 font-semibold text-white">{`${part.currency || 'AED'} ${Number(part.cost).toFixed(2)}`}</td>
-                      <td className="px-6 py-4 font-semibold text-white">{`${part.currency || 'AED'} ${Number(part.asking_price).toFixed(2)}`}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClasses[part.status] || 'bg-slate-500/20 text-slate-300'}`}>
-                            {part.status?.replace('_', ' ')}
-                          </span>
-                          {isAgingStock(part) ? (
-                            <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-400">
-                              Aging 60+
+                        </td>
+                        <td className="px-6 py-4">
+                          {part.donor_vehicles ? (
+                            <div
+                              className="max-w-[180px] truncate text-sm text-slate-200"
+                              title={`${part.donor_vehicles.make || ''} ${part.donor_vehicles.model || ''} ${part.donor_vehicles.year || ''}`.trim()}
+                            >
+                              {`${part.donor_vehicles.make || ''} ${part.donor_vehicles.model || ''} ${part.donor_vehicles.year || ''}`.trim() || '—'}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-slate-300">{part.condition}</td>
+                        <td className="px-6 py-4 font-semibold text-white">{`${part.currency || 'AED'} ${Number(part.cost).toFixed(2)}`}</td>
+                        <td className="px-6 py-4 font-semibold text-white">{`${part.currency || 'AED'} ${Number(part.asking_price).toFixed(2)}`}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClasses[part.status] || 'bg-slate-500/20 text-slate-300'}`}>
+                              {part.status?.replace('_', ' ')}
                             </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          {(currentStaff.role === 'company_admin' || part.branch_id === currentStaff.branch_id) && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => startEditPart(part)}
-                                className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
-                              >
-                                <PencilLine size={15} />
-                                Edit
-                              </button>
-
-                              {part.status !== 'sold' && part.status !== 'transferred' ? (
+                            {isAgingStock(part) ? (
+                              <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-400">
+                                Aging 60+
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-2">
+                            {(currentStaff.role === 'company_admin' || part.branch_id === currentStaff.branch_id) && (
+                              <>
                                 <button
                                   type="button"
-                                  onClick={() => handleDeletePart(part)}
-                                  className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
+                                  onClick={() => startEditPart(part)}
+                                  className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
                                 >
-                                  <Trash2 size={15} />
-                                  Delete
+                                  <PencilLine size={15} />
+                                  Edit
                                 </button>
-                              ) : null}
 
-                              {part.status === 'in_stock' && (
-                                <>
+                                {part.status !== 'sold' && part.status !== 'transferred' ? (
                                   <button
                                     type="button"
-                                    onClick={() => openTransferModal(part)}
-                                    className="rounded-xl bg-cyan-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+                                    onClick={() => handleDeletePart(part)}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
                                   >
-                                    Transfer
+                                    <Trash2 size={15} />
+                                    Delete
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => openSaleModal(part)}
-                                    className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
-                                  >
-                                    Mark as Sold
-                                  </button>
-                                </>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                                ) : null}
+
+                                {part.status === 'in_stock' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => openTransferModal(part)}
+                                      className="rounded-xl bg-cyan-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+                                    >
+                                      Transfer
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openSaleModal(part)}
+                                      className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
+                                    >
+                                      Mark as Sold
+                                    </button>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {totalPages > 1 ? (
+                <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-400">
+                    Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredParts.length)} of {filteredParts.length} parts
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-slate-300">Page {currentPage} of {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </div>
