@@ -36,6 +36,15 @@ function DonorVehicles() {
   const [successMessage, setSuccessMessage] = useState('')
   const [vinFeedback, setVinFeedback] = useState(null)
 
+  const [vendors, setVendors] = useState([])
+  const [vendorSearch, setVendorSearch] = useState('')
+  const [selectedVendorId, setSelectedVendorId] = useState(null)
+  const [selectedVendorName, setSelectedVendorName] = useState('')
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false)
+  const [showNewVendorForm, setShowNewVendorForm] = useState(false)
+  const [newVendorForm, setNewVendorForm] = useState({ full_name: '', phone: '', email: '' })
+  const [creatingVendor, setCreatingVendor] = useState(false)
+
   const canManageBranch = currentStaff?.role === 'company_admin'
 
   const fetchBranches = async () => {
@@ -94,6 +103,24 @@ function DonorVehicles() {
   }
 
   useEffect(() => {
+    if (!currentStaff?.company_id) return
+
+    const fetchVendors = async () => {
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('id, full_name, phone, email')
+        .eq('company_id', currentStaff.company_id)
+        .order('full_name')
+
+      if (!error) {
+        setVendors(data ?? [])
+      }
+    }
+
+    fetchVendors()
+  }, [currentStaff?.company_id])
+
+  useEffect(() => {
     fetchBranches()
     fetchVehicles()
   }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
@@ -106,6 +133,14 @@ function DonorVehicles() {
   useEffect(() => {
     setCurrentPage(1)
   }, [branchFilter, vehicles])
+
+  const filteredVendors = useMemo(() => {
+    const q = vendorSearch.trim().toLowerCase()
+    if (!q) return vendors.slice(0, 5)
+    return vendors.filter((v) => 
+      v.full_name.toLowerCase().includes(q) || v.email?.toLowerCase().includes(q) || v.phone?.includes(q)
+    ).slice(0, 10)
+  }, [vendors, vendorSearch])
 
   const pagedVehicles = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
@@ -200,6 +235,50 @@ function DonorVehicles() {
     }
   }
 
+  const resetVendorState = () => {
+    setSelectedVendorId(null)
+    setSelectedVendorName('')
+    setVendorSearch('')
+    setShowVendorDropdown(false)
+    setShowNewVendorForm(false)
+    setNewVendorForm({ full_name: '', phone: '', email: '' })
+  }
+
+  const handleCreateVendor = async (event) => {
+    event.preventDefault()
+
+    if (!newVendorForm.full_name.trim()) {
+      setErrorMessage('Please enter vendor name.')
+      return
+    }
+
+    setCreatingVendor(true)
+    const { data, error } = await supabase
+      .from('vendors')
+      .insert([{
+        company_id: currentStaff.company_id,
+        full_name: newVendorForm.full_name,
+        phone: newVendorForm.phone || null,
+        email: newVendorForm.email || null,
+      }])
+      .select('id, full_name, phone, email')
+      .single()
+
+    if (error) {
+      setErrorMessage(error.message)
+      setCreatingVendor(false)
+      return
+    }
+
+    setVendors((prev) => [...prev, data].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    setSelectedVendorId(data.id)
+    setSelectedVendorName(data.full_name)
+    setShowNewVendorForm(false)
+    setVendorSearch('')
+    setErrorMessage('')
+    setCreatingVendor(false)
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     setErrorMessage('')
@@ -229,7 +308,7 @@ function DonorVehicles() {
         .from('donor_vehicles')
         .update(payload)
         .eq('id', editingId)
-        .select('id, make, model, year, vin, notes, company_id, branch_id, branches(name)')
+        .select('id, make, model, year, vin, notes, purchase_price, purchase_currency, company_id, branch_id, branches(name)')
 
       if (error) {
         setErrorMessage(error.message)
@@ -239,24 +318,52 @@ function DonorVehicles() {
         setVehicles((prev) => prev.map((v) => (v.id === data[0].id ? data[0] : v)))
         setEditingId(null)
         setForm({ make: '', model: '', year: '', vin: '', notes: '' })
+        resetVendorState()
         setShowAddModal(false)
         setSuccessMessage('Donor vehicle updated successfully.')
         requestAnimationFrame(() => listRef.current?.focus())
       }
     } else {
+      if (form.purchase_price !== '' && Number(form.purchase_price) > 0 && !selectedVendorId) {
+        setErrorMessage('Please select or create a vendor for this purchase.')
+        setSubmitting(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from('donor_vehicles')
         .insert([payload])
-        .select('id, make, model, year, vin, notes, company_id, branch_id, branches(name)')
+        .select('id, make, model, year, vin, notes, purchase_price, purchase_currency, company_id, branch_id, branches(name)')
         .single()
 
       if (error) {
         setErrorMessage(error.message)
       } else {
+        let payableFailed = false
+
+        if (form.purchase_price !== '' && Number(form.purchase_price) > 0 && selectedVendorId) {
+          const { error: payableError } = await supabase.from('payables').insert([{
+            company_id: currentStaff.company_id,
+            vendor_id: selectedVendorId,
+            donor_vehicle_id: data.id,
+            amount: Number(form.purchase_price),
+            currency: form.purchase_currency || 'AED',
+          }])
+
+          if (payableError) {
+            console.error('Failed to create payable:', payableError)
+            setErrorMessage(`Vehicle saved, but failed to record the payable: ${payableError.message}`)
+            payableFailed = true
+          }
+        }
+
         setVehicles((prev) => [data, ...prev])
         setForm({ make: '', model: '', year: '', vin: '', notes: '' })
+        resetVendorState()
         setShowAddModal(false)
-        setSuccessMessage('Donor vehicle added successfully.')
+        if (!payableFailed) {
+          setSuccessMessage('Donor vehicle added successfully.')
+        }
         requestAnimationFrame(() => listRef.current?.focus())
       }
     }
@@ -278,6 +385,7 @@ function DonorVehicles() {
     })
     setErrorMessage('')
     setSuccessMessage('')
+    resetVendorState()
     setShowAddModal(true)
   }
 
@@ -448,6 +556,7 @@ function DonorVehicles() {
                 onClick={() => {
                   setErrorMessage('')
                   setSuccessMessage('')
+                  resetVendorState()
                   setShowAddModal(true)
                 }}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
@@ -662,6 +771,100 @@ function DonorVehicles() {
                   <option value="USD">USD</option>
                 </select>
               </label>
+              {!editingId && form.purchase_price !== '' && Number(form.purchase_price) > 0 ? (
+                <div className="space-y-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4 md:col-span-2 xl:col-span-3">
+                  <h4 className="font-medium text-slate-200">Select Vendor for Payable</h4>
+                  <label className="block text-sm text-slate-300">
+                    <input
+                      type="text"
+                      value={selectedVendorId ? selectedVendorName : vendorSearch}
+                      onChange={(event) => {
+                        setVendorSearch(event.target.value)
+                        setSelectedVendorId(null)
+                        setSelectedVendorName('')
+                        setShowVendorDropdown(true)
+                      }}
+                      onFocus={() => setShowVendorDropdown(true)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
+                      placeholder="Search by vendor name, email, or phone"
+                    />
+                  </label>
+                  
+                  {showVendorDropdown && filteredVendors.length > 0 ? (
+                    <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-2 text-sm text-slate-200">
+                      {filteredVendors.map((vendor) => (
+                        <button
+                          key={vendor.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedVendorId(vendor.id)
+                            setSelectedVendorName(vendor.full_name)
+                            setVendorSearch('')
+                            setShowVendorDropdown(false)
+                            setErrorMessage('')
+                          }}
+                          className="w-full rounded-lg px-3 py-2 text-left hover:bg-slate-800"
+                        >
+                          {vendor.full_name} {vendor.email ? `(${vendor.email})` : ''}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {selectedVendorId ? (
+                    <div className="rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-300">
+                      <p className="font-semibold text-white">{selectedVendorName}</p>
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowNewVendorForm((prev) => !prev)}
+                    className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-800"
+                  >
+                    {showNewVendorForm ? 'Hide vendor form' : 'Create new vendor'}
+                  </button>
+
+                  {showNewVendorForm ? (
+                    <div className="space-y-4 rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
+                      <label className="block">
+                        Name
+                        <input
+                          value={newVendorForm.full_name}
+                          onChange={(event) => setNewVendorForm((prev) => ({ ...prev, full_name: event.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white outline-none"
+                          required
+                        />
+                      </label>
+                      <label className="block">
+                        Email
+                        <input
+                          type="email"
+                          value={newVendorForm.email}
+                          onChange={(event) => setNewVendorForm((prev) => ({ ...prev, email: event.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white outline-none"
+                        />
+                      </label>
+                      <label className="block">
+                        Phone
+                        <input
+                          value={newVendorForm.phone}
+                          onChange={(event) => setNewVendorForm((prev) => ({ ...prev, phone: event.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white outline-none"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleCreateVendor}
+                        disabled={creatingVendor}
+                        className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {creatingVendor ? 'Creating...' : 'Add vendor'}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <label className="text-sm text-slate-300 md:col-span-2 xl:col-span-1">
                 <span className="mb-1.5 block font-medium">Notes</span>
                 <textarea
@@ -682,6 +885,7 @@ function DonorVehicles() {
                       setErrorMessage('')
                       setSuccessMessage('')
                       setEditingId(null)
+                      resetVendorState()
                       setForm({ make: '', model: '', year: '', vin: '', notes: '', purchase_price: '', purchase_currency: 'AED' })
                     }}
                     className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
