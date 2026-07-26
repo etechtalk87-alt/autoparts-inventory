@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [currentStaff, setCurrentStaff] = useState(null)
   const [activeBranchId, setActiveBranchIdState] = useState(() => localStorage.getItem('activeBranchId') || null)
   const [needsCompanySetup, setNeedsCompanySetup] = useState(false)
+  const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const handleSetActiveBranchId = (branchId) => {
@@ -25,8 +26,12 @@ export function AuthProvider({ children }) {
       setCurrentStaff(null)
       setNeedsCompanySetup(false)
       setActiveBranchIdState(null)
+      setNeedsPasswordSetup(false)
       return
     }
+
+    const userNeedsPassword = authUser?.user_metadata?.needs_password === true
+    setNeedsPasswordSetup(userNeedsPassword)
 
     const { data: staffData, error: staffError } = await supabase
       .from('staff')
@@ -95,6 +100,11 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const clearPasswordSetupFlag = async () => {
+    await supabase.auth.updateUser({ data: { needs_password: false } })
+    setNeedsPasswordSetup(false)
+  }
+
   const refreshStaff = async () => {
     await fetchStaffForUser(user)
   }
@@ -158,6 +168,7 @@ export function AuthProvider({ children }) {
       setActiveBranchIdState(null)
       localStorage.removeItem('activeBranchId')
       setNeedsCompanySetup(false)
+      setNeedsPasswordSetup(false)
     }
 
     setLoading(false)
@@ -172,12 +183,14 @@ export function AuthProvider({ children }) {
       activeBranchId,
       setActiveBranchId: handleSetActiveBranchId,
       needsCompanySetup,
+      needsPasswordSetup,
       loading,
       signIn,
       signOut,
       refreshStaff,
+      clearPasswordSetupFlag,
     }),
-    [user, session, currentStaff, activeBranchId, needsCompanySetup, loading],
+    [user, session, currentStaff, activeBranchId, needsCompanySetup, needsPasswordSetup, loading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

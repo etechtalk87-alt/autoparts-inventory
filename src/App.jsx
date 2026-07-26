@@ -17,10 +17,11 @@ import Transfers from './pages/Transfers'
 import Sales from './pages/Sales'
 import SetupCompany from './pages/SetupCompany'
 import ManageStaff from './pages/ManageStaff'
+import SetPassword from './pages/SetPassword'
 import { supabase } from './lib/supabaseClient'
 
 function App() {
-  const { user, loading, currentStaff, needsCompanySetup } = useAuth()
+  const { user, loading, currentStaff, needsCompanySetup, needsPasswordSetup } = useAuth()
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -64,35 +65,41 @@ function App() {
   return (
     <BrowserRouter>
       <Layout>
-        <Routes>
-          <Route path="/setup-company" element={needsCompanySetup ? <SetupCompany /> : <Navigate to="/" replace />} />
-          {needsCompanySetup ? (
-            <Route path="*" element={<Navigate to="/setup-company" replace />} />
-          ) : (
-            <>
-              <Route path="/" element={<Dashboard />} />
-              <Route
-                path="/branches"
-                element={currentStaff?.role === 'company_admin' ? <Branches /> : <Navigate to="/" replace />}
-              />
-              <Route
-                path="/customers"
-                element={currentStaff?.role === 'company_admin' ? <Customers /> : <Navigate to="/" replace />}
-              />
-              <Route path="/invoices/new" element={<CreateInvoice />} />
-              <Route path="/donor-vehicles" element={<DonorVehicles />} />
-              <Route path="/parts" element={<Parts />} />
-              <Route path="/parts/import" element={currentStaff?.role === 'company_admin' || currentStaff?.role === 'branch_staff' ? <PartsImport /> : <Navigate to="/parts" replace />} />
-              <Route path="/transfers" element={<Transfers />} />
-              <Route path="/sales" element={<Sales />} />
-              <Route
-                path="/manage-staff"
-                element={currentStaff?.role === 'company_admin' ? <ManageStaff /> : <Navigate to="/" replace />}
-              />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </>
-          )}
-        </Routes>
+        {needsPasswordSetup ? (
+          <Routes>
+            <Route path="*" element={<SetPassword />} />
+          </Routes>
+        ) : (
+          <Routes>
+            <Route path="/setup-company" element={needsCompanySetup ? <SetupCompany /> : <Navigate to="/" replace />} />
+            {needsCompanySetup ? (
+              <Route path="*" element={<Navigate to="/setup-company" replace />} />
+            ) : (
+              <>
+                <Route path="/" element={<Dashboard />} />
+                <Route
+                  path="/branches"
+                  element={currentStaff?.role === 'company_admin' ? <Branches /> : <Navigate to="/" replace />}
+                />
+                <Route
+                  path="/customers"
+                  element={currentStaff?.role === 'company_admin' ? <Customers /> : <Navigate to="/" replace />}
+                />
+                <Route path="/invoices/new" element={<CreateInvoice />} />
+                <Route path="/donor-vehicles" element={<DonorVehicles />} />
+                <Route path="/parts" element={<Parts />} />
+                <Route path="/parts/import" element={currentStaff?.role === 'company_admin' || currentStaff?.role === 'branch_staff' ? <PartsImport /> : <Navigate to="/parts" replace />} />
+                <Route path="/transfers" element={<Transfers />} />
+                <Route path="/sales" element={<Sales />} />
+                <Route
+                  path="/manage-staff"
+                  element={currentStaff?.role === 'company_admin' ? <ManageStaff /> : <Navigate to="/" replace />}
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </>
+            )}
+          </Routes>
+        )}
       </Layout>
     </BrowserRouter>
   )

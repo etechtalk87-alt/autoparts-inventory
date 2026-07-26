@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
 
     // Send the actual invite email via Supabase Auth
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { invite_id: invite.id },
+      data: { invite_id: invite.id, needs_password: true },
     })
 
     if (inviteError) {
