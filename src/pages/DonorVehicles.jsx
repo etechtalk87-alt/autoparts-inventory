@@ -666,7 +666,7 @@ function DonorVehicles() {
 
       {showAddModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
             <h3 className="text-xl font-semibold text-white">{editingId ? 'Edit Donor Vehicle' : 'Add Donor Vehicle'}</h3>
             <form onSubmit={handleSubmit} className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <label className="text-sm text-slate-300">
@@ -772,7 +772,7 @@ function DonorVehicles() {
                 </select>
               </label>
               {!editingId && form.purchase_price !== '' && Number(form.purchase_price) > 0 ? (
-                <div className="space-y-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4 md:col-span-2 xl:col-span-3">
+                <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/50 p-3 md:col-span-2 xl:col-span-3">
                   <h4 className="font-medium text-slate-200">Select Vendor for Payable</h4>
                   <label className="block text-sm text-slate-300">
                     <input
@@ -826,7 +826,7 @@ function DonorVehicles() {
                   </button>
 
                   {showNewVendorForm ? (
-                    <div className="space-y-4 rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
+                    <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200">
                       <label className="block">
                         Name
                         <input
