@@ -65,7 +65,7 @@ function Transfers() {
         .order('created_at', { ascending: false })
 
       if (currentStaff?.role === 'branch_staff') {
-        query = query.or(`from_branch_id.eq.${currentStaff.branch_id},to_branch_id.eq.${currentStaff.branch_id}`)
+        query = query.or(`from_branch_id.eq.${currentStaff.activeBranchId},to_branch_id.eq.${currentStaff.activeBranchId}`)
       }
 
       const { data, error } = await query
@@ -82,7 +82,7 @@ function Transfers() {
 
     fetchBranches()
     fetchTransfers()
-  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
+  }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
 
   const filteredTransfers = useMemo(() => {
     if (branchFilter === 'all') return transfers

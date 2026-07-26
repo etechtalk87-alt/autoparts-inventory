@@ -22,7 +22,7 @@ function CreateInvoice() {
   const [branches, setBranches] = useState([])
   const [parts, setParts] = useState([])
   const [customers, setCustomers] = useState([])
-  const [selectedBranchId, setSelectedBranchId] = useState(currentStaff?.branch_id || '')
+  const [selectedBranchId, setSelectedBranchId] = useState(currentStaff?.activeBranchId || '')
   const [customerSearch, setCustomerSearch] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [selectedCustomerName, setSelectedCustomerName] = useState('')
@@ -46,7 +46,7 @@ function CreateInvoice() {
   const successRef = useRef(null)
 
   const canManageBranches = currentStaff?.role === 'company_admin'
-  const branchScopeId = currentStaff?.role === 'branch_staff' ? currentStaff.branch_id : selectedBranchId
+  const branchScopeId = currentStaff?.role === 'branch_staff' ? currentStaff.activeBranchId : selectedBranchId
 
   useEffect(() => {
     if (!currentStaff?.company_id) return
@@ -80,7 +80,7 @@ function CreateInvoice() {
         .eq('status', 'in_stock')
 
       if (!canManageBranches) {
-        query = query.eq('branch_id', currentStaff.branch_id)
+        query = query.eq('branch_id', currentStaff.activeBranchId)
       } else if (branchScopeId) {
         query = query.eq('branch_id', branchScopeId)
       }
@@ -270,7 +270,7 @@ function CreateInvoice() {
       return
     }
 
-    const branchId = branchScopeId || currentStaff.branch_id
+    const branchId = branchScopeId || currentStaff.activeBranchId
     const currency = lineItems[0]?.currency || 'AED'
     const invoiceNumber = `INV-${selectedBranchName.slice(0, 2).toUpperCase() || 'BR'}-${Date.now()}`
     const dbPaymentStatus = paymentStatus === 'paid_in_full' ? 'paid' : paymentStatus

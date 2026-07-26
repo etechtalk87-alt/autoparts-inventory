@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const fetchStaffForUser = async (authUser) => {
+  const fetchStaffForUser = async (authUser, skipInviteCheck = false) => {
     if (!authUser?.id) {
       setCurrentStaff(null)
       setNeedsCompanySetup(false)
@@ -74,6 +74,17 @@ export function AuthProvider({ children }) {
         })
         setNeedsCompanySetup(false)
       } else {
+        if (!skipInviteCheck) {
+          // No staff row yet — check whether a pending invite can be auto-accepted
+          const { data: acceptResult } = await supabase.rpc('accept_staff_invite')
+          if (acceptResult?.success === true) {
+            // Staff row now exists — re-fetch it.
+            // skipInviteCheck=true prevents accept_staff_invite from being called again.
+            await fetchStaffForUser(authUser, true)
+            return
+          }
+        }
+        // No pending invite (or post-accept re-fetch) — genuine new signup
         setCurrentStaff(null)
         setNeedsCompanySetup(true)
       }

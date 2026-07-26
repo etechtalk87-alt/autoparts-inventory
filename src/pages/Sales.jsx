@@ -107,7 +107,7 @@ function Sales() {
         .order('created_at', { ascending: false })
 
       if (currentStaff?.role === 'branch_staff') {
-        query = query.eq('branch_id', currentStaff.branch_id)
+        query = query.eq('branch_id', currentStaff.activeBranchId)
       }
 
       const { data, error } = await query
@@ -124,7 +124,7 @@ function Sales() {
 
     fetchBranches()
     fetchSales()
-  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
+  }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
 
   const filteredSales = useMemo(() => {
     return sales.filter((sale) => {

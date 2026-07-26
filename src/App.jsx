@@ -16,6 +16,7 @@ import PartsImport from './pages/PartsImport'
 import Transfers from './pages/Transfers'
 import Sales from './pages/Sales'
 import SetupCompany from './pages/SetupCompany'
+import ManageStaff from './pages/ManageStaff'
 import { supabase } from './lib/supabaseClient'
 
 function App() {
@@ -84,6 +85,10 @@ function App() {
               <Route path="/parts/import" element={currentStaff?.role === 'company_admin' || currentStaff?.role === 'branch_staff' ? <PartsImport /> : <Navigate to="/parts" replace />} />
               <Route path="/transfers" element={<Transfers />} />
               <Route path="/sales" element={<Sales />} />
+              <Route
+                path="/manage-staff"
+                element={currentStaff?.role === 'company_admin' ? <ManageStaff /> : <Navigate to="/" replace />}
+              />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           )}

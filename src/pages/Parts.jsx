@@ -114,7 +114,7 @@ function Parts() {
       .is('deleted_at', null)
 
     if (currentStaff?.role === 'branch_staff') {
-      query = query.eq('branch_id', currentStaff.branch_id)
+      query = query.eq('branch_id', currentStaff.activeBranchId)
     } else if (branchId) {
       query = query.eq('branch_id', branchId)
     }
@@ -146,7 +146,7 @@ function Parts() {
       .order('part_name', { ascending: true })
 
     if (currentStaff?.role === 'branch_staff') {
-      query = query.eq('branch_id', currentStaff.branch_id)
+      query = query.eq('branch_id', currentStaff.activeBranchId)
     }
 
     const { data, error } = await query
@@ -164,12 +164,12 @@ function Parts() {
   useEffect(() => {
     fetchBranches()
     fetchParts()
-  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
+  }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
 
   useEffect(() => {
     if (currentStaff?.role === 'branch_staff') {
-      fetchDonorVehicles(currentStaff.branch_id)
-      setForm((prev) => ({ ...prev, branch_id: currentStaff.branch_id }))
+      fetchDonorVehicles(currentStaff.activeBranchId)
+      setForm((prev) => ({ ...prev, branch_id: currentStaff.activeBranchId }))
     } else if (canManageBranches) {
       if (form.branch_id) {
         fetchDonorVehicles(form.branch_id)
@@ -179,7 +179,7 @@ function Parts() {
     } else {
       setDonorVehicles([])
     }
-  }, [currentStaff?.branch_id, currentStaff?.role, form.branch_id, canManageBranches])
+  }, [currentStaff?.activeBranchId, currentStaff?.role, form.branch_id, canManageBranches])
 
   // Fetch customers for customer selector
   useEffect(() => {
@@ -294,7 +294,7 @@ function Parts() {
       currency: form.currency || 'AED',
       donor_vehicle_id: form.donor_vehicle_id || null,
       company_id: currentStaff.company_id,
-      branch_id: currentStaff.role === 'branch_staff' ? currentStaff.branch_id : form.branch_id || null,
+      branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : form.branch_id || null,
       status: form.status || 'in_stock',
     }
 
@@ -361,7 +361,7 @@ function Parts() {
           asking_price: '',
           currency: 'AED',
           donor_vehicle_id: '',
-          branch_id: currentStaff.role === 'branch_staff' ? currentStaff.branch_id : '',
+          branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : '',
           status: 'in_stock',
         })
         setShowAddModal(false)
@@ -384,7 +384,7 @@ function Parts() {
           asking_price: '',
           currency: 'AED',
           donor_vehicle_id: '',
-          branch_id: currentStaff.role === 'branch_staff' ? currentStaff.branch_id : '',
+          branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : '',
           status: 'in_stock',
         })
         setShowAddModal(false)
@@ -407,7 +407,7 @@ function Parts() {
       asking_price: part.asking_price || '',
       currency: part.currency || 'AED',
       donor_vehicle_id: part.donor_vehicle_id || '',
-      branch_id: part.branch_id || (currentStaff.role === 'branch_staff' ? currentStaff.branch_id : ''),
+      branch_id: part.branch_id || (currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : ''),
       status: part.status || 'in_stock',
     })
     setErrorMessage('')
@@ -419,7 +419,7 @@ function Parts() {
     if (!part) return
     if (part.status === 'sold' || part.status === 'transferred') return
 
-    const allowed = currentStaff.role === 'company_admin' || part.branch_id === currentStaff.branch_id
+    const allowed = currentStaff.role === 'company_admin' || part.branch_id === currentStaff.activeBranchId
     if (!allowed) {
       setErrorMessage('You do not have permission to delete this part.')
       return
@@ -898,7 +898,7 @@ function Parts() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap gap-2">
-                            {(currentStaff.role === 'company_admin' || part.branch_id === currentStaff.branch_id) && (
+                            {(currentStaff.role === 'company_admin' || part.branch_id === currentStaff.activeBranchId) && (
                               <>
                                 <button
                                   type="button"

@@ -4,15 +4,17 @@ import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 
 function Layout({ children }) {
-  const { signOut, user, currentStaff } = useAuth()
+  const { signOut, user, currentStaff, activeBranchId, setActiveBranchId } = useAuth()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [companyName, setCompanyName] = useState('AutoParts Inventory')
+  const [switcherBranches, setSwitcherBranches] = useState([])
 
   const navLinks = [
     { to: '/', label: 'Dashboard' },
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/branches', label: 'Branches' }] : []),
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/customers', label: 'Customers' }] : []),
+    ...(currentStaff?.role === 'company_admin' ? [{ to: '/manage-staff', label: 'Manage Staff' }] : []),
     { to: '/donor-vehicles', label: 'Donor Vehicles' },
     { to: '/parts', label: 'Spare Parts' },
     { to: '/parts/import', label: 'Import Parts' },
@@ -43,6 +45,27 @@ function Layout({ children }) {
     fetchCompanyName()
   }, [currentStaff?.company_id])
 
+  // Fetch branch names for the switcher — only when branch_staff has multiple branches
+  useEffect(() => {
+    const branchIds = currentStaff?.branchIds ?? []
+    if (currentStaff?.role !== 'branch_staff' || branchIds.length <= 1) {
+      setSwitcherBranches([])
+      return
+    }
+    const fetchSwitcherBranches = async () => {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('id, name')
+        .in('id', branchIds)
+        .order('name')
+      if (!error) setSwitcherBranches(data ?? [])
+    }
+    fetchSwitcherBranches()
+  }, [currentStaff?.role, currentStaff?.branchIds])
+
+  const showSwitcher =
+    currentStaff?.role === 'branch_staff' && switcherBranches.length > 1
+
   const isActive = (to) => location.pathname === to
 
   return (
@@ -70,6 +93,18 @@ function Layout({ children }) {
               </NavLink>
             ))}
             <div className="ml-2 flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
+              {showSwitcher && (
+                <select
+                  value={activeBranchId ?? ''}
+                  onChange={(e) => setActiveBranchId(e.target.value)}
+                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-medium text-cyan-300 outline-none transition hover:border-slate-500 focus:border-cyan-500"
+                  aria-label="Switch active branch"
+                >
+                  {switcherBranches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              )}
               <span className="max-w-[140px] truncate text-sm text-slate-300">{user?.email}</span>
               <button type="button" onClick={() => signOut()} className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200">
                 Logout
@@ -99,6 +134,21 @@ function Layout({ children }) {
               ))}
               <div className="mt-2 rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-3">
                 <p className="truncate text-sm text-slate-300">{user?.email}</p>
+                {showSwitcher && (
+                  <div className="mt-2">
+                    <p className="mb-1 text-xs text-slate-500">Active branch</p>
+                    <select
+                      value={activeBranchId ?? ''}
+                      onChange={(e) => setActiveBranchId(e.target.value)}
+                      className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs font-medium text-cyan-300 outline-none"
+                      aria-label="Switch active branch"
+                    >
+                      {switcherBranches.map((b) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <button type="button" onClick={() => signOut()} className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200">
                   Logout
                 </button>

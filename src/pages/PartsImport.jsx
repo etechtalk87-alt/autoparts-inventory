@@ -212,7 +212,7 @@ function PartsImport() {
         continue
       }
 
-      let targetBranchId = currentStaff.branch_id
+      let targetBranchId = currentStaff.activeBranchId
 
       if (canManageBranches) {
         const branchMatch = branches.find((branch) => branch.name.toLowerCase() === branchName.toLowerCase())

@@ -78,7 +78,7 @@ function DonorVehicles() {
       .order('created_at', { ascending: false })
 
     if (currentStaff?.role === 'branch_staff') {
-      query = query.eq('branch_id', currentStaff.branch_id)
+      query = query.eq('branch_id', currentStaff.activeBranchId)
     }
 
     const { data, error } = await query
@@ -96,7 +96,7 @@ function DonorVehicles() {
   useEffect(() => {
     fetchBranches()
     fetchVehicles()
-  }, [currentStaff?.company_id, currentStaff?.branch_id, currentStaff?.role])
+  }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
 
   const visibleVehicles = useMemo(() => {
     if (branchFilter === 'all') return vehicles
@@ -219,7 +219,7 @@ function DonorVehicles() {
       purchase_price: form.purchase_price !== '' ? Number(form.purchase_price) : null,
       purchase_currency: form.purchase_price !== '' ? form.purchase_currency || 'AED' : null,
       company_id: currentStaff.company_id,
-      branch_id: currentStaff.role === 'branch_staff' ? currentStaff.branch_id : form.branch_id || null,
+      branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : form.branch_id || null,
     }
 
     setSubmitting(true)
@@ -297,7 +297,7 @@ function DonorVehicles() {
       return
     }
 
-    const canManageVehicle = currentStaff?.role === 'company_admin' || String(vehicle.branch_id ?? '') === String(currentStaff?.branch_id ?? '')
+    const canManageVehicle = currentStaff?.role === 'company_admin' || String(vehicle.branch_id ?? '') === String(currentStaff?.activeBranchId ?? '')
     if (!canManageVehicle) {
       setErrorMessage('You do not have permission to delete this vehicle.')
       return
@@ -310,7 +310,7 @@ function DonorVehicles() {
       .eq('company_id', currentStaff.company_id)
 
     if (currentStaff?.role === 'branch_staff') {
-      linkedPartsQuery = linkedPartsQuery.eq('branch_id', currentStaff.branch_id)
+      linkedPartsQuery = linkedPartsQuery.eq('branch_id', currentStaff.activeBranchId)
     }
 
     const { count: linkedPartsCount, error: linkedPartsError } = await linkedPartsQuery
@@ -344,7 +344,7 @@ function DonorVehicles() {
       .select('id')
 
     if (currentStaff?.role === 'branch_staff') {
-      updateQuery = updateQuery.eq('branch_id', currentStaff.branch_id)
+      updateQuery = updateQuery.eq('branch_id', currentStaff.activeBranchId)
     }
 
     const { data, error } = await updateQuery
@@ -505,7 +505,7 @@ function DonorVehicles() {
                         <td className="px-6 py-4 text-slate-300">{vehicle.notes ?? '—'}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap gap-2">
-                            {(currentStaff.role === 'company_admin' || vehicle.branch_id === currentStaff.branch_id) && (
+                            {(currentStaff.role === 'company_admin' || vehicle.branch_id === currentStaff.activeBranchId) && (
                               <>
                                 <button type="button" onClick={() => startEditVehicle(vehicle)} className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200">
                                   <PencilLine size={15} />
