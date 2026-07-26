@@ -20,6 +20,13 @@ function Payables() {
   const [payables, setPayables] = useState([])
   const [loadingPayables, setLoadingPayables] = useState(true)
 
+  const [payingId, setPayingId] = useState(null)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('')
+  const [paymentNotes, setPaymentNotes] = useState('')
+  const [submittingPayment, setSubmittingPayment] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
+
   useEffect(() => {
     if (!currentStaff?.company_id) return
 
@@ -61,6 +68,73 @@ function Payables() {
       currency: payables[0]?.currency || 'AED' // using the most common or first currency for the summary display
     }
   }, [payables])
+
+  const handleRecordPaymentClick = (payable) => {
+    const remaining = Number(payable.amount) - Number(payable.amount_paid)
+    setPaymentAmount(remaining.toString())
+    setPaymentMethod('')
+    setPaymentNotes('')
+    setPaymentError('')
+    setPayingId(payable.id)
+  }
+
+  const handlePaymentSubmit = async (event) => {
+    event.preventDefault()
+    setPaymentError('')
+    const payable = payables.find((p) => p.id === payingId)
+    if (!payable) return
+
+    const remaining = Number(payable.amount) - Number(payable.amount_paid)
+    const amt = Number(paymentAmount)
+
+    if (Number.isNaN(amt) || amt <= 0) {
+      setPaymentError('Amount must be greater than zero.')
+      return
+    }
+    if (amt > remaining) {
+      setPaymentError(`Amount cannot exceed the remaining balance of ${formatCurrency(remaining, payable.currency)}`)
+      return
+    }
+
+    setSubmittingPayment(true)
+
+    const { error: insertError } = await supabase.from('vendor_payments').insert({
+      company_id: currentStaff.company_id,
+      vendor_id: payable.vendor_id,
+      payable_id: payable.id,
+      amount: amt,
+      currency: payable.currency,
+      payment_method: paymentMethod || null,
+      notes: paymentNotes || null,
+      recorded_by: currentStaff.id,
+    })
+
+    if (insertError) {
+      setPaymentError(`Failed to record payment: ${insertError.message}`)
+      setSubmittingPayment(false)
+      return
+    }
+
+    const newAmountPaid = Number(payable.amount_paid) + amt
+    const newStatus = newAmountPaid >= Number(payable.amount) ? 'paid' : 'partial'
+
+    const { data: updatedPayable, error: updateError } = await supabase
+      .from('payables')
+      .update({ amount_paid: newAmountPaid, status: newStatus })
+      .eq('id', payable.id)
+      .select('id, amount, currency, amount_paid, status, created_at, vendor_id, donor_vehicle_id, vendors(full_name), donor_vehicles(make, model, year)')
+      .single()
+
+    if (updateError) {
+      setPaymentError(`Payment recorded, but failed to update payable status: ${updateError.message}`)
+      setSubmittingPayment(false)
+      return
+    }
+
+    setPayables((prev) => prev.map((p) => (p.id === payingId ? updatedPayable : p)))
+    setPayingId(null)
+    setSubmittingPayment(false)
+  }
 
   if (loading) {
     return (
@@ -191,6 +265,7 @@ function Payables() {
                           {payable.status !== 'paid' ? (
                             <button
                               type="button"
+                              onClick={() => handleRecordPaymentClick(payable)}
                               className="rounded-lg border border-cyan-500 px-3 py-1.5 text-xs font-semibold text-cyan-400 transition hover:bg-cyan-500/10"
                             >
                               Record Payment
@@ -206,6 +281,83 @@ function Payables() {
           )}
         </div>
       </div>
+
+      {payingId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 p-6">
+              <h2 className="text-xl font-semibold text-white">Record Payment</h2>
+              <button
+                type="button"
+                onClick={() => setPayingId(null)}
+                className="text-slate-400 transition hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handlePaymentSubmit} className="p-6">
+              {paymentError ? (
+                <div className="mb-6 rounded-lg bg-rose-500/10 p-4 text-sm text-rose-400">
+                  {paymentError}
+                </div>
+              ) : null}
+
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-slate-300">
+                  Amount
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
+                    placeholder="0.00"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-slate-300">
+                  Payment Method <span className="text-slate-500">(Optional)</span>
+                  <input
+                    type="text"
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
+                    placeholder="e.g. Bank Transfer, Cash"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-slate-300">
+                  Notes <span className="text-slate-500">(Optional)</span>
+                  <textarea
+                    rows={3}
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
+                    placeholder="Transaction ID, reference, etc."
+                  />
+                </label>
+              </div>
+
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPayingId(null)}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800"
+                  disabled={submittingPayment}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingPayment}
+                  className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {submittingPayment ? 'Recording...' : 'Record Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }
