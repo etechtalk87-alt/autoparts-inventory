@@ -164,6 +164,16 @@ function CreateInvoice() {
 
   const handleAddLineItem = (part) => {
     if (lineItems.some((item) => item.part_id === part.id)) return
+
+    if (lineItems.length > 0 && lineItems[0].currency !== part.currency) {
+      setInvoiceMessage(
+        `This invoice already has ${lineItems[0].currency} items. Remove them first to add a ${part.currency} item, or create a separate invoice.`
+      )
+      return
+    }
+
+    setInvoiceMessage('')
+
     setLineItems((prev) => [...prev, {
       part_id: part.id,
       part_name: part.part_name,
