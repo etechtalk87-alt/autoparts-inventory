@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
-import { DollarSign, TrendingUp, Car, Package, Receipt, Users, AlertCircle } from 'lucide-react'
+import { DollarSign, TrendingUp, Car, Package, Receipt, Users, AlertCircle, Wallet } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 
@@ -38,7 +38,8 @@ function Dashboard() {
     totalInvoices: [],
     donorVehicles: [],
     partsByBranch: [],
-    branchBreakdown: []
+    branchBreakdown: [],
+    payables: []
   })
 
   // Trend data from views
@@ -74,6 +75,10 @@ function Dashboard() {
         .select('*')
         .eq('company_id', companyFilter)
 
+      const payablesPromise = currentStaff.role === 'company_admin'
+        ? supabase.from('payables').select('amount, amount_paid, currency, status').eq('company_id', companyFilter)
+        : Promise.resolve({ data: [] })
+
       const [
         branchesRes,
         todayRes,
@@ -86,7 +91,8 @@ function Dashboard() {
         donorRes,
         partsByBranchRes,
         branchBreakdownRes,
-        customersRes
+        customersRes,
+        payablesRes
       ] = await Promise.all([
         branchesPromise,
         buildQuery('dashboard_sales_today'),
@@ -99,7 +105,8 @@ function Dashboard() {
         buildQuery('dashboard_donor_vehicles_this_month'),
         buildQuery('dashboard_parts_by_branch'),
         buildQuery('dashboard_branch_breakdown'),
-        activeCustomersPromise
+        activeCustomersPromise,
+        payablesPromise
       ])
 
       setBranches(branchesRes.data || [])
@@ -115,7 +122,8 @@ function Dashboard() {
         donorVehicles: donorRes.data || [],
         partsByBranch: partsByBranchRes.data || [],
         branchBreakdown: branchBreakdownRes.data || [],
-        activeCustomers: customersRes.data || []
+        activeCustomers: customersRes.data || [],
+        payables: payablesRes.data || []
       })
 
       setLoading(false)
@@ -245,6 +253,30 @@ function Dashboard() {
 
     return 'Mixed currencies'
   }, [outstandingReceivablesByCurrency])
+
+  const outstandingPayablesByCurrency = useMemo(() => {
+    const totals = dashboardData.payables.reduce((acc, row) => {
+      if (row.status === 'paid') return acc
+      const c = row.currency || 'AED'
+      const val = Number(row.amount || 0) - Number(row.amount_paid || 0)
+      acc[c] = (acc[c] || 0) + val
+      return acc
+    }, {})
+    return Object.entries(totals).map(([currency, amount]) => ({ currency, amount })).sort((a, b) => a.currency.localeCompare(b.currency))
+  }, [dashboardData.payables])
+
+  const outstandingPayablesHeadline = useMemo(() => {
+    if (outstandingPayablesByCurrency.length === 0) {
+      return '0.00'
+    }
+
+    if (outstandingPayablesByCurrency.length === 1) {
+      const [entry] = outstandingPayablesByCurrency
+      return formatCurrency(entry.amount, entry.currency)
+    }
+
+    return 'Mixed currencies'
+  }, [outstandingPayablesByCurrency])
 
   // Admin specific charts processing
   const partsPerBranch = useMemo(() => {
@@ -502,6 +534,27 @@ function Dashboard() {
               )}
             </div>
           </div>
+
+          {currentStaff?.role === 'company_admin' ? (
+            <Link to="/payables" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-slate-400">Accounts Payable</p>
+                  <p className="mt-2 text-3xl font-semibold text-white">{outstandingPayablesHeadline}</p>
+                </div>
+                <Wallet className="h-6 w-6 text-cyan-400" />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {outstandingPayablesByCurrency.length > 0 ? outstandingPayablesByCurrency.map((entry) => (
+                  <span key={entry.currency} className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">
+                    {formatCurrency(entry.amount, entry.currency)}
+                  </span>
+                )) : (
+                  <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">No outstanding payables</span>
+                )}
+              </div>
+            </Link>
+          ) : null}
         </div>
 
         {currentStaff?.role === 'company_admin' ? (

@@ -20,6 +20,7 @@ function Layout({ children }) {
     { to: '/parts/import', label: 'Import Parts' },
     { to: '/transfers', label: 'Transfers' },
     { to: '/sales', label: 'Sales' },
+    ...(currentStaff?.role === 'company_admin' ? [{ to: '/payables', label: 'Payables' }] : []),
   ]
 
   useEffect(() => {
