@@ -317,6 +317,11 @@ function DonorVehicles() {
       return
     }
 
+    if (canManageBranch && !form.branch_id) {
+      setErrorMessage('Please select a branch for this donor vehicle.')
+      return
+    }
+
     const payload = {
       make: form.make.trim(),
       model: form.model.trim(),
@@ -403,6 +408,7 @@ function DonorVehicles() {
             selected: true,
             asking_price: '',
             cost: '',
+            condition: 'good',
           }))
           setTeardownItems(initialTeardownItems)
           setTeardownVehicle(data)
@@ -544,6 +550,12 @@ function DonorVehicles() {
     )
   }
 
+  const updateTeardownCondition = (template_id, value) => {
+    setTeardownItems((prev) =>
+      prev.map((item) => (item.template_id === template_id ? { ...item, condition: value } : item))
+    )
+  }
+
   const handleSkipTeardown = () => {
     setShowTeardownModal(false)
     setTeardownVehicle(null)
@@ -572,6 +584,7 @@ function DonorVehicles() {
       currency: teardownVehicle.purchase_currency || 'AED',
       asking_price: item.asking_price !== '' ? Number(item.asking_price) : null,
       cost: item.cost !== '' ? Number(item.cost) : 0,
+      condition: item.condition || null,
       status: 'in_stock',
     }))
 
@@ -847,6 +860,7 @@ function DonorVehicles() {
                     onChange={(event) => setForm((prev) => ({ ...prev, branch_id: event.target.value }))}
                     className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
                     disabled={loadingBranches}
+                    required
                   >
                     <option value="">Select branch</option>
                     {branches.map((branch) => (
@@ -1038,37 +1052,58 @@ function DonorVehicles() {
             <div className="flex-1 overflow-y-auto px-6">
               <div className="grid gap-2 sm:grid-cols-2">
                 {teardownItems.map((item) => (
-                  <div key={item.template_id} className={`flex items-center gap-3 rounded-xl border p-3 transition ${item.selected ? 'border-cyan-500/50 bg-cyan-500/10' : 'border-slate-800 bg-slate-950'}`}>
-                    <input
-                      type="checkbox"
-                      checked={item.selected}
-                      onChange={() => toggleTeardownItem(item.template_id)}
-                      className="h-5 w-5 rounded border-slate-600 bg-slate-800 accent-cyan-500"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-slate-200">{item.part_name}</p>
-                      {item.category && <p className="text-xs text-slate-500">{item.category}</p>}
+                  <div key={item.template_id} className={`flex flex-col gap-3 rounded-xl border p-3 transition ${item.selected ? 'border-cyan-500/50 bg-cyan-500/10' : 'border-slate-800 bg-slate-950'}`}>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={item.selected}
+                        onChange={() => toggleTeardownItem(item.template_id)}
+                        className="h-5 w-5 rounded border-slate-600 bg-slate-800 accent-cyan-500"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-slate-200">{item.part_name}</p>
+                        {item.category && <p className="text-xs text-slate-500">{item.category}</p>}
+                      </div>
                     </div>
                     {item.selected && (
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Cost"
-                          value={item.cost}
-                          onChange={(e) => updateTeardownCost(item.template_id, e.target.value)}
-                          className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-white outline-none focus:border-cyan-400"
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Price"
-                          value={item.asking_price}
-                          onChange={(e) => updateTeardownPrice(item.template_id, e.target.value)}
-                          className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-white outline-none focus:border-cyan-400"
-                        />
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="flex flex-col text-[10px] text-slate-500">
+                          Condition
+                          <select
+                            value={item.condition}
+                            onChange={(e) => updateTeardownCondition(item.template_id, e.target.value)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-sm text-white outline-none focus:border-cyan-400"
+                          >
+                            <option value="excellent">Excellent</option>
+                            <option value="good">Good</option>
+                            <option value="fair">Fair</option>
+                            <option value="poor">Poor</option>
+                          </select>
+                        </label>
+                        <label className="flex flex-col text-[10px] text-slate-500">
+                          Cost
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={item.cost}
+                            onChange={(e) => updateTeardownCost(item.template_id, e.target.value)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm text-white outline-none focus:border-cyan-400"
+                          />
+                        </label>
+                        <label className="flex flex-col text-[10px] text-slate-500">
+                          Price
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={item.asking_price}
+                            onChange={(e) => updateTeardownPrice(item.template_id, e.target.value)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm text-white outline-none focus:border-cyan-400"
+                          />
+                        </label>
                       </div>
                     )}
                   </div>
