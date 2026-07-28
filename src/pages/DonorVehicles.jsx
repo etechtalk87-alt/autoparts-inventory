@@ -45,6 +45,15 @@ function DonorVehicles() {
   const [newVendorForm, setNewVendorForm] = useState({ full_name: '', phone: '', email: '' })
   const [creatingVendor, setCreatingVendor] = useState(false)
 
+  // Teardown Checklist State
+  const [partTemplates, setPartTemplates] = useState([])
+  const [showTeardownModal, setShowTeardownModal] = useState(false)
+  const [teardownVehicle, setTeardownVehicle] = useState(null)
+  const [teardownItems, setTeardownItems] = useState([])
+  const [savingTeardown, setSavingTeardown] = useState(false)
+  const [teardownError, setTeardownError] = useState('')
+  const [teardownSuccess, setTeardownSuccess] = useState('')
+
   const canManageBranch = currentStaff?.role === 'company_admin'
 
   const fetchBranches = async () => {
@@ -101,6 +110,25 @@ function DonorVehicles() {
 
     setLoadingVehicles(false)
   }
+
+  useEffect(() => {
+    if (!currentStaff?.company_id) return
+
+    const fetchPartTemplates = async () => {
+      const { data, error } = await supabase
+        .from('part_templates')
+        .select('id, part_name, category')
+        .eq('company_id', currentStaff.company_id)
+        .order('sort_order')
+        .order('part_name')
+
+      if (!error) {
+        setPartTemplates(data ?? [])
+      }
+    }
+
+    fetchPartTemplates()
+  }, [currentStaff?.company_id])
 
   useEffect(() => {
     if (!currentStaff?.company_id) return
@@ -365,6 +393,23 @@ function DonorVehicles() {
           setSuccessMessage('Donor vehicle added successfully.')
         }
         requestAnimationFrame(() => listRef.current?.focus())
+
+        // TEARDOWN TRIGGER
+        if (partTemplates.length > 0) {
+          const initialTeardownItems = partTemplates.map((t) => ({
+            template_id: t.id,
+            part_name: t.part_name,
+            category: t.category,
+            selected: true,
+            asking_price: '',
+            cost: '',
+          }))
+          setTeardownItems(initialTeardownItems)
+          setTeardownVehicle(data)
+          setTeardownError('')
+          setTeardownSuccess('')
+          setShowTeardownModal(true)
+        }
       }
     }
 
@@ -478,6 +523,70 @@ function DonorVehicles() {
 
     setVehicles((prev) => prev.filter((item) => item.id !== vehicle.id))
     setSuccessMessage('Donor vehicle deleted.')
+  }
+
+  // TEARDOWN CHECKLIST FUNCTIONS
+  const toggleTeardownItem = (template_id) => {
+    setTeardownItems((prev) =>
+      prev.map((item) => (item.template_id === template_id ? { ...item, selected: !item.selected } : item))
+    )
+  }
+
+  const updateTeardownPrice = (template_id, value) => {
+    setTeardownItems((prev) =>
+      prev.map((item) => (item.template_id === template_id ? { ...item, asking_price: value } : item))
+    )
+  }
+
+  const updateTeardownCost = (template_id, value) => {
+    setTeardownItems((prev) =>
+      prev.map((item) => (item.template_id === template_id ? { ...item, cost: value } : item))
+    )
+  }
+
+  const handleSkipTeardown = () => {
+    setShowTeardownModal(false)
+    setTeardownVehicle(null)
+    setTeardownItems([])
+    setTeardownError('')
+    setTeardownSuccess('')
+  }
+
+  const handleSaveTeardown = async () => {
+    const selectedItems = teardownItems.filter((i) => i.selected)
+    if (selectedItems.length === 0) {
+      handleSkipTeardown()
+      return
+    }
+
+    setSavingTeardown(true)
+    setTeardownError('')
+    setTeardownSuccess('')
+
+    const payloadArray = selectedItems.map((item) => ({
+      company_id: currentStaff.company_id,
+      branch_id: teardownVehicle.branch_id,
+      donor_vehicle_id: teardownVehicle.id,
+      part_name: item.part_name,
+      category: item.category || null,
+      currency: teardownVehicle.purchase_currency || 'AED',
+      asking_price: item.asking_price !== '' ? Number(item.asking_price) : null,
+      cost: item.cost !== '' ? Number(item.cost) : 0,
+      status: 'in_stock',
+    }))
+
+    const { error } = await supabase.from('parts').insert(payloadArray)
+
+    if (error) {
+      setTeardownError(`Failed to save parts: ${error.message}`)
+      setSavingTeardown(false)
+    } else {
+      setTeardownSuccess(`${payloadArray.length} parts added to inventory.`)
+      setSavingTeardown(false)
+      setTimeout(() => {
+        handleSkipTeardown()
+      }, 1500)
+    }
   }
 
   return (
@@ -902,6 +1011,89 @@ function DonorVehicles() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* TEARDOWN MODAL */}
+      {showTeardownModal && teardownVehicle ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-[28px] border border-white/10 bg-slate-900 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
+            <div className="p-6 pb-4">
+              <h3 className="text-xl font-semibold text-white">Parts Teardown — {teardownVehicle.make} {teardownVehicle.model}</h3>
+              <p className="mt-1 text-sm text-slate-400">Select the working parts to add to inventory.</p>
+            </div>
+
+            {teardownError && (
+              <div className="mx-6 mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                {teardownError}
+              </div>
+            )}
+            {teardownSuccess && (
+              <div className="mx-6 mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                {teardownSuccess}
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto px-6">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {teardownItems.map((item) => (
+                  <div key={item.template_id} className={`flex items-center gap-3 rounded-xl border p-3 transition ${item.selected ? 'border-cyan-500/50 bg-cyan-500/10' : 'border-slate-800 bg-slate-950'}`}>
+                    <input
+                      type="checkbox"
+                      checked={item.selected}
+                      onChange={() => toggleTeardownItem(item.template_id)}
+                      className="h-5 w-5 rounded border-slate-600 bg-slate-800 accent-cyan-500"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-slate-200">{item.part_name}</p>
+                      {item.category && <p className="text-xs text-slate-500">{item.category}</p>}
+                    </div>
+                    {item.selected && (
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Cost"
+                          value={item.cost}
+                          onChange={(e) => updateTeardownCost(item.template_id, e.target.value)}
+                          className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-white outline-none focus:border-cyan-400"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Price"
+                          value={item.asking_price}
+                          onChange={(e) => updateTeardownPrice(item.template_id, e.target.value)}
+                          className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-white outline-none focus:border-cyan-400"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-white/10 mt-4 p-6 pt-4">
+              <button
+                type="button"
+                onClick={handleSkipTeardown}
+                disabled={savingTeardown}
+                className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600 disabled:opacity-50"
+              >
+                Skip for now
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTeardown}
+                disabled={savingTeardown || !teardownItems.some((i) => i.selected)}
+                className="rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingTeardown ? 'Saving...' : 'Add Selected Parts'}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

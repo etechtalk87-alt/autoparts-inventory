@@ -21,3 +21,9 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Ensure all select options have a dark background, otherwise white text on native white dropdowns becomes invisible */
+option {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
