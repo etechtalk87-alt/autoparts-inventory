@@ -427,7 +427,7 @@ function Dashboard() {
         </section>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <Link to="/sales" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Today's Sales</p>
@@ -444,9 +444,9 @@ function Dashboard() {
                 <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">No sales today</span>
               )}
             </div>
-          </div>
+          </Link>
 
-          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <Link to="/sales" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">This Month's Sales</p>
@@ -459,9 +459,9 @@ function Dashboard() {
               </div>
               <TrendingUp className="h-6 w-6 text-emerald-400" />
             </div>
-          </div>
+          </Link>
 
-          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <Link to="/donor-vehicles" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Donor Vehicles Purchased</p>
@@ -470,9 +470,9 @@ function Dashboard() {
               <Car className="h-6 w-6 text-sky-400" />
             </div>
             <p className="mt-3 text-sm text-slate-400">Added this month</p>
-          </div>
+          </Link>
 
-          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <Link to="/parts" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Available Parts</p>
@@ -481,7 +481,7 @@ function Dashboard() {
               <Package className="h-6 w-6 text-violet-400" />
             </div>
             <p className="mt-3 text-sm text-slate-400">Currently in stock</p>
-          </div>
+          </Link>
 
           <Link to="/parts?aging=true" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-orange-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
@@ -494,7 +494,7 @@ function Dashboard() {
             <p className="mt-3 text-sm text-slate-400">In stock over 60 days</p>
           </Link>
 
-          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <Link to="/sales" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Total Invoices</p>
@@ -503,20 +503,33 @@ function Dashboard() {
               <Receipt className="h-6 w-6 text-amber-400" />
             </div>
             <p className="mt-3 text-sm text-slate-400">All-time sales invoices</p>
-          </div>
+          </Link>
 
-          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm text-slate-400">Active Customers</p>
-                <p className="mt-2 text-3xl font-semibold text-white">{activeCustomersCount}</p>
+          {currentStaff?.role === 'company_admin' ? (
+            <Link to="/customers" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-slate-400">Active Customers</p>
+                  <p className="mt-2 text-3xl font-semibold text-white">{activeCustomersCount}</p>
+                </div>
+                <Users className="h-6 w-6 text-cyan-300" />
               </div>
-              <Users className="h-6 w-6 text-cyan-300" />
+              <p className="mt-3 text-sm text-slate-400">With sales in last 90 days</p>
+            </Link>
+          ) : (
+            <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-slate-400">Active Customers</p>
+                  <p className="mt-2 text-3xl font-semibold text-white">{activeCustomersCount}</p>
+                </div>
+                <Users className="h-6 w-6 text-cyan-300" />
+              </div>
+              <p className="mt-3 text-sm text-slate-400">With sales in last 90 days</p>
             </div>
-            <p className="mt-3 text-sm text-slate-400">With sales in last 90 days</p>
-          </div>
+          )}
 
-          <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <Link to="/receivables" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-rose-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Outstanding Receivables</p>
@@ -533,7 +546,7 @@ function Dashboard() {
                 <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">No outstanding balance</span>
               )}
             </div>
-          </div>
+          </Link>
 
           {currentStaff?.role === 'company_admin' ? (
             <Link to="/payables" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">

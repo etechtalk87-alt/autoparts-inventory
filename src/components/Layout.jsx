@@ -16,12 +16,18 @@ function Layout({ children }) {
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/customers', label: 'Customers' }] : []),
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/manage-staff', label: 'Manage Staff' }] : []),
     { to: '/donor-vehicles', label: 'Donor Vehicles' },
-    { to: '/parts', label: 'Spare Parts' },
-    { to: '/parts/import', label: 'Import Parts' },
-    { to: '/transfers', label: 'Transfers' },
+    {
+      label: 'Spare Parts',
+      children: [
+        { to: '/parts', label: 'Spare Parts' },
+        { to: '/parts/import', label: 'Import Parts' },
+        { to: '/transfers', label: 'Transfers' },
+        ...(currentStaff?.role === 'company_admin' ? [{ to: '/part-templates', label: 'Parts Checklist' }] : []),
+      ]
+    },
     { to: '/sales', label: 'Sales' },
+    { to: '/receivables', label: 'Receivables' },
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/payables', label: 'Payables' }] : []),
-    ...(currentStaff?.role === 'company_admin' ? [{ to: '/part-templates', label: 'Parts Checklist' }] : []),
   ]
 
   useEffect(() => {
@@ -72,7 +78,7 @@ function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <nav className="border-b border-slate-800 bg-slate-900/95 backdrop-blur">
+      <nav className="relative z-50 border-b border-slate-800 bg-slate-900/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/20 text-lg font-semibold text-cyan-400">
@@ -85,15 +91,39 @@ function Layout({ children }) {
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive: active }) => `rounded-lg px-3 py-2 text-sm font-medium transition ${active || isActive(link.to) ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
-              >
-                {link.label}
-              </NavLink>
-            ))}
+            {navLinks.map((link, idx) => {
+              if (link.children) {
+                const isChildActive = link.children.some(child => location.pathname === child.to)
+                return (
+                  <div key={idx} className="group relative">
+                    <button className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition ${isChildActive ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
+                      {link.label}
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <div className="absolute left-0 top-full mt-1 hidden w-48 flex-col rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl group-hover:flex z-50">
+                      {link.children.map((child) => (
+                        <NavLink
+                          key={child.to}
+                          to={child.to}
+                          className={({ isActive: active }) => `block rounded-lg px-3 py-2 text-sm font-medium transition ${active || isActive(child.to) ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                        >
+                          {child.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={({ isActive: active }) => `rounded-lg px-3 py-2 text-sm font-medium transition ${active || isActive(link.to) ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                >
+                  {link.label}
+                </NavLink>
+              )
+            })}
             <div className="ml-2 flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
               {showSwitcher && (
                 <select
@@ -124,16 +154,35 @@ function Layout({ children }) {
         {menuOpen ? (
           <div className="border-t border-slate-800 bg-slate-900/95 px-4 py-4 md:hidden">
             <div className="flex flex-col gap-2">
-              {navLinks.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive: active }) => `rounded-lg px-3 py-2 text-sm font-medium transition ${active || isActive(link.to) ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
-                >
-                  {link.label}
-                </NavLink>
-              ))}
+              {navLinks.map((link, idx) => {
+                if (link.children) {
+                  return (
+                    <div key={idx} className="flex flex-col gap-1">
+                      <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{link.label}</div>
+                      {link.children.map((child) => (
+                        <NavLink
+                          key={child.to}
+                          to={child.to}
+                          onClick={() => setMenuOpen(false)}
+                          className={({ isActive: active }) => `ml-3 rounded-lg px-3 py-2 text-sm font-medium transition ${active || isActive(child.to) ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                        >
+                          {child.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )
+                }
+                return (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    onClick={() => setMenuOpen(false)}
+                    className={({ isActive: active }) => `rounded-lg px-3 py-2 text-sm font-medium transition ${active || isActive(link.to) ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                  >
+                    {link.label}
+                  </NavLink>
+                )
+              })}
               <div className="mt-2 rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-3">
                 <p className="truncate text-sm text-slate-300">{user?.email}</p>
                 {showSwitcher && (
