@@ -60,16 +60,13 @@ function Receivables() {
           amount_paid,
           payment_status,
           customer_id,
-          customer_name,
-          customer_contact,
           created_at,
-          currency,
           company_id,
           branch_id,
           invoice_number,
           parts:part_id ( part_name, currency ),
           branches:branch_id ( name ),
-          customers:customer_id ( full_name )
+          customers:customer_id ( full_name, phone, email )
         `)
         .eq('company_id', currentStaff.company_id)
         .in('payment_status', ['unpaid', 'partial', 'credit'])
@@ -80,8 +77,11 @@ function Receivables() {
       }
 
       const { data, error } = await query
-      if (!error) setSales(data ?? [])
-      else console.error('Error fetching receivables:', error)
+      if (!error) {
+        setSales(data ?? [])
+      } else {
+        console.error('Error fetching receivables:', error)
+      }
       setLoadingSales(false)
     }
 
@@ -225,13 +225,15 @@ function Receivables() {
                     {paged.map((sale) => {
                       const currency = sale.parts?.currency || sale.currency || 'AED'
                       const balance = Number(sale.sale_price || 0) - Number(sale.amount_paid || 0)
-                      const customerName = sale.customers?.full_name || sale.customer_name || '—'
+                      const customerName = sale.customers?.full_name || '—'
                       return (
                         <tr key={sale.id} className="align-middle transition hover:bg-slate-800/60">
                           <td className="px-6 py-4 font-mono text-xs text-slate-300">{sale.invoice_number || '—'}</td>
                           <td className="px-6 py-4">
                             <div className="font-semibold text-white">{customerName}</div>
-                            {sale.customer_contact && <div className="text-xs text-slate-500">{sale.customer_contact}</div>}
+                            {(sale.customers?.phone || sale.customers?.email) && (
+                              <div className="text-xs text-slate-500">{sale.customers?.phone || sale.customers?.email}</div>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-slate-300">{sale.parts?.part_name || '—'}</td>
                           <td className="px-6 py-4 font-semibold text-white">{formatCurrency(sale.sale_price, currency)}</td>
