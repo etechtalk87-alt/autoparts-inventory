@@ -32,6 +32,7 @@ function Receivables() {
   const [sales, setSales] = useState([])
   const [branches, setBranches] = useState([])
   const [loadingSales, setLoadingSales] = useState(true)
+  const [unlinkedPayments, setUnlinkedPayments] = useState([])
   const [branchFilter, setBranchFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(15)
@@ -85,8 +86,18 @@ function Receivables() {
       setLoadingSales(false)
     }
 
+    const fetchUnlinkedPayments = async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('amount, currency')
+        .eq('company_id', currentStaff.company_id)
+        .is('sale_id', null)
+      if (!error) setUnlinkedPayments(data ?? [])
+    }
+
     fetchBranches()
     fetchReceivables()
+    fetchUnlinkedPayments()
   }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
 
   const filtered = useMemo(() => {
@@ -111,8 +122,20 @@ function Receivables() {
       const balance = Number(s.sale_price || 0) - Number(s.amount_paid || 0)
       acc[currency] = (acc[currency] || 0) + balance
     })
+
+    // Subtract unlinked payments (advance payments not yet applied to an invoice)
+    unlinkedPayments.forEach((p) => {
+      const c = p.currency || 'AED'
+      acc[c] = (acc[c] || 0) - Number(p.amount || 0)
+    })
+
+    // Floor at zero — matches Dashboard/Customers convention
+    Object.keys(acc).forEach((c) => {
+      if (acc[c] < 0) acc[c] = 0
+    })
+
     return Object.entries(acc).map(([currency, amount]) => ({ currency, amount })).sort((a, b) => a.currency.localeCompare(b.currency))
-  }, [filtered])
+  }, [filtered, unlinkedPayments])
 
   if (loading) {
     return (

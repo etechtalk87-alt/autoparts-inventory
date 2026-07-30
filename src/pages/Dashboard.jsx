@@ -39,7 +39,8 @@ function Dashboard() {
     donorVehicles: [],
     partsByBranch: [],
     branchBreakdown: [],
-    payables: []
+    payables: [],
+    unlinkedPayments: []
   })
 
   // Trend data from views
@@ -79,6 +80,12 @@ function Dashboard() {
         ? supabase.from('payables').select('amount, amount_paid, currency, status').eq('company_id', companyFilter)
         : Promise.resolve({ data: [] })
 
+      const unlinkedPaymentsPromise = supabase
+        .from('payments')
+        .select('amount, currency')
+        .eq('company_id', companyFilter)
+        .is('sale_id', null)
+
       const [
         branchesRes,
         todayRes,
@@ -92,7 +99,8 @@ function Dashboard() {
         partsByBranchRes,
         branchBreakdownRes,
         customersRes,
-        payablesRes
+        payablesRes,
+        unlinkedPaymentsRes
       ] = await Promise.all([
         branchesPromise,
         buildQuery('dashboard_sales_today'),
@@ -106,7 +114,8 @@ function Dashboard() {
         buildQuery('dashboard_parts_by_branch'),
         buildQuery('dashboard_branch_breakdown'),
         activeCustomersPromise,
-        payablesPromise
+        payablesPromise,
+        unlinkedPaymentsPromise
       ])
 
       setBranches(branchesRes.data || [])
@@ -123,7 +132,8 @@ function Dashboard() {
         partsByBranch: partsByBranchRes.data || [],
         branchBreakdown: branchBreakdownRes.data || [],
         activeCustomers: customersRes.data || [],
-        payables: payablesRes.data || []
+        payables: payablesRes.data || [],
+        unlinkedPayments: unlinkedPaymentsRes.data || []
       })
 
       setLoading(false)
@@ -238,8 +248,22 @@ function Dashboard() {
       acc[c] = (acc[c] || 0) + val
       return acc
     }, {})
-    return Object.entries(totals).map(([currency, amount]) => ({ currency, amount })).sort((a, b) => a.currency.localeCompare(b.currency))
-  }, [dashboardData.receivables])
+
+    // Subtract unlinked payments (advance payments not yet applied to an invoice)
+    ;(dashboardData.unlinkedPayments || []).forEach((p) => {
+      const c = p.currency || 'AED'
+      totals[c] = (totals[c] || 0) - Number(p.amount || 0)
+    })
+
+    // Floor at zero — matches Customers.jsx convention
+    Object.keys(totals).forEach((c) => {
+      if (totals[c] < 0) totals[c] = 0
+    })
+
+    return Object.entries(totals)
+      .map(([currency, amount]) => ({ currency, amount }))
+      .sort((a, b) => a.currency.localeCompare(b.currency))
+  }, [dashboardData.receivables, dashboardData.unlinkedPayments])
 
   const outstandingReceivablesHeadline = useMemo(() => {
     if (outstandingReceivablesByCurrency.length === 0) {
