@@ -140,9 +140,17 @@ function CreateInvoice() {
     return branches.find((branch) => String(branch.id) === String(branchScopeId))?.name || ''
   }, [branches, branchScopeId])
 
-  const totalAmount = useMemo(() => {
+  const subtotal = useMemo(() => {
     return lineItems.reduce((sum, item) => sum + Number(item.sale_price || 0), 0)
   }, [lineItems])
+
+  const vatAmount = useMemo(() => {
+    return currentStaff?.vatEnabled ? subtotal * 0.05 : 0
+  }, [subtotal, currentStaff?.vatEnabled])
+
+  const totalAmount = useMemo(() => {
+    return subtotal + vatAmount
+  }, [subtotal, vatAmount])
 
   const filteredAvailableParts = useMemo(() => {
     const query = partSearch.trim().toLowerCase()
@@ -294,6 +302,8 @@ function CreateInvoice() {
         customer_id: selectedCustomerId,
         invoice_number: invoiceNumber,
         currency,
+        subtotal: subtotal,
+        vat_amount: vatAmount,
         total_amount: totalAmount,
         payment_status: dbPaymentStatus,
         amount_paid: finalAmountPaid,
@@ -365,6 +375,8 @@ function CreateInvoice() {
       branchId,
       branchName: selectedBranchName || 'Branch',
       customerName: selectedCustomerName || 'Customer',
+      subtotal,
+      vatAmount,
       totalAmount,
       itemCount: lineItems.length,
       paymentStatus: dbPaymentStatus,
@@ -440,6 +452,18 @@ function CreateInvoice() {
               </div>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                {createdInvoice.vatAmount > 0 ? (
+                  <>
+                    <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-4">
+                      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Subtotal</p>
+                      <p className="mt-2 text-xl font-semibold text-slate-300">{formatCurrency(createdInvoice.subtotal, createdInvoice.currency)}</p>
+                    </div>
+                    <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-4">
+                      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">VAT (5%)</p>
+                      <p className="mt-2 text-xl font-semibold text-slate-300">{formatCurrency(createdInvoice.vatAmount, createdInvoice.currency)}</p>
+                    </div>
+                  </>
+                ) : null}
                 <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-4">
                   <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Total</p>
                   <p className="mt-2 text-xl font-semibold text-white">{formatCurrency(createdInvoice.totalAmount, createdInvoice.currency)}</p>
@@ -792,6 +816,18 @@ function CreateInvoice() {
               ) : null}
 
               <div className="rounded-2xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
+                {currentStaff?.vatEnabled ? (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-400">Subtotal</span>
+                      <span className="font-semibold">{formatCurrency(subtotal, lineItems[0]?.currency)}</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-4">
+                      <span className="text-slate-400">VAT (5%)</span>
+                      <span className="font-semibold">{formatCurrency(vatAmount, lineItems[0]?.currency)}</span>
+                    </div>
+                  </>
+                ) : null}
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Total</span>
                   <strong className="text-xl font-bold text-white">{formatCurrency(totalAmount, lineItems[0]?.currency)}</strong>

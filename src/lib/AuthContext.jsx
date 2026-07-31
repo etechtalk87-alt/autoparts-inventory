@@ -72,10 +72,19 @@ export function AuthProvider({ children }) {
         }
 
         setActiveBranchIdState(effectiveActiveBranchId)
+
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('vat_enabled, trn_number')
+          .eq('id', staffData.company_id)
+          .maybeSingle()
+
         setCurrentStaff({
           ...staffData,
           branchIds,
           activeBranchId: effectiveActiveBranchId,
+          vatEnabled: companyData?.vat_enabled || false,
+          trnNumber: companyData?.trn_number || null,
         })
         setNeedsCompanySetup(false)
       } else {

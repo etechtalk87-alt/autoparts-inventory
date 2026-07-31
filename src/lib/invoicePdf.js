@@ -5,69 +5,121 @@ const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: '#ffffff',
-    padding: 32,
+    padding: 36,
     fontFamily: 'Helvetica',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    alignItems: 'flex-start',
+    marginBottom: 28,
     borderBottomWidth: 1,
-    borderBottomColor: '#d1d5db',
-    paddingBottom: 12,
+    borderBottomColor: '#e5e7eb',
+    paddingBottom: 16,
   },
   title: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#6b7280',
-    marginBottom: 6,
+    color: '#0f172a',
+    marginBottom: 4,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   company: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 6,
     color: '#111827',
   },
   secondary: {
     fontSize: 11,
-    color: '#4b5563',
+    color: '#475569',
     marginBottom: 2,
   },
   muted: {
     fontSize: 11,
-    color: '#4b5563',
+    color: '#64748b',
     marginBottom: 2,
+  },
+  companyInfo: {
+    maxWidth: '60%',
+  },
+  invoiceCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 14,
+    padding: 14,
+    minWidth: 220,
+    alignItems: 'flex-end',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  invoiceLabel: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 8,
+  },
+  invoiceNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  statusBadge: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#dbeafe',
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    color: '#0f172a',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   meta: {
     alignItems: 'flex-end',
   },
   section: {
-    marginBottom: 18,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   table: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#e5e7eb',
     marginTop: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    backgroundColor: '#f8fafc',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  tableHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
   },
   col1: {
     flex: 2,
@@ -83,28 +135,52 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   paymentStatus: {
-    marginTop: 12,
+    marginTop: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
   },
+  summaryBlock: {
+    minWidth: 180,
+    marginTop: 2,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    color: '#475569',
+  },
+  summaryValue: {
+    fontSize: 11,
+    color: '#111827',
+  },
+  totalValue: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
   balanceDue: {
-    marginTop: 8,
-    fontWeight: 'bold',
-    fontSize: 12,
+    marginTop: 10,
+    fontWeight: '700',
+    fontSize: 13,
     color: '#dc2626',
   },
   footer: {
-    marginTop: 24,
+    marginTop: 30,
     borderTopWidth: 1,
-    borderTopColor: '#d1d5db',
-    paddingTop: 12,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 14,
   },
   footerText: {
     fontSize: 12,
-    color: '#374151',
+    color: '#475569',
+    textAlign: 'center',
   },
 })
 
@@ -128,25 +204,34 @@ function InvoiceDocument({ invoice }) {
         { style: styles.header },
         createElement(
           View,
-          null,
-          createElement(Text, { style: styles.title }, 'Invoice'),
+          { style: styles.companyInfo },
+          createElement(Text, { style: styles.title }, Number(invoice.vatAmount) > 0 ? 'Tax Invoice' : 'Invoice'),
           createElement(Text, { style: styles.company }, invoice.companyName || 'Auto Parts Inventory'),
           createElement(Text, { style: styles.secondary }, branchLine || 'Branch'),
+          ...(invoice.trnNumber
+            ? [createElement(Text, { key: 'trn', style: styles.secondary }, `TRN: ${invoice.trnNumber}`)]
+            : []),
         ),
         createElement(
           View,
-          { style: styles.meta },
-          createElement(Text, { style: styles.muted }, `Invoice #: ${invoice.invoiceNumber}`),
-          createElement(Text, { style: styles.muted }, `Date: ${invoice.saleDate}`),
+          { style: styles.invoiceCard },
+          createElement(Text, { style: styles.invoiceLabel }, 'Invoice Details'),
+          createElement(Text, { style: styles.invoiceNumber }, invoice.invoiceNumber),
+          createElement(Text, { style: styles.secondary }, `Date: ${invoice.saleDate}`),
+          createElement(
+            View,
+            { style: styles.statusBadge },
+            createElement(Text, { style: styles.statusBadgeText }, invoice.paymentStatusLabel || 'Unpaid'),
+          ),
         ),
       ),
       createElement(
         View,
         { style: styles.section },
         createElement(Text, { style: styles.sectionTitle }, 'Bill To'),
-        createElement(Text, { style: styles.muted }, invoice.customerName),
+        createElement(Text, { style: [styles.secondary, { fontWeight: '700', color: '#0f172a' }] }, invoice.customerName),
         ...(invoice.customerContact
-          ? [createElement(Text, { key: 'customer-contact', style: styles.muted }, invoice.customerContact)]
+          ? [createElement(Text, { key: 'customer-contact', style: styles.secondary }, invoice.customerContact)]
           : []),
       ),
       createElement(
@@ -155,9 +240,9 @@ function InvoiceDocument({ invoice }) {
         createElement(
           View,
           { style: styles.tableHeader },
-          createElement(Text, { style: styles.col1 }, 'Item'),
-          createElement(Text, { style: styles.col2 }, 'Details'),
-          createElement(Text, { style: styles.col3 }, 'Amount'),
+          createElement(Text, { style: [styles.col1, styles.tableHeaderText] }, 'Item'),
+          createElement(Text, { style: [styles.col2, styles.tableHeaderText] }, 'Details'),
+          createElement(Text, { style: [styles.col3, styles.tableHeaderText] }, 'Amount'),
         ),
         ...(invoice.items || [
           {
@@ -193,10 +278,26 @@ function InvoiceDocument({ invoice }) {
         ),
         createElement(
           View,
-          { style: { textAlign: 'right' } },
+          { style: styles.summaryBlock },
+          ...(Number(invoice.vatAmount) > 0
+            ? [
+                createElement(
+                  View,
+                  { key: 'subtotal', style: styles.summaryRow },
+                  createElement(Text, { style: styles.summaryLabel }, 'Subtotal'),
+                  createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.subtotal}`),
+                ),
+                createElement(
+                  View,
+                  { key: 'vat', style: styles.summaryRow },
+                  createElement(Text, { style: styles.summaryLabel }, 'VAT (5%)'),
+                  createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.vatAmount}`),
+                ),
+              ]
+            : []),
           invoice.balanceDue !== undefined && invoice.balanceDue > 0
             ? createElement(Text, { style: styles.balanceDue }, `Balance Due: ${invoice.currency} ${invoice.balanceDue}`)
-            : createElement(Text, { style: styles.muted }, `Total: ${invoice.currency} ${invoice.totalAmount ?? invoice.salePrice}`),
+            : createElement(Text, { style: [styles.summaryValue, styles.totalValue] }, `Total: ${invoice.currency} ${invoice.totalAmount ?? invoice.salePrice}`),
         ),
       ),
       createElement(
@@ -228,7 +329,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
   if (isInvoice && supabaseClient) {
     const invoicePromise = supabaseClient
       .from('invoices')
-      .select('invoice_number, payment_status, amount_paid, currency, total_amount, created_at')
+      .select('invoice_number, payment_status, amount_paid, currency, total_amount, subtotal, vat_amount, created_at')
       .eq('id', sale.invoice_id)
       .maybeSingle()
 
@@ -248,7 +349,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     const { invoiceRow, salesRows } = invoiceData
     const firstSale = salesRows[0]
     const companyPromise = companyId && supabaseClient
-      ? supabaseClient.from('companies').select('name').eq('id', companyId).maybeSingle()
+      ? supabaseClient.from('companies').select('name, trn_number').eq('id', companyId).maybeSingle()
       : Promise.resolve({ data: null })
 
     const branchPromise = branchId && supabaseClient
@@ -287,6 +388,8 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
       saleDate: invoiceRow?.created_at ? new Date(invoiceRow.created_at).toLocaleDateString() : new Date(firstSale.created_at).toLocaleDateString(),
       items,
       totalAmount: Number(invoiceRow?.total_amount ?? items.reduce((sum, item) => sum + Number(item.salePrice || 0), 0)).toFixed(2),
+      subtotal: invoiceRow?.subtotal != null ? Number(invoiceRow.subtotal).toFixed(2) : null,
+      vatAmount: Number(invoiceRow?.vat_amount || 0).toFixed(2),
       currency: itemCurrency,
       customerName,
       customerContact: customerPhone ? `Phone: ${customerPhone}` : '',
@@ -299,6 +402,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
           : invoiceRow?.payment_status === 'credit'
           ? 'On Credit'
           : 'Unpaid',
+      trnNumber: companyData?.trn_number || null,
       balanceDue: (Number(invoiceRow?.total_amount ?? 0) - Number(invoiceRow?.amount_paid ?? 0)).toFixed(2),
     }
   }

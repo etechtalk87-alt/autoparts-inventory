@@ -28,6 +28,7 @@ function Layout({ children }) {
     { to: '/sales', label: 'Sales' },
     { to: '/receivables', label: 'Receivables' },
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/payables', label: 'Payables' }] : []),
+    ...(currentStaff?.role === 'company_admin' ? [{ to: '/settings', label: 'Settings' }] : []),
   ]
 
   useEffect(() => {
