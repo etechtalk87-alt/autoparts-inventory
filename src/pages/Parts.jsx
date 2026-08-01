@@ -3,7 +3,7 @@ import { BadgeCheck, Boxes, Package2, PencilLine, Plus, Search, Sparkles, Trash2
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { isAgingStock } from '../lib/aging'
-import { downloadInvoicePdf, createInvoiceNumber } from '../lib/invoicePdf'
+import { downloadInvoicePdf } from '../lib/invoicePdf'
 import { supabase } from '../lib/supabaseClient'
 import { logAuditEvent } from '../lib/auditLog'
 
@@ -629,30 +629,16 @@ function Parts() {
     setSelling(true)
     setSaleMessage('')
 
-    const { data: branchData, error: branchError } = await supabase
-      .from('branches')
-      .select('name')
-      .eq('id', saleTarget.branch_id)
-      .maybeSingle()
+    const { data: invoiceNumberResult, error: invoiceNumberError } = await supabase
+      .rpc('get_next_invoice_number', { p_company_id: currentStaff.company_id })
 
-    const branchName = !branchError && branchData?.name ? branchData.name : 'Branch'
-    let generatedInvoiceNumber = createInvoiceNumber(branchName, 1)
-
-    const { data: latestSale, error: latestSaleError } = await supabase
-      .from('sales')
-      .select('invoice_number')
-      .eq('company_id', currentStaff.company_id)
-      .eq('branch_id', saleTarget.branch_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (!latestSaleError && latestSale?.invoice_number) {
-      const match = latestSale.invoice_number.match(/-(\d+)$/)
-      if (match) {
-        generatedInvoiceNumber = createInvoiceNumber(branchName, Number(match[1]) + 1)
-      }
+    if (invoiceNumberError || !invoiceNumberResult) {
+      // Fall back to old behavior only if the new function somehow fails,
+      // so a single sale isn't blocked entirely
+      console.error('Failed to get sequential invoice number, using fallback:', invoiceNumberError)
     }
+
+    const generatedInvoiceNumber = invoiceNumberResult || `INV-FALLBACK-${Date.now()}`
 
     const dbPaymentStatus = paymentStatus === 'paid_in_full' ? 'paid' : paymentStatus
 

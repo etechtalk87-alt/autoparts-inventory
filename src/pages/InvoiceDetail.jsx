@@ -5,6 +5,17 @@ import { useAuth } from '../lib/AuthContext'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
 import { supabase } from '../lib/supabaseClient'
 
+function getPaymentMethodDisplay(method) {
+  const map = {
+    cash: { icon: '💵', label: 'Cash' },
+    bank_transfer: { icon: '🏦', label: 'Bank Transfer' },
+    card: { icon: '💳', label: 'Card' },
+    online: { icon: '📱', label: 'Online' },
+    invoice_payment: { icon: '🧾', label: 'Invoice Payment' },
+  }
+  return map[method] || { icon: '💰', label: method || 'Cash' }
+}
+
 function formatCurrency(amount, currency = 'AED') {
   const value = Number(amount || 0)
   return `${currency} ${value.toFixed(2)}`
@@ -456,7 +467,10 @@ function InvoiceDetail() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Method</p>
-                        <p className="text-sm text-slate-200">{payment.payment_method?.replace('_', ' ') || 'Cash'}</p>
+                        <p className="text-sm text-slate-200">{(() => {
+                          const { icon, label } = getPaymentMethodDisplay(payment.payment_method)
+                          return `${icon} ${label}`
+                        })()}</p>
                       </div>
                     </div>
 

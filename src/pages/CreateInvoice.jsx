@@ -294,8 +294,17 @@ function CreateInvoice() {
     }
 
     const branchId = branchScopeId || currentStaff.activeBranchId
+    const { data: invoiceNumberResult, error: invoiceNumberError } = await supabase
+      .rpc('get_next_invoice_number', { p_company_id: currentStaff.company_id })
+
+    if (invoiceNumberError || !invoiceNumberResult) {
+      setInvoiceMessage('Failed to generate invoice number. Please try again.')
+      setSubmitting(false)
+      return
+    }
+
     const currency = lineItems[0]?.currency || 'AED'
-    const invoiceNumber = `INV-${selectedBranchName.slice(0, 2).toUpperCase() || 'BR'}-${Date.now()}`
+    const invoiceNumber = invoiceNumberResult
     const dbPaymentStatus = paymentStatus === 'paid_in_full' ? 'paid' : paymentStatus
     const finalAmountPaid = paymentStatus === 'paid_in_full' ? totalAmount : paymentStatus === 'credit' ? 0 : Number(amountPaid || 0)
 

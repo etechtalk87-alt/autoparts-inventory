@@ -4,6 +4,17 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 
+function getPaymentMethodDisplay(method) {
+  const map = {
+    cash: { icon: '💵', label: 'Cash' },
+    bank_transfer: { icon: '🏦', label: 'Bank Transfer' },
+    card: { icon: '💳', label: 'Card' },
+    online: { icon: '📱', label: 'Online' },
+    invoice_payment: { icon: '🧾', label: 'Invoice Payment' },
+  }
+  return map[method] || { icon: '💰', label: method || 'Cash' }
+}
+
 // Standard country list
 const COUNTRIES = [
   'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina', 'Armenia', 'Australia',
@@ -857,9 +868,9 @@ function Customers() {
                     onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
                     className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   >
-                    <option value="cash">Cash</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="card">Card</option>
+                    <option value="cash">💵 Cash</option>
+                    <option value="bank_transfer">🏦 Bank Transfer</option>
+                    <option value="card">💳 Card</option>
                   </select>
                 </label>
 
@@ -962,7 +973,10 @@ function Customers() {
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Method</p>
-                            <p className="text-sm text-slate-200">{ph.payment_method?.replace('_', ' ') || 'Cash'}</p>
+                            <p className="text-sm text-slate-200">{(() => {
+                              const { icon, label } = getPaymentMethodDisplay(ph.payment_method)
+                              return `${icon} ${label}`
+                            })()}</p>
                           </div>
                         </div>
 
