@@ -61,6 +61,7 @@ function Customers() {
     notes: ''
   })
   const [unpaidSales, setUnpaidSales] = useState([])
+  const [invoiceTotals, setInvoiceTotals] = useState({})
   const [loadingUnpaidSales, setLoadingUnpaidSales] = useState(false)
   const [historyCustomer, setHistoryCustomer] = useState(null)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
@@ -345,6 +346,20 @@ function Customers() {
     setPaymentHistory([])
   }
 
+  const closePaymentModal = () => {
+    setShowPaymentModal(false)
+    setUnpaidSales([])
+    setInvoiceTotals({})
+    setPaymentForm({
+      amount: '',
+      currency: 'AED',
+      payment_method: 'cash',
+      sale_id: '',
+      notes: ''
+    })
+    setMessage('')
+  }
+
   const openPaymentModal = async (customer) => {
     setPaymentCustomer(customer)
     setMessage('')
@@ -369,19 +384,63 @@ function Customers() {
     setLoadingUnpaidSales(true)
     const { data, error } = await supabase
       .from('sales')
-      .select('id, invoice_number, sale_price, amount_paid, payment_status, created_at, parts(currency)')
+      .select('id, invoice_id, invoice_number, sale_price, amount_paid, payment_status, created_at, parts(currency, part_name)')
       .eq('company_id', currentStaff.company_id)
       .eq('customer_id', customer.id)
       .in('payment_status', ['partial', 'credit'])
       .order('created_at', { ascending: false })
       
     if (!error) {
+      const distinctInvoiceIds = [...new Set(
+        (data || []).map(row => row.invoice_id).filter(Boolean)
+      )]
+
+      let invoiceTotalsMap = {}
+      if (distinctInvoiceIds.length > 0) {
+        const { data: invoiceRows } = await supabase
+          .from('invoices')
+          .select('id, total_amount, amount_paid, currency')
+          .in('id', distinctInvoiceIds)
+
+        invoiceTotalsMap = Object.fromEntries(
+          (invoiceRows || []).map(inv => [inv.id, inv])
+        )
+      }
+
+      setInvoiceTotals(invoiceTotalsMap)
       setUnpaidSales(data || [])
     } else {
+      setInvoiceTotals({})
       setUnpaidSales([])
     }
     setLoadingUnpaidSales(false)
   }
+
+  const groupedUnpaidSales = useMemo(() => {
+    const groups = {}
+    unpaidSales.forEach((row) => {
+      const key = String(row.invoice_id || row.id)
+      if (!groups[key]) {
+        const realInvoice = row.invoice_id ? invoiceTotals[row.invoice_id] : null
+        groups[key] = {
+          key,
+          invoiceId: row.invoice_id || null,
+          invoiceNumber: row.invoice_number,
+          currency: realInvoice?.currency || row.parts?.currency || 'AED',
+          totalPrice: realInvoice ? Number(realInvoice.total_amount) : 0,
+          totalPaid: realInvoice ? Number(realInvoice.amount_paid) : 0,
+          usingRealInvoiceTotals: Boolean(realInvoice),
+          rows: [],
+        }
+      }
+      if (!groups[key].usingRealInvoiceTotals) {
+        groups[key].totalPrice += Number(row.sale_price || 0)
+        groups[key].totalPaid += Number(row.amount_paid || 0)
+      }
+      groups[key].rows.push(row)
+    })
+    return Object.values(groups)
+  }, [unpaidSales, invoiceTotals])
 
   const handleRecordPayment = async (e) => {
     e.preventDefault()
@@ -396,65 +455,123 @@ function Customers() {
       return
     }
 
-    const payload = {
-      company_id: currentStaff.company_id,
-      customer_id: paymentCustomer.id,
-      amount: amount,
-      currency: paymentForm.currency,
-      payment_method: paymentForm.payment_method,
-      notes: paymentForm.notes || null,
-      recorded_by: currentStaff.id,
-      payment_date: new Date().toISOString().split('T')[0]
-    }
-    
     if (paymentForm.sale_id) {
-      payload.sale_id = paymentForm.sale_id
-    }
-
-    const { error: insertError } = await supabase.from('payments').insert([payload])
-
-    if (insertError) {
-      setMessage(insertError.message)
-      setMessageType('error')
-      setSubmitting(false)
-      return
-    }
-
-    if (paymentForm.sale_id) {
-      const { data: freshSale, error: freshSaleError } = await supabase
-        .from('sales')
-        .select('sale_price, amount_paid')
-        .eq('id', paymentForm.sale_id)
-        .single()
-
-      if (freshSaleError) {
-        setMessage(`Failed to fetch fresh sale data: ${freshSaleError.message}`)
+      const group = groupedUnpaidSales.find((g) => String(g.key) === String(paymentForm.sale_id))
+      if (!group) {
+        setMessage('Selected invoice group is invalid.')
         setMessageType('error')
         setSubmitting(false)
         return
       }
 
-      let newPaid = Number(freshSale.amount_paid || 0) + amount
-      let newStatus = 'partial'
-      
-      if (newPaid >= Number(freshSale.sale_price)) {
-        newPaid = Number(freshSale.sale_price)
-        newStatus = 'paid'
-      }
-
-      const { data: saleUpdateData, error: updateError } = await supabase
-        .from('sales')
-        .update({ amount_paid: newPaid, payment_status: newStatus })
-        .eq('id', paymentForm.sale_id)
-        .select('id')
-
-      if (updateError) {
-        setMessage(`Payment recorded, but failed to update sale: ${updateError.message}`)
+      const groupRemaining = Number(group.totalPrice || 0) - Number(group.totalPaid || 0)
+      if (amount > groupRemaining) {
+        setMessage(`Amount exceeds remaining balance of ${group.currency} ${groupRemaining.toFixed(2)} for this invoice.`)
         setMessageType('error')
         setSubmitting(false)
         return
-      } else if (!saleUpdateData || saleUpdateData.length === 0) {
-        setMessage('Payment recorded, but failed to update sale - you may not have permission to modify this record.')
+      }
+
+      const rowsWithRemaining = group.rows
+        .map((r) => ({
+          ...r,
+          remaining: Number(r.sale_price || 0) - Number(r.amount_paid || 0)
+        }))
+        .filter((r) => r.remaining > 0)
+
+      const totalRemaining = rowsWithRemaining.reduce((sum, r) => sum + r.remaining, 0)
+
+      const distributions = rowsWithRemaining.map((r) => ({
+        ...r,
+        paidNow: totalRemaining > 0 ? Number((amount * (r.remaining / totalRemaining)).toFixed(2)) : 0
+      }))
+
+      const totalAssigned = distributions.reduce((sum, d) => sum + d.paidNow, 0)
+      const roundingDiff = Number((amount - totalAssigned).toFixed(2))
+      if (roundingDiff !== 0 && distributions.length > 0) {
+        distributions[distributions.length - 1].paidNow = Number(
+          (distributions[distributions.length - 1].paidNow + roundingDiff).toFixed(2)
+        )
+      }
+
+      const paymentEntries = distributions.map((d) => ({
+        company_id: currentStaff.company_id,
+        customer_id: paymentCustomer.id,
+        sale_id: d.id,
+        invoice_id: group.invoiceId || null,
+        amount: d.paidNow,
+        currency: paymentForm.currency,
+        payment_method: paymentForm.payment_method,
+        notes: paymentForm.notes
+          ? `Payment for ${d.parts?.part_name || 'item'} — ${paymentForm.notes}`
+          : `Payment for ${d.parts?.part_name || 'item'}`,
+        recorded_by: currentStaff.id,
+        payment_date: new Date().toISOString().split('T')[0],
+      }))
+
+      const { error: insertError } = await supabase.from('payments').insert(paymentEntries)
+      if (insertError) {
+        setMessage(insertError.message)
+        setMessageType('error')
+        setSubmitting(false)
+        return
+      }
+
+      for (const d of distributions) {
+        const newPaid = Number(d.amount_paid || 0) + d.paidNow
+        const newStatus = newPaid >= Number(d.sale_price) ? 'paid' : 'partial'
+
+        const { error: updateError } = await supabase
+          .from('sales')
+          .update({ amount_paid: newPaid, payment_status: newStatus })
+          .eq('id', d.id)
+
+        if (updateError) {
+          setMessage(`Some payments recorded, but failed to update a sale: ${updateError.message}`)
+          setMessageType('error')
+          setSubmitting(false)
+          return
+        }
+      }
+
+      if (group.invoiceId) {
+        const { data: freshInvoice, error: freshInvoiceError } = await supabase
+          .from('invoices')
+          .select('amount_paid, total_amount')
+          .eq('id', group.invoiceId)
+          .single()
+
+        if (freshInvoiceError) {
+          console.error('Failed to fetch fresh invoice totals:', freshInvoiceError)
+        } else {
+          const newInvoicePaid = Number(freshInvoice.amount_paid || 0) + amount
+          const newInvoiceStatus = newInvoicePaid >= Number(freshInvoice.total_amount) ? 'paid' : 'partial'
+
+          const { error: invoiceUpdateError } = await supabase
+            .from('invoices')
+            .update({ amount_paid: newInvoicePaid, payment_status: newInvoiceStatus })
+            .eq('id', group.invoiceId)
+
+          if (invoiceUpdateError) {
+            console.error('Failed to sync invoice totals:', invoiceUpdateError)
+          }
+        }
+      }
+    } else {
+      const payload = {
+        company_id: currentStaff.company_id,
+        customer_id: paymentCustomer.id,
+        amount: amount,
+        currency: paymentForm.currency,
+        payment_method: paymentForm.payment_method,
+        notes: paymentForm.notes || null,
+        recorded_by: currentStaff.id,
+        payment_date: new Date().toISOString().split('T')[0]
+      }
+
+      const { error: insertError } = await supabase.from('payments').insert([payload])
+      if (insertError) {
+        setMessage(insertError.message)
         setMessageType('error')
         setSubmitting(false)
         return
@@ -464,18 +581,16 @@ function Customers() {
     setMessage('Payment recorded successfully.')
     setMessageType('success')
     
-    // Refresh balance for this customer
     const newBalances = { ...outstandingBalances }
     newBalances[paymentCustomer.id] = await getOutstandingBalance(paymentCustomer.id)
     setOutstandingBalances(newBalances)
     
-    // Refresh history modal if currently open for this customer
     if (showHistoryModal && historyCustomer?.id === paymentCustomer.id) {
       fetchPaymentHistory(paymentCustomer.id)
     }
 
     setTimeout(() => {
-      setShowPaymentModal(false)
+      closePaymentModal()
       setSubmitting(false)
     }, 1500)
   }
@@ -759,12 +874,11 @@ function Customers() {
                     {loadingUnpaidSales ? (
                       <option disabled>Loading sales...</option>
                     ) : (
-                      unpaidSales.map(s => {
-                        const owed = Number(s.sale_price) - Number(s.amount_paid || 0)
-                        const c = s.parts?.currency || 'AED'
+                      groupedUnpaidSales.map((group) => {
+                        const owed = group.totalPrice - group.totalPaid
                         return (
-                          <option key={s.id} value={s.id}>
-                            Invoice #{s.invoice_number} - Owes {c} {owed.toFixed(2)}
+                          <option key={group.key} value={group.key}>
+                            Invoice #{group.invoiceNumber || group.key} - Owes {group.currency} {owed.toFixed(2)}
                           </option>
                         )
                       })
@@ -792,10 +906,7 @@ function Customers() {
                 <div className="mt-4 flex justify-end gap-3">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowPaymentModal(false)
-                      setMessage('')
-                    }}
+                    onClick={closePaymentModal}
                     className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                   >
                     Cancel
