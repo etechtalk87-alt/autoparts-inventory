@@ -322,6 +322,7 @@ function CreateInvoice() {
     }
 
     const invoiceId = invoiceData.id
+    const paidFraction = totalAmount > 0 ? finalAmountPaid / totalAmount : 0
     const saleInserts = lineItems.map((item) => ({
       company_id: currentStaff.company_id,
       branch_id: item.branch_id,
@@ -330,7 +331,7 @@ function CreateInvoice() {
       sale_price: Number(item.sale_price || 0),
       customer_id: selectedCustomerId,
       payment_status: paymentStatus === 'paid_in_full' ? 'paid' : paymentStatus,
-      amount_paid: paymentStatus === 'paid_in_full' ? Number(item.sale_price || 0) : 0,
+      amount_paid: Number((Number(item.sale_price || 0) * paidFraction).toFixed(2)),
       invoice_id: invoiceId,
       invoice_number: invoiceNumber,
     }))

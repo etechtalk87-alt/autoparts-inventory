@@ -21,6 +21,8 @@ function InvoiceDetail() {
   const { currentStaff, loading } = useAuth()
   const { invoiceNumber } = useParams()
   const [sale, setSale] = useState(null)
+  const [invoice, setInvoice] = useState(null)
+  const [isMultiItem, setIsMultiItem] = useState(false)
   const [loadingSale, setLoadingSale] = useState(true)
   const [error, setError] = useState('')
   const [paymentHistory, setPaymentHistory] = useState([])
@@ -30,12 +32,99 @@ function InvoiceDetail() {
     const fetchSale = async () => {
       if (!currentStaff?.company_id || !invoiceNumber) {
         setSale(null)
+        setInvoice(null)
+        setIsMultiItem(false)
         setLoadingSale(false)
         return
       }
 
       setLoadingSale(true)
       const invoiceParam = decodeURIComponent(invoiceNumber || '').trim()
+
+      const { data: invoiceRow, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, payment_status, amount_paid, currency, total_amount, subtotal, vat_amount, created_at, customer_id, branch_id')
+        .eq('company_id', currentStaff.company_id)
+        .eq('invoice_number', invoiceParam)
+        .maybeSingle()
+
+      if (invoiceError) {
+        console.error('Error fetching invoice row:', invoiceError)
+        setError(invoiceError.message || 'Unable to load invoice details.')
+        setSale(null)
+        setInvoice(null)
+        setIsMultiItem(false)
+        setLoadingSale(false)
+        return
+      }
+
+      if (invoiceRow) {
+        const { data: salesRows, error: salesRowsError } = await supabase
+          .from('sales')
+          .select(`
+            id,
+            invoice_id,
+            sale_price,
+            amount_paid,
+            payment_status,
+            customer_id,
+            customer_name,
+            customer_contact,
+            created_at,
+            branch_id,
+            company_id,
+            part_id,
+            sold_by,
+            invoice_number,
+            parts:part_id ( part_name, oem_number, condition, currency )
+          `)
+          .eq('invoice_id', invoiceRow.id)
+
+        if (salesRowsError) {
+          console.error('Error fetching invoice sales rows:', salesRowsError)
+          setError(salesRowsError.message || 'Unable to load invoice line items.')
+          setSale(null)
+          setInvoice(null)
+          setIsMultiItem(false)
+          setLoadingSale(false)
+          return
+        }
+
+        if (!Array.isArray(salesRows) || salesRows.length === 0) {
+          setError('Invoice line items not found.')
+          setSale(null)
+          setInvoice(null)
+          setIsMultiItem(false)
+          setLoadingSale(false)
+          return
+        }
+
+        const [customerResult, branchResult] = await Promise.all([
+          supabase
+            .from('customers')
+            .select('full_name, phone, email, address')
+            .eq('id', invoiceRow.customer_id)
+            .maybeSingle(),
+          supabase
+            .from('branches')
+            .select('name, location')
+            .eq('id', invoiceRow.branch_id)
+            .maybeSingle(),
+        ])
+
+        setInvoice({
+          ...invoiceRow,
+          lineItems: salesRows,
+          currency: invoiceRow.currency || salesRows[0]?.parts?.currency || 'AED',
+          customers: customerResult.data || null,
+          branches: branchResult.data || null,
+        })
+        setSale(null)
+        setIsMultiItem(true)
+        setError('')
+        setLoadingSale(false)
+        return
+      }
 
       let { data, error: fetchError } = await supabase
         .from('sales')
@@ -88,6 +177,8 @@ function InvoiceDetail() {
         console.error('Error fetching invoice detail:', fetchError)
         setError(fetchError.message || 'Unable to load invoice details.')
         setSale(null)
+        setInvoice(null)
+        setIsMultiItem(false)
         setLoadingSale(false)
         return
       }
@@ -95,6 +186,8 @@ function InvoiceDetail() {
       if (!data) {
         setError('Invoice not found.')
         setSale(null)
+        setInvoice(null)
+        setIsMultiItem(false)
         setLoadingSale(false)
         return
       }
@@ -123,6 +216,8 @@ function InvoiceDetail() {
         branches: branchResult.data || null,
         parts: partResult.data || null,
       })
+      setInvoice(null)
+      setIsMultiItem(false)
       setError('')
       setLoadingSale(false)
     }
@@ -132,18 +227,27 @@ function InvoiceDetail() {
 
   useEffect(() => {
     const fetchPayments = async () => {
-      if (!currentStaff?.company_id || !sale?.id) {
+      const saleIds = isMultiItem ? invoice?.lineItems?.map((item) => item.id) : [sale?.id].filter(Boolean)
+
+      if (!currentStaff?.company_id || saleIds.length === 0) {
         setPaymentHistory([])
         setLoadingPayments(false)
         return
       }
 
       setLoadingPayments(true)
-      const { data, error: paymentsError } = await supabase
+      let query = supabase
         .from('payments')
         .select('id, amount, currency, payment_method, payment_date, notes, recorded_by')
         .eq('company_id', currentStaff.company_id)
-        .eq('sale_id', sale.id)
+
+      if (isMultiItem) {
+        query = query.in('sale_id', saleIds)
+      } else {
+        query = query.eq('sale_id', saleIds[0])
+      }
+
+      const { data, error: paymentsError } = await query
         .order('payment_date', { ascending: false })
         .order('created_at', { ascending: false })
 
@@ -157,7 +261,7 @@ function InvoiceDetail() {
     }
 
     fetchPayments()
-  }, [currentStaff?.company_id, sale?.id])
+  }, [currentStaff?.company_id, isMultiItem, invoice?.lineItems, sale?.id])
 
   if (loading) {
     return (
@@ -183,7 +287,7 @@ function InvoiceDetail() {
     )
   }
 
-  if (error || !sale) {
+  if (error || (!sale && !invoice)) {
     return (
       <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
         <div className="mx-auto max-w-4xl rounded-[28px] border border-white/10 bg-slate-900/70 p-8 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
@@ -205,7 +309,10 @@ function InvoiceDetail() {
     )
   }
 
-  const remaining = Number(sale.sale_price || 0) - Number(sale.amount_paid || 0)
+  const invoiceDisplay = isMultiItem ? invoice : sale
+  const invoiceAmount = Number(invoiceDisplay?.sale_price || invoiceDisplay?.total_amount || 0)
+  const invoicePaid = Number(invoiceDisplay?.amount_paid || 0)
+  const remaining = invoiceAmount - invoicePaid
 
   return (
     <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
@@ -217,8 +324,8 @@ function InvoiceDetail() {
                 <ReceiptText size={16} />
                 Invoice detail
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">{sale.invoice_number}</h1>
-              <p className="mt-3 text-sm leading-6 text-slate-400">Invoice summary, payment progress, and customer information for this sale.</p>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">{invoiceDisplay?.invoice_number}</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-400">Invoice summary, payment progress, and customer information for this invoice.</p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link to="/sales" className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900">
                   Back to Sales
@@ -231,20 +338,20 @@ function InvoiceDetail() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Invoice Date</p>
-                <p className="mt-2 text-lg font-semibold text-white">{formatDate(sale.created_at)}</p>
+                <p className="mt-2 text-lg font-semibold text-white">{formatDate(invoiceDisplay?.created_at)}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Status</p>
-                <p className="mt-2 text-lg font-semibold text-slate-200">{sale.payment_status || '—'}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-200">{invoiceDisplay?.payment_status || '—'}</p>
               </div>
               <button
                 type="button"
                 onClick={() => downloadInvoicePdf({
                   supabaseClient: supabase,
-                  companyId: sale.company_id,
-                  branchId: sale.branch_id,
-                  partId: sale.part_id,
-                  sale,
+                  companyId: invoiceDisplay?.company_id || sale?.company_id,
+                  branchId: invoiceDisplay?.branch_id || sale?.branch_id,
+                  partId: isMultiItem ? invoiceDisplay?.lineItems?.[0]?.part_id : sale?.part_id,
+                  sale: isMultiItem ? invoiceDisplay?.lineItems?.[0] : sale,
                 })}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
               >
@@ -261,15 +368,15 @@ function InvoiceDetail() {
             <div className="mt-6 grid gap-4">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Total amount</p>
-                <p className="mt-2 text-lg font-semibold text-white">{formatCurrency(sale.sale_price, sale.parts?.currency)}</p>
+                <p className="mt-2 text-lg font-semibold text-white">{formatCurrency(invoiceAmount, invoiceDisplay?.currency || sale?.parts?.currency)}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount paid</p>
-                <p className="mt-2 text-lg font-semibold text-emerald-300">{formatCurrency(sale.amount_paid, sale.parts?.currency)}</p>
+                <p className="mt-2 text-lg font-semibold text-emerald-300">{formatCurrency(invoicePaid, invoiceDisplay?.currency || sale?.parts?.currency)}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Remaining balance</p>
-                <p className="mt-2 text-lg font-semibold text-rose-400">{formatCurrency(remaining, sale.parts?.currency)}</p>
+                <p className="mt-2 text-lg font-semibold text-rose-400">{formatCurrency(remaining, invoiceDisplay?.currency || sale?.parts?.currency)}</p>
               </div>
             </div>
           </div>
@@ -279,23 +386,23 @@ function InvoiceDetail() {
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Customer</p>
-                <p className="mt-2 text-sm text-slate-200">{sale.customers?.full_name || sale.customer_name || '–'}</p>
-                {sale.customers?.email ? <p className="mt-1 text-sm text-slate-400">{sale.customers.email}</p> : null}
-                {sale.customers?.phone ? <p className="mt-1 text-sm text-slate-400">{sale.customers.phone}</p> : null}
+                <p className="mt-2 text-sm text-slate-200">{invoiceDisplay?.customers?.full_name || invoiceDisplay?.customer_name || sale?.customers?.full_name || sale?.customer_name || '–'}</p>
+                {invoiceDisplay?.customers?.email ? <p className="mt-1 text-sm text-slate-400">{invoiceDisplay.customers.email}</p> : null}
+                {invoiceDisplay?.customers?.phone ? <p className="mt-1 text-sm text-slate-400">{invoiceDisplay.customers.phone}</p> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Branch</p>
-                <p className="mt-2 text-sm text-slate-200">{sale.branches?.name || '–'}</p>
-                {sale.branches?.location ? <p className="mt-1 text-sm text-slate-400">{sale.branches.location}</p> : null}
+                <p className="mt-2 text-sm text-slate-200">{invoice?.branches?.name || sale?.branches?.name || '–'}</p>
+                {(invoice?.branches?.location || sale?.branches?.location) ? <p className="mt-1 text-sm text-slate-400">{invoice?.branches?.location || sale?.branches?.location}</p> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Part</p>
-                <p className="mt-2 text-sm text-slate-200">{sale.parts?.part_name || '–'}</p>
-                {sale.parts?.oem_number ? <p className="mt-1 text-sm text-slate-400">{sale.parts.oem_number}</p> : null}
+                <p className="mt-2 text-sm text-slate-200">{isMultiItem ? `Invoice contains ${invoice?.lineItems?.length || 0} items` : (sale?.parts?.part_name || '–')}</p>
+                {!isMultiItem && sale?.parts?.oem_number ? <p className="mt-1 text-sm text-slate-400">{sale.parts.oem_number}</p> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Sold by</p>
-                <p className="mt-2 text-sm text-slate-200">{sale.sold_by_staff?.full_name || sale.sold_by || '–'}</p>
+                <p className="mt-2 text-sm text-slate-200">{isMultiItem ? '–' : (sale?.sold_by_staff?.full_name || sale?.sold_by || '–')}</p>
               </div>
             </div>
           </div>
