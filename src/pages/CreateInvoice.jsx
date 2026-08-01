@@ -323,7 +323,15 @@ function CreateInvoice() {
 
     const invoiceId = invoiceData.id
     const paidFraction = totalAmount > 0 ? finalAmountPaid / totalAmount : 0
-    const saleInserts = lineItems.map((item) => ({
+
+    const amountPaidByItem = lineItems.map((item) => Number((Number(item.sale_price || 0) * paidFraction).toFixed(2)))
+    const totalAssigned = amountPaidByItem.reduce((sum, value) => sum + value, 0)
+    const roundingAdjustment = Number((finalAmountPaid - totalAssigned).toFixed(2))
+    if (roundingAdjustment !== 0 && amountPaidByItem.length > 0) {
+      amountPaidByItem[amountPaidByItem.length - 1] = Number((amountPaidByItem[amountPaidByItem.length - 1] + roundingAdjustment).toFixed(2))
+    }
+
+    const saleInserts = lineItems.map((item, index) => ({
       company_id: currentStaff.company_id,
       branch_id: item.branch_id,
       part_id: item.part_id,
@@ -331,16 +339,43 @@ function CreateInvoice() {
       sale_price: Number(item.sale_price || 0),
       customer_id: selectedCustomerId,
       payment_status: paymentStatus === 'paid_in_full' ? 'paid' : paymentStatus,
-      amount_paid: Number((Number(item.sale_price || 0) * paidFraction).toFixed(2)),
+      amount_paid: amountPaidByItem[index],
       invoice_id: invoiceId,
       invoice_number: invoiceNumber,
     }))
 
-    const { error: salesError } = await supabase.from('sales').insert(saleInserts)
+    const { data: salesData, error: salesError } = await supabase.from('sales').insert(saleInserts).select('id, sale_price')
     if (salesError) {
       setInvoiceMessage(salesError.message)
       setSubmitting(false)
       return
+    }
+
+    const paymentEntries = []
+    if (finalAmountPaid > 0) {
+      salesData.forEach((sale, index) => {
+        const amount = amountPaidByItem[index]
+        if (amount > 0) {
+          paymentEntries.push({
+            company_id: currentStaff.company_id,
+            customer_id: selectedCustomerId,
+            sale_id: sale.id,
+            amount,
+            currency,
+            payment_method: 'invoice_payment',
+            notes: `Invoice ${invoiceNumber} payment`,
+            recorded_by: currentStaff.id,
+            payment_date: new Date().toISOString().split('T')[0],
+          })
+        }
+      })
+    }
+
+    if (paymentEntries.length > 0) {
+      const { error: paymentError } = await supabase.from('payments').insert(paymentEntries)
+      if (paymentError) {
+        console.error('Failed to record invoice payments:', paymentError)
+      }
     }
 
     const partIds = lineItems.map((item) => item.part_id)
@@ -353,24 +388,6 @@ function CreateInvoice() {
       setInvoiceMessage(updateError.message)
       setSubmitting(false)
       return
-    }
-
-    if (paymentStatus !== 'paid_in_full') {
-      const paymentEntry = {
-        company_id: currentStaff.company_id,
-        customer_id: selectedCustomerId,
-        sale_id: null,
-        amount: finalAmountPaid,
-        currency,
-        payment_method: 'invoice_payment',
-        notes: `Invoice ${invoiceNumber} payment`,
-        recorded_by: currentStaff.id,
-        payment_date: new Date().toISOString().split('T')[0],
-      }
-      const { error: paymentError } = await supabase.from('payments').insert([paymentEntry])
-      if (paymentError) {
-        console.error('Failed to record invoice payment:', paymentError)
-      }
     }
 
     setCreatedInvoice({

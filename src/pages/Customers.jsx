@@ -144,6 +144,7 @@ function Customers() {
         .eq('company_id', currentStaff.company_id)
         .eq('customer_id', customerId)
         .is('sale_id', null)
+        .is('invoice_id', null)
 
       if (!paymentsError && payments) {
         payments.forEach((p) => {

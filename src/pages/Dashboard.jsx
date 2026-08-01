@@ -85,6 +85,7 @@ function Dashboard() {
         .select('amount, currency')
         .eq('company_id', companyFilter)
         .is('sale_id', null)
+        .is('invoice_id', null)
 
       const [
         branchesRes,

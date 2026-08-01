@@ -92,6 +92,7 @@ function Receivables() {
         .select('amount, currency')
         .eq('company_id', currentStaff.company_id)
         .is('sale_id', null)
+        .is('invoice_id', null)
       if (!error) setUnlinkedPayments(data ?? [])
     }
 
