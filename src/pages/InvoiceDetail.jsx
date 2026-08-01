@@ -28,6 +28,23 @@ function InvoiceDetail() {
   const [paymentHistory, setPaymentHistory] = useState([])
   const [loadingPayments, setLoadingPayments] = useState(true)
 
+  const formatPartDisplay = () => {
+    if (!isMultiItem) {
+      return sale?.parts?.part_name || '–'
+    }
+
+    const lineItems = invoice?.lineItems || []
+    if (lineItems.length === 0) {
+      return 'No items'
+    }
+
+    const names = lineItems
+      .slice(0, 3)
+      .map((item) => item.parts?.part_name || 'Part')
+
+    return names.join(', ') + (lineItems.length > 3 ? ` +${lineItems.length - 3} more` : '')
+  }
+
   useEffect(() => {
     const fetchSale = async () => {
       if (!currentStaff?.company_id || !invoiceNumber) {
@@ -397,7 +414,7 @@ function InvoiceDetail() {
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Part</p>
-                <p className="mt-2 text-sm text-slate-200">{isMultiItem ? `Invoice contains ${invoice?.lineItems?.length || 0} items` : (sale?.parts?.part_name || '–')}</p>
+                <p className="mt-2 text-sm text-slate-200">{formatPartDisplay()}</p>
                 {!isMultiItem && sale?.parts?.oem_number ? <p className="mt-1 text-sm text-slate-400">{sale.parts.oem_number}</p> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">

@@ -296,6 +296,14 @@ function InvoiceDocument({ invoice }) {
               ]
             : []),
           invoice.balanceDue !== undefined && invoice.balanceDue > 0
+            ? createElement(
+                View,
+                { key: 'amount-paid', style: styles.summaryRow },
+                createElement(Text, { style: styles.summaryLabel }, 'Amount Paid'),
+                createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${(Number(invoice.totalAmount ?? invoice.salePrice ?? 0) - Number(invoice.balanceDue)).toFixed(2)}`),
+              )
+            : null,
+          invoice.balanceDue !== undefined && invoice.balanceDue > 0
             ? createElement(Text, { style: styles.balanceDue }, `Balance Due: ${invoice.currency} ${invoice.balanceDue}`)
             : createElement(Text, { style: [styles.summaryValue, styles.totalValue] }, `Total: ${invoice.currency} ${invoice.totalAmount ?? invoice.salePrice}`),
         ),
