@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
 import { BadgeCheck, CreditCard, ReceiptText, UsersRound, Wallet2 } from 'lucide-react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 
@@ -62,11 +62,28 @@ function Customers() {
   })
   const [unpaidSales, setUnpaidSales] = useState([])
   const [loadingUnpaidSales, setLoadingUnpaidSales] = useState(false)
-  const [expandedCustomer, setExpandedCustomer] = useState(null)
+  const [historyCustomer, setHistoryCustomer] = useState(null)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [paymentHistory, setPaymentHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
 
   const canManageCustomers = currentStaff?.role === 'company_admin'
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '—'
+    const date = new Date(dateString)
+    if (Number.isNaN(date.getTime())) return dateString
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+    }).format(date)
+  }
+
+  const formatCurrency = (amount, currency = 'AED') => {
+    const value = Number(amount || 0)
+    return `${currency} ${value.toFixed(2)}`
+  }
 
   // Fetch customers
   useEffect(() => {
@@ -315,13 +332,16 @@ function Customers() {
     setLoadingHistory(false)
   }
 
-  const toggleExpand = (customerId) => {
-    if (expandedCustomer === customerId) {
-      setExpandedCustomer(null)
-    } else {
-      setExpandedCustomer(customerId)
-      fetchPaymentHistory(customerId)
-    }
+  const openHistoryModal = (customer) => {
+    setHistoryCustomer(customer)
+    setShowHistoryModal(true)
+    fetchPaymentHistory(customer.id)
+  }
+
+  const closeHistoryModal = () => {
+    setShowHistoryModal(false)
+    setHistoryCustomer(null)
+    setPaymentHistory([])
   }
 
   const openPaymentModal = async (customer) => {
@@ -448,8 +468,8 @@ function Customers() {
     newBalances[paymentCustomer.id] = await getOutstandingBalance(paymentCustomer.id)
     setOutstandingBalances(newBalances)
     
-    // Refresh expanded history if currently open
-    if (expandedCustomer === paymentCustomer.id) {
+    // Refresh history modal if currently open for this customer
+    if (showHistoryModal && historyCustomer?.id === paymentCustomer.id) {
       fetchPaymentHistory(paymentCustomer.id)
     }
 
@@ -595,11 +615,17 @@ function Customers() {
                           <td className="px-6 py-4">
                             <button
                               type="button"
-                              onClick={() => toggleExpand(customer.id)}
+                              onClick={() => {
+                                if (showHistoryModal && historyCustomer?.id === customer.id) {
+                                  closeHistoryModal()
+                                } else {
+                                  openHistoryModal(customer)
+                                }
+                              }}
                               className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-sm font-medium text-cyan-200 transition hover:bg-cyan-400/20"
                             >
                               <ReceiptText size={14} />
-                              {expandedCustomer === customer.id ? 'Hide History' : 'View History'}
+                              {showHistoryModal && historyCustomer?.id === customer.id ? 'Hide History' : 'View History'}
                             </button>
                           </td>
                           {canManageCustomers ? (
@@ -624,41 +650,6 @@ function Customers() {
                             </td>
                           ) : null}
                         </tr>
-                        {expandedCustomer === customer.id && (
-                          <tr>
-                            <td colSpan={canManageCustomers ? 5 : 4} className="border-b border-white/10 bg-slate-950/50 px-6 py-4">
-                              <h4 className="mb-3 font-semibold text-white">Payment History for {customer.full_name}</h4>
-                              {loadingHistory ? (
-                                <p className="text-sm text-slate-400">Loading...</p>
-                              ) : paymentHistory.length === 0 ? (
-                                <p className="text-sm text-slate-400">No payments recorded yet.</p>
-                              ) : (
-                                <table className="min-w-full overflow-hidden rounded-xl border border-white/10 bg-slate-900 text-left text-sm">
-                                  <thead className="bg-slate-800 text-slate-300">
-                                    <tr>
-                                      <th className="px-4 py-2 font-medium">Date</th>
-                                      <th className="px-4 py-2 font-medium">Amount</th>
-                                      <th className="px-4 py-2 font-medium">Method</th>
-                                      <th className="px-4 py-2 font-medium">Linked Sale</th>
-                                      <th className="px-4 py-2 font-medium">Notes</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-white/10">
-                                    {paymentHistory.map(ph => (
-                                      <tr key={ph.id}>
-                                        <td className="px-4 py-2 text-slate-300">{ph.payment_date}</td>
-                                        <td className="px-4 py-2 font-medium text-white">{ph.currency || 'AED'} {Number(ph.amount).toFixed(2)}</td>
-                                        <td className="px-4 py-2 capitalize text-slate-300">{ph.payment_method?.replace('_', ' ') || 'Cash'}</td>
-                                        <td className="px-4 py-2 text-cyan-400">{ph.sales?.invoice_number || 'General Payment'}</td>
-                                        <td className="px-4 py-2 text-slate-400">{ph.notes || '—'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              )}
-                            </td>
-                          </tr>
-                        )}
                       </Fragment>
                     )
                   })}
@@ -817,6 +808,83 @@ function Customers() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {showHistoryModal && historyCustomer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+            <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Payment History</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">{historyCustomer.full_name}</h2>
+                  <p className="mt-1 text-sm text-slate-400">Recent payment records for this customer.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeHistoryModal}
+                  className="self-start rounded-full border border-white/10 bg-slate-950/80 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="mt-6 grid gap-4">
+                {loadingHistory ? (
+                  <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 text-slate-400">Loading payment history...</div>
+                ) : paymentHistory.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/70 p-6 text-slate-400">No payments recorded yet.</div>
+                ) : (
+                  <div className="grid gap-4">
+                    {paymentHistory.map((ph) => (
+                      <div key={ph.id} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="space-y-1">
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Date</p>
+                            <p className="text-lg font-semibold text-white">{formatDate(ph.payment_date)}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount</p>
+                            <p className="text-lg font-semibold text-emerald-300">{formatCurrency(ph.amount, ph.currency)}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Method</p>
+                            <p className="text-sm text-slate-200">{ph.payment_method?.replace('_', ' ') || 'Cash'}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Linked Sale</p>
+                            {ph.sales?.invoice_number ? (
+                              <Link
+                                to={`/invoices/${encodeURIComponent(ph.sales.invoice_number)}`}
+                                className="mt-2 inline-flex flex-col gap-1 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 hover:underline"
+                              >
+                                <span>{ph.sales.invoice_number}</span>
+                                <span className="text-xs text-slate-400">View invoice</span>
+                              </Link>
+                            ) : (
+                              <div className="mt-2 text-sm text-slate-300">
+                                <p>General Payment (No invoice linked)</p>
+                                <p className="mt-1 text-xs text-slate-500">Payment date: {formatDate(ph.payment_date)}</p>
+                                {ph.notes ? (
+                                  <p className="mt-1 text-xs text-slate-500">Reference: {ph.notes}</p>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Notes</p>
+                            <p className="mt-2 text-sm text-slate-300">{ph.notes || '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

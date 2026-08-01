@@ -11,6 +11,7 @@ import Branches from './pages/Branches'
 import Customers from './pages/Customers'
 import CreateInvoice from './pages/CreateInvoice'
 import DonorVehicles from './pages/DonorVehicles'
+import InvoiceDetail from './pages/InvoiceDetail'
 import Parts from './pages/Parts'
 import PartsImport from './pages/PartsImport'
 import Transfers from './pages/Transfers'
@@ -90,6 +91,7 @@ function App() {
                   element={currentStaff?.role === 'company_admin' ? <Customers /> : <Navigate to="/" replace />}
                 />
                 <Route path="/invoices/new" element={<CreateInvoice />} />
+                <Route path="/invoices/:invoiceNumber" element={<InvoiceDetail />} />
                 <Route path="/donor-vehicles" element={<DonorVehicles />} />
                 <Route path="/parts" element={<Parts />} />
                 <Route path="/parts/import" element={currentStaff?.role === 'company_admin' || currentStaff?.role === 'branch_staff' ? <PartsImport /> : <Navigate to="/parts" replace />} />

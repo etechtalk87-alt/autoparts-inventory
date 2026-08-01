@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarRange, FileText, Package2, ReceiptText, Sparkles } from 'lucide-react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
 import { supabase } from '../lib/supabaseClient'
@@ -46,6 +46,8 @@ function Sales() {
   const [dateTo, setDateTo] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [searchParams] = useSearchParams()
+  const invoiceQuery = searchParams.get('invoice')
 
   const canManageBranches = currentStaff?.role === 'company_admin'
 
@@ -140,6 +142,11 @@ function Sales() {
     const startIndex = (currentPage - 1) * itemsPerPage
     return filteredSales.slice(startIndex, startIndex + itemsPerPage)
   }, [currentPage, itemsPerPage, filteredSales])
+
+  const selectedSale = useMemo(() => {
+    if (!invoiceQuery) return null
+    return sales.find((sale) => sale.invoice_number === invoiceQuery)
+  }, [invoiceQuery, sales])
 
   const totalPages = Math.max(1, Math.ceil(filteredSales.length / itemsPerPage))
 
@@ -261,6 +268,49 @@ function Sales() {
             <div className="p-8 text-center text-slate-400">No sales found for the selected scope.</div>
           ) : (
             <>
+              {invoiceQuery ? (
+                <div className="border-b border-white/10 px-6 py-5">
+                  {selectedSale ? (
+                    <div className="rounded-[28px] border border-cyan-400/20 bg-slate-950/70 p-5">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Selected Invoice</p>
+                          <h3 className="mt-2 text-2xl font-semibold text-white">{selectedSale.invoice_number}</h3>
+                          <p className="mt-1 text-sm text-slate-400">Viewing the sale record for this invoice.</p>
+                        </div>
+                        <Link
+                          to="/sales"
+                          className="rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800"
+                        >
+                          Clear selection
+                        </Link>
+                      </div>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Customer</p>
+                          <p className="mt-2 text-sm text-slate-200">{selectedSale.customers?.full_name || selectedSale.customer_name || '—'}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Date</p>
+                          <p className="mt-2 text-sm text-slate-200">{new Date(selectedSale.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Status</p>
+                          <p className="mt-2 text-sm text-slate-200">{getPaymentStatusLabel(selectedSale.payment_status)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-5 text-slate-300">
+                      <p className="text-sm font-semibold text-white">No invoice found</p>
+                      <p className="mt-2 text-sm">Invoice query <span className="font-mono text-cyan-300">{invoiceQuery}</span> did not match any sale records.</p>
+                      <Link to="/sales" className="mt-4 inline-flex rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800">
+                        Back to full sales list
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : null}
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                   <thead className="bg-slate-950/70 text-slate-400">
@@ -298,7 +348,16 @@ function Sales() {
                         <td className="px-6 py-4 text-slate-300">{sale.sold_by_staff?.id ?? '—'}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-2">
-                            <span className="text-xs text-slate-400">{sale.invoice_number || '—'}</span>
+                            {sale.invoice_number ? (
+                              <Link
+                                to={`/invoices/${encodeURIComponent(sale.invoice_number)}`}
+                                className="text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 hover:underline"
+                              >
+                                {sale.invoice_number}
+                              </Link>
+                            ) : (
+                              <span className="text-xs text-slate-400">—</span>
+                            )}
                             <button
                               type="button"
                               onClick={() => downloadInvoicePdf({
