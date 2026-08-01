@@ -36,6 +36,7 @@ function CreateInvoice() {
   const [justAddedId, setJustAddedId] = useState(null)
   const [paymentStatus, setPaymentStatus] = useState('paid_in_full')
   const [amountPaid, setAmountPaid] = useState('')
+  const [paymentNote, setPaymentNote] = useState('')
   const [invoiceMessage, setInvoiceMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [createdInvoice, setCreatedInvoice] = useState(null)
@@ -216,6 +217,7 @@ function CreateInvoice() {
     setLineItems([])
     setPaymentStatus('paid_in_full')
     setAmountPaid('')
+    setPaymentNote('')
     setInvoiceMessage('')
     setSuccessMessage('')
     setCreatedInvoice(null)
@@ -356,6 +358,12 @@ function CreateInvoice() {
       salesData.forEach((sale, index) => {
         const amount = amountPaidByItem[index]
         if (amount > 0) {
+          const partName = lineItems[index]?.part_name || 'item'
+          const autoNote = `Payment for ${partName}`
+          const finalNote = paymentNote.trim()
+            ? `${autoNote} — ${paymentNote.trim()}`
+            : autoNote
+
           paymentEntries.push({
             company_id: currentStaff.company_id,
             customer_id: selectedCustomerId,
@@ -363,7 +371,7 @@ function CreateInvoice() {
             amount,
             currency,
             payment_method: 'invoice_payment',
-            notes: `Invoice ${invoiceNumber} payment`,
+            notes: finalNote,
             recorded_by: currentStaff.id,
             payment_date: new Date().toISOString().split('T')[0],
           })
@@ -417,6 +425,7 @@ function CreateInvoice() {
     setLineItems([])
     setPartSearch('')
     setAmountPaid('')
+    setPaymentNote('')
     setPaymentStatus('paid_in_full')
 
     // Smooth scroll to the success panel
@@ -738,7 +747,7 @@ function CreateInvoice() {
               </label>
             </div>
             {paymentStatus === 'partial' ? (
-              <div className="rounded-[1.25rem] border border-slate-700 bg-slate-900/50 p-4">
+              <div className="rounded-[1.25rem] border border-slate-700 bg-slate-900/50 p-4 space-y-4">
                 <label className="block text-sm font-medium text-slate-300">
                   Amount Paid
                   <input
@@ -746,6 +755,16 @@ function CreateInvoice() {
                     onChange={(event) => setAmountPaid(event.target.value)}
                     className="mt-2 w-full max-w-sm rounded-xl border border-slate-600 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-500"
                     placeholder={`Less than ${formatCurrency(totalAmount, lineItems[0]?.currency)}`}
+                  />
+                </label>
+                <label className="block text-sm font-medium text-slate-300">
+                  Payment note <span className="text-slate-500">(optional)</span>
+                  <input
+                    type="text"
+                    value={paymentNote}
+                    onChange={(event) => setPaymentNote(event.target.value)}
+                    className="mt-2 w-full max-w-sm rounded-xl border border-slate-600 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-500"
+                    placeholder="e.g. Cash upfront, remainder on delivery"
                   />
                 </label>
               </div>

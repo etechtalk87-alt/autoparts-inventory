@@ -255,7 +255,7 @@ function InvoiceDetail() {
       setLoadingPayments(true)
       let query = supabase
         .from('payments')
-        .select('id, amount, currency, payment_method, payment_date, notes, recorded_by')
+        .select('id, amount, currency, payment_method, payment_date, notes, recorded_by, staff:recorded_by ( full_name )')
         .eq('company_id', currentStaff.company_id)
 
       if (isMultiItem) {
@@ -468,7 +468,7 @@ function InvoiceDetail() {
                       {payment.recorded_by ? (
                         <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
                           <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Recorded by</p>
-                          <p className="mt-2 text-sm text-slate-300">{payment.recorded_by}</p>
+                          <p className="mt-2 text-sm text-slate-300">{payment.staff?.full_name || 'Staff member'}</p>
                         </div>
                       ) : null}
                     </div>
