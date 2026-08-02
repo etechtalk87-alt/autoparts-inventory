@@ -10,6 +10,7 @@ export function AuthProvider({ children }) {
   const [activeBranchId, setActiveBranchIdState] = useState(() => localStorage.getItem('activeBranchId') || null)
   const [needsCompanySetup, setNeedsCompanySetup] = useState(false)
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false)
+  const [accountSuspended, setAccountSuspended] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const handleSetActiveBranchId = (branchId) => {
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
       setNeedsCompanySetup(false)
       setActiveBranchIdState(null)
       setNeedsPasswordSetup(false)
+      setAccountSuspended(false)
       return
     }
 
@@ -75,9 +77,16 @@ export function AuthProvider({ children }) {
 
         const { data: companyData } = await supabase
           .from('companies')
-          .select('vat_enabled, trn_number')
+          .select('vat_enabled, trn_number, subscription_status')
           .eq('id', staffData.company_id)
           .maybeSingle()
+
+        if (companyData?.subscription_status === 'suspended') {
+          setAccountSuspended(true)
+          setCurrentStaff(null)
+          setNeedsCompanySetup(false)
+          return
+        }
 
         setCurrentStaff({
           ...staffData,
@@ -178,6 +187,7 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('activeBranchId')
       setNeedsCompanySetup(false)
       setNeedsPasswordSetup(false)
+      setAccountSuspended(false)
     }
 
     setLoading(false)
@@ -193,13 +203,14 @@ export function AuthProvider({ children }) {
       setActiveBranchId: handleSetActiveBranchId,
       needsCompanySetup,
       needsPasswordSetup,
+      accountSuspended,
       loading,
       signIn,
       signOut,
       refreshStaff,
       clearPasswordSetupFlag,
     }),
-    [user, session, currentStaff, activeBranchId, needsCompanySetup, needsPasswordSetup, loading],
+    [user, session, currentStaff, activeBranchId, needsCompanySetup, needsPasswordSetup, accountSuspended, loading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

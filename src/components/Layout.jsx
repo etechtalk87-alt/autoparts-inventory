@@ -9,6 +9,26 @@ function Layout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [companyName, setCompanyName] = useState('AutoParts Inventory')
   const [switcherBranches, setSwitcherBranches] = useState([])
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
+
+  useEffect(() => {
+    const checkPlatformAdmin = async () => {
+      if (!user?.id) {
+        setIsPlatformAdmin(false)
+        return
+      }
+
+      const { data } = await supabase
+        .from('platform_admins')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      setIsPlatformAdmin(Boolean(data))
+    }
+
+    checkPlatformAdmin()
+  }, [user?.id])
 
   const navLinks = [
     { to: '/', label: 'Dashboard' },
@@ -28,6 +48,7 @@ function Layout({ children }) {
     { to: '/sales', label: 'Sales' },
     { to: '/receivables', label: 'Receivables' },
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/payables', label: 'Payables' }] : []),
+    ...(isPlatformAdmin ? [{ to: '/platform-admin', label: 'Platform Admin' }] : []),
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/settings', label: 'Settings' }] : []),
   ]
 

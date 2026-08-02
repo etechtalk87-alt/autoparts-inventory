@@ -7,6 +7,8 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import AccountSuspended from './pages/AccountSuspended'
+import PlatformAdmin from './pages/PlatformAdmin'
 import Dashboard from './pages/Dashboard'
 import Branches from './pages/Branches'
 import Customers from './pages/Customers'
@@ -27,7 +29,7 @@ import CompanySettings from './pages/CompanySettings'
 import { supabase } from './lib/supabaseClient'
 
 function App() {
-  const { user, loading, currentStaff, needsCompanySetup, needsPasswordSetup } = useAuth()
+  const { user, loading, currentStaff, needsCompanySetup, needsPasswordSetup, accountSuspended } = useAuth()
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -72,7 +74,11 @@ function App() {
   return (
     <BrowserRouter>
       <Layout>
-        {needsPasswordSetup ? (
+        {accountSuspended ? (
+          <Routes>
+            <Route path="*" element={<AccountSuspended />} />
+          </Routes>
+        ) : needsPasswordSetup ? (
           <Routes>
             <Route path="*" element={<SetPassword />} />
           </Routes>
@@ -112,6 +118,7 @@ function App() {
                   path="/manage-staff"
                   element={currentStaff?.role === 'company_admin' ? <ManageStaff /> : <Navigate to="/" replace />}
                 />
+                <Route path="/platform-admin" element={<PlatformAdmin />} />
                 <Route
                   path="/settings"
                   element={currentStaff?.role === 'company_admin' ? <CompanySettings /> : <Navigate to="/" replace />}
