@@ -31,10 +31,14 @@ function Parts() {
     cost: '',
     asking_price: '',
     currency: 'AED',
+    photo_url: '',
     donor_vehicle_id: '',
     branch_id: '',
     status: 'in_stock',
   })
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState(null)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -141,7 +145,7 @@ function Parts() {
     setLoadingParts(true)
     let query = supabase
       .from('parts')
-      .select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id, date_added, created_at, donor_vehicles(make, model, year)')
+      .select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id, photo_url, date_added, created_at, donor_vehicles(make, model, year)')
       .eq('company_id', currentStaff.company_id)
       .order('part_name', { ascending: true })
 
@@ -299,6 +303,25 @@ function Parts() {
     }
 
     setSubmitting(true)
+    const uploadPartPhoto = async (partId, file) => {
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${currentStaff.company_id}/${partId}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('part-photos')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) {
+        throw new Error(uploadError.message)
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('part-photos')
+        .getPublicUrl(filePath)
+
+      return urlData.publicUrl
+    }
+
     if (editingId) {
       const { data: existingPart, error: lookupError } = await supabase
         .from('parts')
@@ -331,7 +354,7 @@ function Parts() {
         .from('parts')
         .update(payload)
         .eq('id', editingId)
-        .select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id')
+        .select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id, photo_url')
 
       if (error) {
         setErrorMessage(error.message)
@@ -339,6 +362,16 @@ function Parts() {
         setErrorMessage('Update failed - you may not have permission to modify this record.')
       } else {
         const dataRow = data[0]
+        if (photoFile) {
+          try {
+            const photoUrl = await uploadPartPhoto(editingId, photoFile)
+            await supabase.from('parts').update({ photo_url: photoUrl }).eq('id', editingId)
+            dataRow.photo_url = photoUrl
+          } catch (err) {
+            console.error('Photo upload failed:', err)
+            setErrorMessage(`Part saved, but photo upload failed: ${err.message}`)
+          }
+        }
         if (snapshot && snapshot.donor_vehicle_id && payload.donor_vehicle_id !== snapshot.donor_vehicle_id) {
           await logAuditEvent({
             tableName: 'parts',
@@ -360,20 +393,33 @@ function Parts() {
           cost: '',
           asking_price: '',
           currency: 'AED',
+          photo_url: '',
           donor_vehicle_id: '',
           branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : '',
           status: 'in_stock',
         })
+        setPhotoFile(null)
+        setPhotoPreview(null)
         setShowAddModal(false)
         setSuccessMessage('Part updated successfully.')
         requestAnimationFrame(() => listRef.current?.focus())
       }
     } else {
-      const { data, error } = await supabase.from('parts').insert([payload]).select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id').single()
+      const { data, error } = await supabase.from('parts').insert([payload]).select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id, photo_url').single()
 
       if (error) {
         setErrorMessage(error.message)
       } else {
+        if (photoFile) {
+          try {
+            const photoUrl = await uploadPartPhoto(data.id, photoFile)
+            await supabase.from('parts').update({ photo_url: photoUrl }).eq('id', data.id)
+            data.photo_url = photoUrl
+          } catch (err) {
+            console.error('Photo upload failed:', err)
+            setErrorMessage(`Part saved, but photo upload failed: ${err.message}`)
+          }
+        }
         setParts((prev) => [data, ...prev])
         setForm({
           part_name: '',
@@ -383,10 +429,13 @@ function Parts() {
           cost: '',
           asking_price: '',
           currency: 'AED',
+          photo_url: '',
           donor_vehicle_id: '',
           branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : '',
           status: 'in_stock',
         })
+        setPhotoFile(null)
+        setPhotoPreview(null)
         setShowAddModal(false)
         setSuccessMessage('Part added successfully.')
         requestAnimationFrame(() => listRef.current?.focus())
@@ -406,10 +455,13 @@ function Parts() {
       cost: part.cost || '',
       asking_price: part.asking_price || '',
       currency: part.currency || 'AED',
+      photo_url: part.photo_url || '',
       donor_vehicle_id: part.donor_vehicle_id || '',
       branch_id: part.branch_id || (currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : ''),
       status: part.status || 'in_stock',
     })
+    setPhotoFile(null)
+    setPhotoPreview(part.photo_url || null)
     setErrorMessage('')
     setSuccessMessage('')
     setShowAddModal(true)
@@ -846,9 +898,17 @@ function Parts() {
                       <tr key={part.id} className="align-middle transition hover:bg-slate-800/60">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
-                              <Package2 size={16} />
-                            </div>
+                            {part.photo_url ? (
+                              <img
+                                src={part.photo_url}
+                                alt={part.part_name}
+                                className="h-10 w-10 rounded-2xl object-cover border border-slate-700"
+                              />
+                            ) : (
+                              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                                <Package2 size={16} />
+                              </div>
+                            )}
                             <div>
                               <div className="font-semibold text-white">{part.part_name}</div>
                               <div className="text-xs text-slate-400">{part.oem_number ?? '—'}</div>
@@ -1051,6 +1111,26 @@ function Parts() {
                   ))}
                 </select>
               </label>
+              <label className="block text-sm text-slate-300">
+                <span className="mb-1.5 block font-medium">Photo (optional)</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) {
+                      setPhotoFile(file)
+                      setPhotoPreview(URL.createObjectURL(file))
+                    }
+                  }}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500 file:px-3 file:py-1.5 file:text-slate-950 file:font-semibold"
+                />
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Preview" className="mt-3 h-32 w-32 rounded-xl object-cover border border-slate-700" />
+                ) : form.photo_url ? (
+                  <img src={form.photo_url} alt="Current" className="mt-3 h-32 w-32 rounded-xl object-cover border border-slate-700" />
+                ) : null}
+              </label>
               {canManageBranches ? (
                 <label className="text-sm text-slate-300">
                   Branch
@@ -1105,6 +1185,8 @@ function Parts() {
                     setShowAddModal(false)
                     setErrorMessage('')
                     setSuccessMessage('')
+                    setPhotoFile(null)
+                    setPhotoPreview(null)
                   }}
                   className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                 >
