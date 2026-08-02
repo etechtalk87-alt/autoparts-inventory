@@ -409,6 +409,8 @@ function DonorVehicles() {
             asking_price: '',
             cost: '',
             condition: 'good',
+            photoFile: null,
+            photoPreview: null,
           }))
           setTeardownItems(initialTeardownItems)
           setTeardownVehicle(data)
@@ -550,6 +552,16 @@ function DonorVehicles() {
     )
   }
 
+  const updateTeardownPhoto = (template_id, file) => {
+    setTeardownItems((prev) =>
+      prev.map((item) =>
+        item.template_id === template_id
+          ? { ...item, photoFile: file, photoPreview: file ? URL.createObjectURL(file) : null }
+          : item
+      )
+    )
+  }
+
   const updateTeardownCondition = (template_id, value) => {
     setTeardownItems((prev) =>
       prev.map((item) => (item.template_id === template_id ? { ...item, condition: value } : item))
@@ -575,31 +587,72 @@ function DonorVehicles() {
     setTeardownError('')
     setTeardownSuccess('')
 
-    const payloadArray = selectedItems.map((item) => ({
-      company_id: currentStaff.company_id,
-      branch_id: teardownVehicle.branch_id,
-      donor_vehicle_id: teardownVehicle.id,
-      part_name: item.part_name,
-      category: item.category || null,
-      currency: teardownVehicle.purchase_currency || 'AED',
-      asking_price: item.asking_price !== '' ? Number(item.asking_price) : null,
-      cost: item.cost !== '' ? Number(item.cost) : 0,
-      condition: item.condition || null,
-      status: 'in_stock',
-    }))
+    let successCount = 0
+    let photoUploadErrors = 0
 
-    const { error } = await supabase.from('parts').insert(payloadArray)
+    for (const item of selectedItems) {
+      const payload = {
+        company_id: currentStaff.company_id,
+        branch_id: teardownVehicle.branch_id,
+        donor_vehicle_id: teardownVehicle.id,
+        part_name: item.part_name,
+        category: item.category || null,
+        currency: teardownVehicle.purchase_currency || 'AED',
+        asking_price: item.asking_price !== '' ? Number(item.asking_price) : null,
+        cost: item.cost !== '' ? Number(item.cost) : 0,
+        condition: item.condition || null,
+        status: 'in_stock',
+      }
 
-    if (error) {
-      setTeardownError(`Failed to save parts: ${error.message}`)
-      setSavingTeardown(false)
-    } else {
-      setTeardownSuccess(`${payloadArray.length} parts added to inventory.`)
-      setSavingTeardown(false)
-      setTimeout(() => {
-        handleSkipTeardown()
-      }, 1500)
+      const { data: insertedPart, error: insertError } = await supabase
+        .from('parts')
+        .insert([payload])
+        .select('id')
+        .single()
+
+      if (insertError) {
+        setTeardownError(`Failed to save ${item.part_name}: ${insertError.message}`)
+        setSavingTeardown(false)
+        return
+      }
+
+      successCount++
+
+      if (item.photoFile && insertedPart?.id) {
+        try {
+          const fileExt = item.photoFile.name.split('.').pop()
+          const filePath = `${currentStaff.company_id}/${insertedPart.id}.${fileExt}`
+
+          const { error: uploadError } = await supabase.storage
+            .from('part-photos')
+            .upload(filePath, item.photoFile, { upsert: true })
+
+          if (uploadError) throw new Error(uploadError.message)
+
+          const { data: urlData } = supabase.storage
+            .from('part-photos')
+            .getPublicUrl(filePath)
+
+          await supabase
+            .from('parts')
+            .update({ photo_url: urlData.publicUrl })
+            .eq('id', insertedPart.id)
+        } catch (err) {
+          console.error('Photo upload failed for', item.part_name, err)
+          photoUploadErrors++
+        }
+      }
     }
+
+    if (photoUploadErrors > 0) {
+      setTeardownSuccess(`${successCount} parts added, but ${photoUploadErrors} photo(s) failed to upload.`)
+    } else {
+      setTeardownSuccess(`${successCount} parts added to inventory.`)
+    }
+    setSavingTeardown(false)
+    setTimeout(() => {
+      handleSkipTeardown()
+    }, 1500)
   }
 
   return (
@@ -1066,45 +1119,61 @@ function DonorVehicles() {
                       </div>
                     </div>
                     {item.selected && (
-                      <div className="grid grid-cols-3 gap-2">
-                        <label className="flex flex-col text-[10px] text-slate-500">
-                          Condition
-                          <select
-                            value={item.condition}
-                            onChange={(e) => updateTeardownCondition(item.template_id, e.target.value)}
-                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-sm text-white outline-none focus:border-cyan-400"
-                          >
-                            <option value="excellent">Excellent</option>
-                            <option value="good">Good</option>
-                            <option value="fair">Fair</option>
-                            <option value="poor">Poor</option>
-                          </select>
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          <label className="flex flex-col text-[10px] text-slate-500">
+                            Condition
+                            <select
+                              value={item.condition}
+                              onChange={(e) => updateTeardownCondition(item.template_id, e.target.value)}
+                              className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-sm text-white outline-none focus:border-cyan-400"
+                            >
+                              <option value="excellent">Excellent</option>
+                              <option value="good">Good</option>
+                              <option value="fair">Fair</option>
+                              <option value="poor">Poor</option>
+                            </select>
+                          </label>
+                          <label className="flex flex-col text-[10px] text-slate-500">
+                            Cost
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={item.cost}
+                              onChange={(e) => updateTeardownCost(item.template_id, e.target.value)}
+                              className="w-full rounded-md border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm text-white outline-none focus:border-cyan-400"
+                            />
+                          </label>
+                          <label className="flex flex-col text-[10px] text-slate-500">
+                            Price
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={item.asking_price}
+                              onChange={(e) => updateTeardownPrice(item.template_id, e.target.value)}
+                              className="w-full rounded-md border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm text-white outline-none focus:border-cyan-400"
+                            />
+                          </label>
+                        </div>
+                        <label className="flex flex-col gap-1 text-[10px] text-slate-500">
+                          Photo (optional)
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => updateTeardownPhoto(item.template_id, e.target.files?.[0] || null)}
+                              className="flex-1 rounded-md border border-slate-700 bg-slate-900 px-1.5 py-1 text-xs text-white outline-none file:mr-2 file:rounded file:border-0 file:bg-cyan-500 file:px-2 file:py-0.5 file:text-[10px] file:text-slate-950 file:font-semibold"
+                            />
+                            {item.photoPreview && (
+                              <img src={item.photoPreview} alt="" className="h-8 w-8 rounded-md object-cover border border-slate-700" />
+                            )}
+                          </div>
                         </label>
-                        <label className="flex flex-col text-[10px] text-slate-500">
-                          Cost
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={item.cost}
-                            onChange={(e) => updateTeardownCost(item.template_id, e.target.value)}
-                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm text-white outline-none focus:border-cyan-400"
-                          />
-                        </label>
-                        <label className="flex flex-col text-[10px] text-slate-500">
-                          Price
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={item.asking_price}
-                            onChange={(e) => updateTeardownPrice(item.template_id, e.target.value)}
-                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm text-white outline-none focus:border-cyan-400"
-                          />
-                        </label>
-                      </div>
+                      </>
                     )}
                   </div>
                 ))}
