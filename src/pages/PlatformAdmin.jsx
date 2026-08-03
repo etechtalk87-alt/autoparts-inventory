@@ -70,7 +70,7 @@ function PlatformAdmin() {
 
       const { data: companyRows, error: companyError } = await supabase
         .from('companies')
-        .select('id, name, subscription_status, subscription_plan, created_at')
+        .select('id, name, subscription_status, plan_id, subscription_plans(name), created_at')
         .order('created_at', { ascending: false })
 
       if (companyError) {
@@ -214,7 +214,7 @@ function PlatformAdmin() {
                         {company.subscription_status || 'unknown'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-300">{company.subscription_plan || '—'}</td>
+                    <td className="px-6 py-4 text-slate-300">{company.subscription_plans?.name || '—'}</td>
                     <td className="px-6 py-4 text-slate-300">{usageMap[company.id]?.staffCount ?? 0}</td>
                     <td className="px-6 py-4 text-slate-300">{usageMap[company.id]?.branchCount ?? 0}</td>
                     <td className="px-6 py-4 text-slate-300">{formatDate(company.created_at)}</td>
