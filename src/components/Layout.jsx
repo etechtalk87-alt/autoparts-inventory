@@ -52,6 +52,7 @@ function Layout({ children }) {
         { to: '/customers', label: 'Customers' },
         { to: '/manage-staff', label: 'Manage Staff' },
         { to: '/payables', label: 'Payables' },
+        { to: '/insights', label: 'AI Insights' },
         { to: '/billing', label: 'Billing' },
         { to: '/settings', label: 'Settings' },
       ]

@@ -27,6 +27,7 @@ import SetPassword from './pages/SetPassword'
 import PartTemplates from './pages/PartTemplates'
 import Receivables from './pages/Receivables'
 import CompanySettings from './pages/CompanySettings'
+import Insights from './pages/Insights'
 import { supabase } from './lib/supabaseClient'
 
 function App() {
@@ -110,6 +111,10 @@ function App() {
                 <Route
                   path="/payables"
                   element={currentStaff?.role === 'company_admin' ? <Payables /> : <Navigate to="/" replace />}
+                />
+                <Route
+                  path="/insights"
+                  element={currentStaff?.role === 'company_admin' ? <Insights /> : <Navigate to="/" replace />}
                 />
                 <Route
                   path="/billing"
