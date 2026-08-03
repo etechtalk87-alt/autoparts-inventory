@@ -252,6 +252,39 @@ export default function ManageStaff() {
       return
     }
 
+    // Check plan-based staff limit (only applies to branch_staff invites)
+    if (inviteRole === 'branch_staff') {
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('plan_id, subscription_plans(staff_limit, name)')
+        .eq('id', currentStaff.company_id)
+        .maybeSingle()
+
+      if (!companyError && companyData?.subscription_plans?.staff_limit !== null && companyData?.subscription_plans?.staff_limit !== undefined) {
+        const { count: existingStaffCount } = await supabase
+          .from('staff')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', currentStaff.company_id)
+          .eq('role', 'branch_staff')
+
+        const { count: pendingInviteCount } = await supabase
+          .from('staff_invites')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', currentStaff.company_id)
+          .eq('role', 'branch_staff')
+          .eq('status', 'pending')
+
+        const totalCount = (existingStaffCount ?? 0) + (pendingInviteCount ?? 0)
+
+        if (totalCount >= companyData.subscription_plans.staff_limit) {
+          setInviteValidation(
+            `Your ${companyData.subscription_plans.name} plan allows up to ${companyData.subscription_plans.staff_limit} staff account(s). Please upgrade your plan to invite more staff.`
+          )
+          return
+        }
+      }
+    }
+
     setInviting(true)
     setInviteError('')
     setInviteSuccess('')

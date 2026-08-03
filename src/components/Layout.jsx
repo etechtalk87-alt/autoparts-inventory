@@ -48,6 +48,7 @@ function Layout({ children }) {
     { to: '/sales', label: 'Sales' },
     { to: '/receivables', label: 'Receivables' },
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/payables', label: 'Payables' }] : []),
+    ...(currentStaff?.role === 'company_admin' ? [{ to: '/billing', label: 'Billing' }] : []),
     ...(isPlatformAdmin ? [{ to: '/platform-admin', label: 'Platform Admin' }] : []),
     ...(currentStaff?.role === 'company_admin' ? [{ to: '/settings', label: 'Settings' }] : []),
   ]
@@ -122,7 +123,7 @@ function Layout({ children }) {
                       {link.label}
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                     </button>
-                    <div className="absolute left-0 top-full mt-1 hidden w-48 flex-col rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl group-hover:flex z-50">
+                    <div className="absolute left-0 top-full hidden w-48 flex-col rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl group-hover:flex z-50">
                       {link.children.map((child) => (
                         <NavLink
                           key={child.to}

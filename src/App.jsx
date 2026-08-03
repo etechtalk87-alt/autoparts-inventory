@@ -21,6 +21,7 @@ import Transfers from './pages/Transfers'
 import Sales from './pages/Sales'
 import SetupCompany from './pages/SetupCompany'
 import Payables from './pages/Payables'
+import Billing from './pages/Billing'
 import ManageStaff from './pages/ManageStaff'
 import SetPassword from './pages/SetPassword'
 import PartTemplates from './pages/PartTemplates'
@@ -109,6 +110,10 @@ function App() {
                 <Route
                   path="/payables"
                   element={currentStaff?.role === 'company_admin' ? <Payables /> : <Navigate to="/" replace />}
+                />
+                <Route
+                  path="/billing"
+                  element={currentStaff?.role === 'company_admin' ? <Billing /> : <Navigate to="/" replace />}
                 />
                 <Route
                   path="/part-templates"

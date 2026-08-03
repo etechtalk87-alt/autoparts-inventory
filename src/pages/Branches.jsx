@@ -69,6 +69,27 @@ function Branches() {
 
     setSubmitting(true)
 
+    const { data: companyData, error: companyError } = await supabase
+      .from('companies')
+      .select('plan_id, subscription_plans(branch_limit, name)')
+      .eq('id', currentStaff.company_id)
+      .maybeSingle()
+
+    if (!companyError && companyData?.subscription_plans?.branch_limit !== null && companyData?.subscription_plans?.branch_limit !== undefined) {
+      const { count: currentBranchCount } = await supabase
+        .from('branches')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', currentStaff.company_id)
+
+      if ((currentBranchCount ?? 0) >= companyData.subscription_plans.branch_limit) {
+        setErrorMessage(
+          `Your ${companyData.subscription_plans.name} plan allows up to ${companyData.subscription_plans.branch_limit} branch(es). Please upgrade your plan to add more branches.`
+        )
+        setSubmitting(false)
+        return
+      }
+    }
+
     const { data, error } = await supabase
       .from('branches')
       .insert([
