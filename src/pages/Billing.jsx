@@ -40,6 +40,8 @@ export default function Billing() {
   const [subscription, setSubscription] = useState(null)
   const [plans, setPlans] = useState([])
   const [subscribing, setSubscribing] = useState(null)
+  const [openingPortal, setOpeningPortal] = useState(false)
+  const [usage, setUsage] = useState({ branches: 0, staff: 0 })
 
   const currentPlan = useMemo(() => {
     if (!subscription) return null
@@ -63,16 +65,30 @@ export default function Billing() {
       setLoading(true)
       setError('')
 
-      const [companyResult, plansResult] = await Promise.all([
+      const [
+        companyResult,
+        plansResult,
+        branchesCountResult,
+        staffCountResult,
+      ] = await Promise.all([
         supabase
           .from('companies')
-          .select('subscription_status, subscription_plan, plan_id, trial_ends_at')
+          .select('subscription_status, subscription_plan, plan_id, trial_ends_at, stripe_customer_id')
           .eq('id', currentStaff.company_id)
           .single(),
         supabase
           .from('subscription_plans')
           .select('id, name, price_aed, branch_limit, staff_limit, sort_order')
           .order('sort_order'),
+        supabase
+          .from('branches')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', currentStaff.company_id),
+        supabase
+          .from('staff')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', currentStaff.company_id)
+          .eq('role', 'branch_staff'),
       ])
 
       if (companyResult.error) {
@@ -86,6 +102,10 @@ export default function Billing() {
       } else {
         setPlans(plansResult.data ?? [])
       }
+
+      const branchesCount = branchesCountResult?.count ?? 0
+      const staffCount = staffCountResult?.count ?? 0
+      setUsage({ branches: branchesCount, staff: staffCount })
 
       setLoading(false)
     }
@@ -130,6 +150,36 @@ export default function Billing() {
     window.location.href = result.url
   }
 
+  const handleManageBilling = async () => {
+    setOpeningPortal(true)
+    setError('')
+
+    const { data } = await supabase.auth.getSession()
+    const session = data?.session
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    const result = await response.json()
+
+    if (result.error) {
+      setError(result.error)
+      setOpeningPortal(false)
+      return
+    }
+
+    window.location.href = result.url
+  }
+
   if (authLoading || loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
@@ -168,6 +218,17 @@ export default function Billing() {
               <div className={`mt-3 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>
                 {statusLabel}
               </div>
+
+              {subscription?.stripe_customer_id && (
+                <button
+                  type="button"
+                  onClick={handleManageBilling}
+                  disabled={openingPortal}
+                  className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {openingPortal ? 'Opening...' : 'Manage Billing'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -210,10 +271,24 @@ export default function Billing() {
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Branches</p>
                     <p className="mt-1 text-lg font-semibold text-white">{currentPlan?.branch_limit ?? '—'}</p>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                      <div
+                        className={`h-full rounded-full ${usage.branches >= (currentPlan?.branch_limit ?? Infinity) ? 'bg-rose-500' : 'bg-cyan-500'}`}
+                        style={{ width: currentPlan?.branch_limit ? `${Math.min((usage.branches / currentPlan.branch_limit) * 100, 100)}%` : '100%' }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">{usage.branches} of {currentPlan?.branch_limit ?? '∞'} used</p>
                   </div>
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Staff</p>
                     <p className="mt-1 text-lg font-semibold text-white">{currentPlan?.staff_limit ?? '—'}</p>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                      <div
+                        className={`h-full rounded-full ${usage.staff >= (currentPlan?.staff_limit ?? Infinity) ? 'bg-rose-500' : 'bg-cyan-500'}`}
+                        style={{ width: currentPlan?.staff_limit ? `${Math.min((usage.staff / currentPlan.staff_limit) * 100, 100)}%` : '100%' }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">{usage.staff} of {currentPlan?.staff_limit ?? '∞'} used</p>
                   </div>
                 </div>
               </div>

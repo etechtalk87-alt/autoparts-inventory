@@ -30,6 +30,7 @@ export default function ManageStaff() {
   const [inviteError, setInviteError] = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
   const [inviteValidation, setInviteValidation] = useState('')
+  const [invitePlanInfo, setInvitePlanInfo] = useState(null)
 
   // Pending invites state
   const [pendingInvites, setPendingInvites] = useState([])
@@ -213,13 +214,38 @@ export default function ManageStaff() {
 
   // ── Invite modal helpers ────────────────────────────────────
 
-  const openInvite = () => {
+  const openInvite = async () => {
     setInviteEmail('')
     setInviteRole('branch_staff')
     setInviteBranchIds([])
     setInviteError('')
     setInviteSuccess('')
     setInviteValidation('')
+
+    // Attempt to fetch plan info via FK nested select; fallback to separate lookups if necessary
+    try {
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('plan_id, subscription_plans(staff_limit, name)')
+        .eq('id', currentStaff.company_id)
+        .maybeSingle()
+
+      if (!companyError && companyData?.subscription_plans) {
+        setInvitePlanInfo(companyData.subscription_plans)
+      } else if (!companyError && companyData?.plan_id) {
+        const { data: planRow } = await supabase
+          .from('subscription_plans')
+          .select('staff_limit, name')
+          .eq('id', companyData.plan_id)
+          .maybeSingle()
+        setInvitePlanInfo(planRow ?? null)
+      } else {
+        setInvitePlanInfo(null)
+      }
+    } catch (err) {
+      setInvitePlanInfo(null)
+    }
+
     setInviteOpen(true)
   }
 
@@ -231,6 +257,7 @@ export default function ManageStaff() {
     setInviteError('')
     setInviteSuccess('')
     setInviteValidation('')
+    setInvitePlanInfo(null)
   }
 
   const toggleInviteBranch = (branchId) => {
@@ -624,6 +651,16 @@ export default function ManageStaff() {
               {/* Branch checkboxes — only for branch_staff */}
               {inviteRole === 'branch_staff' && (
                 <div>
+                  {/* Plan info (staff limit) */}
+                  {invitePlanInfo ? (
+                    <div className="mb-3 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
+                      <div className="font-medium text-slate-200">{invitePlanInfo.name || 'Plan'}</div>
+                      <div className="mt-1 text-xs text-slate-400">Staff limit: {invitePlanInfo.staff_limit === null ? 'Unlimited' : invitePlanInfo.staff_limit}</div>
+                    </div>
+                  ) : (
+                    <div className="mb-3 text-sm text-slate-500">Plan info unavailable</div>
+                  )}
+
                   <label className="mb-2 block text-xs font-medium text-slate-400">Assign to branches</label>
                   <div className="space-y-1">
                     {branches.map((branch) => (
