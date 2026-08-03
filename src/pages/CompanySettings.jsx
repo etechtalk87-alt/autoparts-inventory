@@ -12,6 +12,8 @@ export default function CompanySettings() {
 
   const [vatEnabled, setVatEnabled] = useState(false)
   const [trnNumber, setTrnNumber] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -30,7 +32,7 @@ export default function CompanySettings() {
 
       const { data, error } = await supabase
         .from('companies')
-        .select('id, name, vat_enabled, trn_number')
+        .select('id, name, vat_enabled, trn_number, contact_phone, contact_email')
         .eq('id', currentStaff.company_id)
         .single()
 
@@ -42,6 +44,8 @@ export default function CompanySettings() {
 
       setVatEnabled(data.vat_enabled ?? false)
       setTrnNumber(data.trn_number ?? '')
+      setContactPhone(data.contact_phone ?? '')
+      setContactEmail(data.contact_email ?? '')
       setLoading(false)
     }
 
@@ -55,7 +59,12 @@ export default function CompanySettings() {
 
     const { data, error } = await supabase
       .from('companies')
-      .update({ vat_enabled: vatEnabled, trn_number: trnNumber.trim() || null })
+      .update({
+        vat_enabled: vatEnabled,
+        trn_number: trnNumber.trim() || null,
+        contact_phone: contactPhone.trim() || null,
+        contact_email: contactEmail.trim() || null,
+      })
       .eq('id', currentStaff.company_id)
       .select('id')
 
@@ -102,67 +111,115 @@ export default function CompanySettings() {
         </div>
       )}
 
-      {/* Settings card */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-        <h2 className="mb-5 text-base font-semibold text-white">Invoice Settings</h2>
+      <div className="space-y-6">
+        {/* Settings card */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+          <h2 className="mb-5 text-base font-semibold text-white">Invoice Settings</h2>
 
-        <div className="space-y-6">
-          {/* VAT toggle */}
-          <label className="flex cursor-pointer items-center gap-4">
-            <input
-              type="checkbox"
-              id="vat-enabled"
-              checked={vatEnabled}
-              onChange={(e) => {
-                setVatEnabled(e.target.checked)
-                setSaveError('')
-                setSaveSuccess('')
-              }}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-cyan-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-slate-200">
-                Enable VAT on invoices (5%)
-              </span>
-              <p className="mt-0.5 text-xs text-slate-500">
-                When enabled, a 5% VAT line will be applied to all invoices.
-              </p>
-            </div>
-          </label>
-
-          {/* TRN input — only shown when VAT is on */}
-          {vatEnabled && (
-            <div>
-              <label
-                htmlFor="trn-number"
-                className="mb-1.5 block text-xs font-medium text-slate-400"
-              >
-                Tax Registration Number (TRN)
-              </label>
+          <div className="space-y-6">
+            {/* VAT toggle */}
+            <label className="flex cursor-pointer items-center gap-4">
               <input
-                type="text"
-                id="trn-number"
-                value={trnNumber}
+                type="checkbox"
+                id="vat-enabled"
+                checked={vatEnabled}
                 onChange={(e) => {
-                  setTrnNumber(e.target.value)
+                  setVatEnabled(e.target.checked)
                   setSaveError('')
                   setSaveSuccess('')
                 }}
-                placeholder="e.g. 100123456700003"
-                className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
+                className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-cyan-500"
               />
-
-              {/* Soft warning — no hard block */}
-              {showTrnWarning && (
-                <p className="mt-2 rounded-lg bg-amber-900/30 px-3 py-2 text-xs text-amber-300">
-                  Adding your TRN is required for FTA-compliant tax invoices.
+              <div>
+                <span className="text-sm font-medium text-slate-200">
+                  Enable VAT on invoices (5%)
+                </span>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  When enabled, a 5% VAT line will be applied to all invoices.
                 </p>
-              )}
-            </div>
-          )}
+              </div>
+            </label>
+
+            {/* TRN input — only shown when VAT is on */}
+            {vatEnabled && (
+              <div>
+                <label
+                  htmlFor="trn-number"
+                  className="mb-1.5 block text-xs font-medium text-slate-400"
+                >
+                  Tax Registration Number (TRN)
+                </label>
+                <input
+                  type="text"
+                  id="trn-number"
+                  value={trnNumber}
+                  onChange={(e) => {
+                    setTrnNumber(e.target.value)
+                    setSaveError('')
+                    setSaveSuccess('')
+                  }}
+                  placeholder="e.g. 100123456700003"
+                  className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
+                />
+
+                {/* Soft warning — no hard block */}
+                {showTrnWarning && (
+                  <p className="mt-2 rounded-lg bg-amber-900/30 px-3 py-2 text-xs text-amber-300">
+                    Adding your TRN is required for FTA-compliant tax invoices.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Feedback messages */}
+        {/* Contact Information card */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+          <h2 className="mb-1 text-base font-semibold text-white">Contact Information</h2>
+          <p className="mb-5 text-xs text-slate-500">
+            This appears on your invoices so customers can reach you.
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="contact-phone" className="mb-1.5 block text-xs font-medium text-slate-400">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                id="contact-phone"
+                value={contactPhone}
+                onChange={(e) => {
+                  setContactPhone(e.target.value)
+                  setSaveError('')
+                  setSaveSuccess('')
+                }}
+                placeholder="+971 50 123 4567"
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-email" className="mb-1.5 block text-xs font-medium text-slate-400">
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="contact-email"
+                value={contactEmail}
+                onChange={(e) => {
+                  setContactEmail(e.target.value)
+                  setSaveError('')
+                  setSaveSuccess('')
+                }}
+                placeholder="contact@yourbusiness.com"
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Feedback messages */}
         {saveError && (
           <div className="mt-5 rounded-lg bg-rose-900/40 px-4 py-3 text-sm text-rose-300">
             {saveError}
@@ -185,7 +242,6 @@ export default function CompanySettings() {
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
-      </div>
     </main>
   )
 }

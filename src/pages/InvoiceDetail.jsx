@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { Download, Home, ReceiptText } from 'lucide-react'
+import { Download, Home, ReceiptText, Share2 } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
-import { downloadInvoicePdf } from '../lib/invoicePdf'
+import { downloadInvoicePdf, shareInvoicePdf } from '../lib/invoicePdf'
 import { supabase } from '../lib/supabaseClient'
 
 function getPaymentMethodDisplay(method) {
@@ -38,6 +38,24 @@ function InvoiceDetail() {
   const [error, setError] = useState('')
   const [paymentHistory, setPaymentHistory] = useState([])
   const [loadingPayments, setLoadingPayments] = useState(true)
+  const [sharing, setSharing] = useState(false)
+
+  const handleShare = async () => {
+    setSharing(true)
+    try {
+      await shareInvoicePdf({
+        supabaseClient: supabase,
+        companyId: invoiceDisplay?.company_id || sale?.company_id,
+        branchId: invoiceDisplay?.branch_id || sale?.branch_id,
+        partId: isMultiItem ? invoiceDisplay?.lineItems?.[0]?.part_id : sale?.part_id,
+        sale: isMultiItem ? invoiceDisplay?.lineItems?.[0] : sale,
+      })
+    } catch (err) {
+      console.error('Share failed:', err)
+    } finally {
+      setSharing(false)
+    }
+  }
 
   const formatPartDisplay = () => {
     if (!isMultiItem) {
@@ -363,7 +381,7 @@ function InvoiceDetail() {
                 </Link>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Invoice Date</p>
                 <p className="mt-2 text-lg font-semibold text-white">{formatDate(invoiceDisplay?.created_at)}</p>
@@ -385,6 +403,15 @@ function InvoiceDetail() {
               >
                 <Download size={16} />
                 Download Invoice
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                disabled={sharing}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
+              >
+                <Share2 size={16} />
+                {sharing ? 'Sharing...' : 'Share'}
               </button>
             </div>
           </div>

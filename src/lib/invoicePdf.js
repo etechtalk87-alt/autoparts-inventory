@@ -187,7 +187,6 @@ const styles = StyleSheet.create({
 function InvoiceDocument({ invoice }) {
   const detailLine = [
     invoice.partName,
-    invoice.oemNumber ? `OEM: ${invoice.oemNumber}` : null,
     invoice.condition ? `Condition: ${invoice.condition}` : null,
     invoice.donorVehicle ? `Vehicle: ${invoice.donorVehicle}` : null,
   ].filter(Boolean)
@@ -247,14 +246,12 @@ function InvoiceDocument({ invoice }) {
         ...(invoice.items || [
           {
             partName: invoice.partName,
-            oemNumber: invoice.oemNumber,
             condition: invoice.condition,
             donorVehicle: invoice.donorVehicle,
             salePrice: invoice.salePrice,
           },
         ]).map((item, index) => {
           const lineDetails = [
-            item.oemNumber ? `OEM: ${item.oemNumber}` : null,
             item.condition ? `Condition: ${item.condition}` : null,
             item.donorVehicle ? `Vehicle: ${item.donorVehicle}` : null,
           ].filter(Boolean)
@@ -312,6 +309,13 @@ function InvoiceDocument({ invoice }) {
         View,
         { style: styles.footer },
         createElement(Text, { style: styles.footerText }, 'Thank you for your business'),
+        ...(invoice.contactPhone || invoice.contactEmail
+          ? [createElement(
+              Text,
+              { key: 'contact', style: [styles.footerText, { marginTop: 4, fontSize: 10 }] },
+              ['Questions?', invoice.contactPhone, invoice.contactEmail].filter(Boolean).join('  •  ')
+            )]
+          : []),
       ),
     ),
   )
@@ -357,7 +361,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     const { invoiceRow, salesRows } = invoiceData
     const firstSale = salesRows[0]
     const companyPromise = companyId && supabaseClient
-      ? supabaseClient.from('companies').select('name, trn_number').eq('id', companyId).maybeSingle()
+      ? supabaseClient.from('companies').select('name, trn_number, contact_phone, contact_email').eq('id', companyId).maybeSingle()
       : Promise.resolve({ data: null })
 
     const branchPromise = branchId && supabaseClient
@@ -401,6 +405,8 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
       currency: itemCurrency,
       customerName,
       customerContact: customerPhone ? `Phone: ${customerPhone}` : '',
+      contactPhone: companyData?.contact_phone || null,
+      contactEmail: companyData?.contact_email || null,
       paymentStatus: invoiceRow?.payment_status || 'unpaid',
       paymentStatusLabel:
         invoiceRow?.payment_status === 'paid' || invoiceRow?.payment_status === 'paid_in_full'
@@ -416,7 +422,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
   }
 
   const companyPromise = companyId && supabaseClient
-    ? supabaseClient.from('companies').select('name').eq('id', companyId).maybeSingle()
+    ? supabaseClient.from('companies').select('name, contact_phone, contact_email').eq('id', companyId).maybeSingle()
     : Promise.resolve({ data: null })
 
   const branchPromise = branchId && supabaseClient
@@ -503,22 +509,70 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     salePrice: salePrice.toFixed(2),
     currency: partData?.currency || sale?.currency || 'AED',
     customerName,
-    customerContact: sale?.customer_contact || '—',
+    customerContact: sale?.customer_contact || '',
+    contactPhone: companyData?.contact_phone || null,
+    contactEmail: companyData?.contact_email || null,
     paymentStatus,
     paymentStatusLabel,
     balanceDue: balanceDue.toFixed(2),
   }
 }
 
-export async function downloadInvoicePdf({ supabaseClient, companyId, branchId, partId, sale }) {
+export async function buildInvoicePdfBlob({ supabaseClient, companyId, branchId, partId, sale }) {
   const invoice = await fetchInvoicePayload({ supabaseClient, companyId, branchId, partId, sale })
   const pdfBlob = await pdf(createElement(InvoiceDocument, { invoice })).toBlob()
-  const url = URL.createObjectURL(pdfBlob)
+  return { blob: pdfBlob, invoiceNumber: invoice.invoiceNumber, totalAmount: invoice.totalAmount, currency: invoice.currency, customerName: invoice.customerName }
+}
+
+export async function downloadInvoicePdf({ supabaseClient, companyId, branchId, partId, sale }) {
+  const { blob, invoiceNumber } = await buildInvoicePdfBlob({ supabaseClient, companyId, branchId, partId, sale })
+  const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${invoice.invoiceNumber || 'invoice'}.pdf`
+  link.download = `${invoiceNumber || 'invoice'}.pdf`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
+}
+
+export async function shareInvoicePdf({ supabaseClient, companyId, branchId, partId, sale }) {
+  const { blob, invoiceNumber, totalAmount, currency, customerName } = await buildInvoicePdfBlob({ supabaseClient, companyId, branchId, partId, sale })
+
+  const fileName = `${invoiceNumber || 'invoice'}.pdf`
+  const file = new File([blob], fileName, { type: 'application/pdf' })
+
+  // Try native share (works on mobile, includes WhatsApp in the picker, attaches the actual file)
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: `Invoice ${invoiceNumber}`,
+        text: `Invoice ${invoiceNumber} for ${customerName} — ${currency} ${totalAmount}`,
+      })
+      return { method: 'native' }
+    } catch (err) {
+      // User cancelled the share sheet — not an error, just stop here
+      if (err.name === 'AbortError') return { method: 'cancelled' }
+      // Any other failure — fall through to the WhatsApp text fallback below
+    }
+  }
+
+  // Fallback: desktop or unsupported browsers — open WhatsApp with pre-filled text,
+  // and separately trigger a normal download so the PDF can be attached manually
+  const message = encodeURIComponent(
+    `Invoice ${invoiceNumber} for ${customerName} — Total: ${currency} ${totalAmount}. (PDF downloading now, please attach it to this chat.)`
+  )
+  window.open(`https://wa.me/?text=${message}`, '_blank')
+
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+
+  return { method: 'fallback' }
 }
