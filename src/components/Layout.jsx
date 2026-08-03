@@ -8,6 +8,7 @@ function Layout({ children }) {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [companyName, setCompanyName] = useState('AutoParts Inventory')
+  const [planName, setPlanName] = useState('')
   const [switcherBranches, setSwitcherBranches] = useState([])
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
 
@@ -32,9 +33,6 @@ function Layout({ children }) {
 
   const navLinks = [
     { to: '/', label: 'Dashboard' },
-    ...(currentStaff?.role === 'company_admin' ? [{ to: '/branches', label: 'Branches' }] : []),
-    ...(currentStaff?.role === 'company_admin' ? [{ to: '/customers', label: 'Customers' }] : []),
-    ...(currentStaff?.role === 'company_admin' ? [{ to: '/manage-staff', label: 'Manage Staff' }] : []),
     { to: '/donor-vehicles', label: 'Donor Vehicles' },
     {
       label: 'Spare Parts',
@@ -47,10 +45,18 @@ function Layout({ children }) {
     },
     { to: '/sales', label: 'Sales' },
     { to: '/receivables', label: 'Receivables' },
-    ...(currentStaff?.role === 'company_admin' ? [{ to: '/payables', label: 'Payables' }] : []),
-    ...(currentStaff?.role === 'company_admin' ? [{ to: '/billing', label: 'Billing' }] : []),
+    ...(currentStaff?.role === 'company_admin' ? [{
+      label: 'Admin',
+      children: [
+        { to: '/branches', label: 'Branches' },
+        { to: '/customers', label: 'Customers' },
+        { to: '/manage-staff', label: 'Manage Staff' },
+        { to: '/payables', label: 'Payables' },
+        { to: '/billing', label: 'Billing' },
+        { to: '/settings', label: 'Settings' },
+      ]
+    }] : []),
     ...(isPlatformAdmin ? [{ to: '/platform-admin', label: 'Platform Admin' }] : []),
-    ...(currentStaff?.role === 'company_admin' ? [{ to: '/settings', label: 'Settings' }] : []),
   ]
 
   useEffect(() => {
@@ -74,6 +80,22 @@ function Layout({ children }) {
     }
 
     fetchCompanyName()
+  }, [currentStaff?.company_id])
+
+  useEffect(() => {
+    const fetchPlan = async () => {
+      if (!currentStaff?.company_id) {
+        setPlanName('')
+        return
+      }
+      const { data } = await supabase
+        .from('companies')
+        .select('subscription_status, subscription_plans(name)')
+        .eq('id', currentStaff.company_id)
+        .maybeSingle()
+      setPlanName(data?.subscription_plans?.name || null)
+    }
+    fetchPlan()
   }, [currentStaff?.company_id])
 
   // Fetch branch names for the switcher — only when branch_staff has multiple branches
@@ -109,7 +131,7 @@ function Layout({ children }) {
             </div>
             <div>
               <p className="text-lg font-semibold">{companyName}</p>
-              <p className="text-xs text-slate-400">{user?.email ? `Logged in as ${user.email}` : 'Operations Hub'}</p>
+              <p className="text-xs text-slate-400">{planName ? `${planName} Plan` : 'Operations Hub'}</p>
             </div>
           </div>
 
