@@ -18,6 +18,9 @@ export default function CompanySettings() {
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [storefrontEnabled, setStorefrontEnabled] = useState(false)
+  const [storefrontSlug, setStorefrontSlug] = useState('')
+  const [slugError, setSlugError] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -36,7 +39,7 @@ export default function CompanySettings() {
 
       const { data, error } = await supabase
         .from('companies')
-        .select('id, name, vat_enabled, trn_number, contact_phone, contact_email, logo_url')
+        .select('id, name, vat_enabled, trn_number, contact_phone, contact_email, logo_url, storefront_enabled, storefront_slug')
         .eq('id', currentStaff.company_id)
         .single()
 
@@ -51,6 +54,8 @@ export default function CompanySettings() {
       setContactPhone(data.contact_phone ?? '')
       setContactEmail(data.contact_email ?? '')
       setLogoUrl(data.logo_url ?? '')
+      setStorefrontEnabled(data.storefront_enabled ?? false)
+      setStorefrontSlug(data.storefront_slug ?? '')
       setLoading(false)
     }
 
@@ -79,6 +84,12 @@ export default function CompanySettings() {
     setSaveError('')
     setSaveSuccess('')
 
+    if (storefrontEnabled && !storefrontSlug.trim()) {
+      setSlugError('Please choose a URL for your storefront.')
+      setSaving(false)
+      return
+    }
+
     let finalLogoUrl = logoUrl
 
     if (logoFile) {
@@ -102,11 +113,21 @@ export default function CompanySettings() {
         contact_phone: contactPhone.trim() || null,
         contact_email: contactEmail.trim() || null,
         logo_url: finalLogoUrl || null,
+        storefront_enabled: storefrontEnabled,
+        storefront_slug: storefrontEnabled ? storefrontSlug.trim() : null,
       })
       .eq('id', currentStaff.company_id)
       .select('id')
 
     if (error) {
+      if (error.code === '23505' || /unique/i.test(error.message || '')) {
+        setSlugError('This URL is already taken. Please choose a different one.')
+        setSaveError('')
+        setSaveSuccess('')
+        setSaving(false)
+        return
+      }
+
       setSaveError(`Failed to save settings: ${error.message}`)
       setSaving(false)
       return
@@ -264,9 +285,12 @@ export default function CompanySettings() {
                   setSaveError('')
                   setSaveSuccess('')
                 }}
-                placeholder="+971 50 123 4567"
+                placeholder="+971 50 123 4567 (include country code)"
                 className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
               />
+              <p className="mt-1 text-xs text-slate-500">
+                Include your country code (e.g. +971 for UAE) so WhatsApp inquiries work correctly.
+              </p>
             </div>
             <div>
               <label htmlFor="contact-email" className="mb-1.5 block text-xs font-medium text-slate-400">
@@ -286,6 +310,58 @@ export default function CompanySettings() {
               />
             </div>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+          <h2 className="mb-1 text-base font-semibold text-white">Public Storefront</h2>
+          <p className="mb-5 text-xs text-slate-500">
+            Let customers browse your available parts online without logging in.
+          </p>
+
+          <label className="flex cursor-pointer items-center gap-4">
+            <input
+              type="checkbox"
+              checked={storefrontEnabled}
+              onChange={(e) => {
+                setStorefrontEnabled(e.target.checked)
+                setSaveError('')
+                setSaveSuccess('')
+              }}
+              className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-cyan-500"
+            />
+            <div>
+              <span className="text-sm font-medium text-slate-200">Enable Public Storefront</span>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Customers will be able to view your in-stock parts at a public link.
+              </p>
+            </div>
+          </label>
+
+          {storefrontEnabled && (
+            <div className="mt-4">
+              <label htmlFor="storefront-slug" className="mb-1.5 block text-xs font-medium text-slate-400">
+                Storefront URL
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-500">yourapp.com/store/</span>
+                <input
+                  type="text"
+                  id="storefront-slug"
+                  value={storefrontSlug}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+                    setStorefrontSlug(cleaned)
+                    setSlugError('')
+                    setSaveError('')
+                    setSaveSuccess('')
+                  }}
+                  placeholder="your-shop-name"
+                  className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
+                />
+              </div>
+              {slugError && <p className="mt-2 text-xs text-rose-400">{slugError}</p>}
+            </div>
+          )}
         </div>
       </div>
 

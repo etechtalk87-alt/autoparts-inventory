@@ -28,7 +28,90 @@ import PartTemplates from './pages/PartTemplates'
 import Receivables from './pages/Receivables'
 import CompanySettings from './pages/CompanySettings'
 import Insights from './pages/Insights'
+import Storefront from './pages/Storefront'
 import { supabase } from './lib/supabaseClient'
+
+function AppRoutes({ user, currentStaff, needsCompanySetup, needsPasswordSetup, accountSuspended }) {
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
+  }
+
+  return (
+    <Layout>
+      {accountSuspended ? (
+        <Routes>
+          <Route path="*" element={<AccountSuspended />} />
+        </Routes>
+      ) : needsPasswordSetup ? (
+        <Routes>
+          <Route path="*" element={<SetPassword />} />
+        </Routes>
+      ) : (
+        <Routes>
+          <Route path="/setup-company" element={needsCompanySetup ? <SetupCompany /> : <Navigate to="/" replace />} />
+          {needsCompanySetup ? (
+            <Route path="*" element={<Navigate to="/setup-company" replace />} />
+          ) : (
+            <>
+              <Route path="/" element={<Dashboard />} />
+              <Route
+                path="/branches"
+                element={currentStaff?.role === 'company_admin' ? <Branches /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/customers"
+                element={currentStaff?.role === 'company_admin' ? <Customers /> : <Navigate to="/" replace />}
+              />
+              <Route path="/invoices/new" element={<CreateInvoice />} />
+              <Route path="/invoices/:invoiceNumber" element={<InvoiceDetail />} />
+              <Route path="/donor-vehicles" element={<DonorVehicles />} />
+              <Route path="/parts" element={<Parts />} />
+              <Route path="/parts/import" element={currentStaff?.role === 'company_admin' || currentStaff?.role === 'branch_staff' ? <PartsImport /> : <Navigate to="/parts" replace />} />
+              <Route path="/transfers" element={<Transfers />} />
+              <Route path="/sales" element={<Sales />} />
+              <Route path="/receivables" element={<Receivables />} />
+              <Route
+                path="/payables"
+                element={currentStaff?.role === 'company_admin' ? <Payables /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/insights"
+                element={currentStaff?.role === 'company_admin' ? <Insights /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/billing"
+                element={currentStaff?.role === 'company_admin' ? <Billing /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/part-templates"
+                element={currentStaff?.role === 'company_admin' ? <PartTemplates /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/manage-staff"
+                element={currentStaff?.role === 'company_admin' ? <ManageStaff /> : <Navigate to="/" replace />}
+              />
+              <Route path="/platform-admin" element={<PlatformAdmin />} />
+              <Route
+                path="/settings"
+                element={currentStaff?.role === 'company_admin' ? <CompanySettings /> : <Navigate to="/" replace />}
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          )}
+        </Routes>
+      )}
+    </Layout>
+  )
+}
 
 function App() {
   const { user, loading, currentStaff, needsCompanySetup, needsPasswordSetup, accountSuspended } = useAuth()
@@ -58,87 +141,23 @@ function App() {
     )
   }
 
-  if (!user) {
-    return (
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    )
-  }
-
   return (
     <BrowserRouter>
-      <Layout>
-        {accountSuspended ? (
-          <Routes>
-            <Route path="*" element={<AccountSuspended />} />
-          </Routes>
-        ) : needsPasswordSetup ? (
-          <Routes>
-            <Route path="*" element={<SetPassword />} />
-          </Routes>
-        ) : (
-          <Routes>
-            <Route path="/setup-company" element={needsCompanySetup ? <SetupCompany /> : <Navigate to="/" replace />} />
-            {needsCompanySetup ? (
-              <Route path="*" element={<Navigate to="/setup-company" replace />} />
-            ) : (
-              <>
-                <Route path="/" element={<Dashboard />} />
-                <Route
-                  path="/branches"
-                  element={currentStaff?.role === 'company_admin' ? <Branches /> : <Navigate to="/" replace />}
-                />
-                <Route
-                  path="/customers"
-                  element={currentStaff?.role === 'company_admin' ? <Customers /> : <Navigate to="/" replace />}
-                />
-                <Route path="/invoices/new" element={<CreateInvoice />} />
-                <Route path="/invoices/:invoiceNumber" element={<InvoiceDetail />} />
-                <Route path="/donor-vehicles" element={<DonorVehicles />} />
-                <Route path="/parts" element={<Parts />} />
-                <Route path="/parts/import" element={currentStaff?.role === 'company_admin' || currentStaff?.role === 'branch_staff' ? <PartsImport /> : <Navigate to="/parts" replace />} />
-                <Route path="/transfers" element={<Transfers />} />
-                <Route path="/sales" element={<Sales />} />
-                <Route path="/receivables" element={<Receivables />} />
-                <Route
-                  path="/payables"
-                  element={currentStaff?.role === 'company_admin' ? <Payables /> : <Navigate to="/" replace />}
-                />
-                <Route
-                  path="/insights"
-                  element={currentStaff?.role === 'company_admin' ? <Insights /> : <Navigate to="/" replace />}
-                />
-                <Route
-                  path="/billing"
-                  element={currentStaff?.role === 'company_admin' ? <Billing /> : <Navigate to="/" replace />}
-                />
-                <Route
-                  path="/part-templates"
-                  element={currentStaff?.role === 'company_admin' ? <PartTemplates /> : <Navigate to="/" replace />}
-                />
-                <Route
-                  path="/manage-staff"
-                  element={currentStaff?.role === 'company_admin' ? <ManageStaff /> : <Navigate to="/" replace />}
-                />
-                <Route path="/platform-admin" element={<PlatformAdmin />} />
-                <Route
-                  path="/settings"
-                  element={currentStaff?.role === 'company_admin' ? <CompanySettings /> : <Navigate to="/" replace />}
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </>
-            )}
-          </Routes>
-        )}
-      </Layout>
+      <Routes>
+        <Route path="/store/:slug" element={<Storefront />} />
+        <Route
+          path="/*"
+          element={
+            <AppRoutes
+              user={user}
+              currentStaff={currentStaff}
+              needsCompanySetup={needsCompanySetup}
+              needsPasswordSetup={needsPasswordSetup}
+              accountSuspended={accountSuspended}
+            />
+          }
+        />
+      </Routes>
     </BrowserRouter>
   )
 }
