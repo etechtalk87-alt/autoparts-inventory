@@ -313,7 +313,12 @@ function InvoiceDocument({ invoice }) {
           ? [createElement(
               Text,
               { key: 'contact', style: [styles.footerText, { marginTop: 4, fontSize: 10 }] },
-              ['Questions?', invoice.contactPhone, invoice.contactEmail].filter(Boolean).join('  •  ')
+              (() => {
+                const parts = []
+                if (invoice.contactPhone) parts.push(`call ${invoice.contactPhone}`)
+                if (invoice.contactEmail) parts.push(`email ${invoice.contactEmail}`)
+                return `Questions? ${parts.join(' or ')}`
+              })()
             )]
           : []),
       ),
