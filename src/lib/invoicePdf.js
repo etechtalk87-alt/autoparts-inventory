@@ -422,7 +422,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
   }
 
   const companyPromise = companyId && supabaseClient
-    ? supabaseClient.from('companies').select('name, contact_phone, contact_email').eq('id', companyId).maybeSingle()
+    ? supabaseClient.from('companies').select('name, contact_phone, contact_email, trn_number, vat_enabled').eq('id', companyId).maybeSingle()
     : Promise.resolve({ data: null })
 
   const branchPromise = branchId && supabaseClient
@@ -469,6 +469,9 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
   const salePrice = Number(sale?.sale_price ?? 0)
   const amountPaid = Number(sale?.amount_paid ?? 0)
   const paymentStatus = sale?.payment_status || 'unpaid'
+  const vatEnabled = companyData?.vat_enabled === true
+  const subtotalCalc = vatEnabled ? salePrice / 1.05 : salePrice
+  const vatAmountCalc = vatEnabled ? salePrice - subtotalCalc : 0
 
   let paymentStatusLabel = 'Unpaid'
   let balanceDue = salePrice
@@ -512,6 +515,9 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     customerContact: sale?.customer_contact || '',
     contactPhone: companyData?.contact_phone || null,
     contactEmail: companyData?.contact_email || null,
+    subtotal: subtotalCalc.toFixed(2),
+    vatAmount: vatAmountCalc.toFixed(2),
+    trnNumber: companyData?.trn_number || null,
     paymentStatus,
     paymentStatusLabel,
     balanceDue: balanceDue.toFixed(2),
