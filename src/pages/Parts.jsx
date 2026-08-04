@@ -6,15 +6,15 @@ import { isAgingStock } from '../lib/aging'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
 import { supabase } from '../lib/supabaseClient'
 import { logAuditEvent } from '../lib/auditLog'
+import TransferPartModal from '../components/TransferPartModal'
+import AddEditPartModal from '../components/AddEditPartModal'
 
 function Parts() {
   const { currentStaff, loading } = useAuth()
   const [parts, setParts] = useState([])
   const [branches, setBranches] = useState([])
-  const [donorVehicles, setDonorVehicles] = useState([])
   const [loadingParts, setLoadingParts] = useState(true)
   const [loadingBranches, setLoadingBranches] = useState(true)
-  const [loadingVehicles, setLoadingVehicles] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
   const [searchParams] = useSearchParams()
@@ -23,32 +23,13 @@ function Parts() {
   const [itemsPerPage] = useState(10)
   const currencyOptions = ['AED', 'USD']
 
-  const [form, setForm] = useState({
-    part_name: '',
-    oem_number: '',
-    category: '',
-    condition: 'excellent',
-    cost: '',
-    asking_price: '',
-    currency: 'AED',
-    photo_url: '',
-    donor_vehicle_id: '',
-    branch_id: '',
-    status: 'in_stock',
-  })
-  const [photoFile, setPhotoFile] = useState(null)
-  const [photoPreview, setPhotoPreview] = useState(null)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [editingPart, setEditingPart] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-  const [editingId, setEditingId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const listRef = useRef(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [transferTarget, setTransferTarget] = useState(null)
-  const [transferBranchId, setTransferBranchId] = useState('')
-  const [transfering, setTransfering] = useState(false)
-  const [transferMessage, setTransferMessage] = useState('')
   const [saleTarget, setSaleTarget] = useState(null)
   const [salePrice, setSalePrice] = useState('')
   const [customerName, setCustomerName] = useState('')
@@ -103,37 +84,7 @@ function Parts() {
     setLoadingBranches(false)
   }
 
-  const fetchDonorVehicles = async (branchId) => {
-    if (!currentStaff?.company_id) {
-      setDonorVehicles([])
-      setLoadingVehicles(false)
-      return
-    }
-
-    setLoadingVehicles(true)
-    let query = supabase
-      .from('donor_vehicles')
-      .select('id, make, model, year')
-      .eq('company_id', currentStaff.company_id)
-      .is('deleted_at', null)
-
-    if (currentStaff?.role === 'branch_staff') {
-      query = query.eq('branch_id', currentStaff.activeBranchId)
-    } else if (branchId) {
-      query = query.eq('branch_id', branchId)
-    }
-
-    const { data, error } = await query.order('make', { ascending: true })
-
-    if (!error) {
-      setDonorVehicles(data ?? [])
-    } else {
-      console.error('Error fetching donor vehicles:', error)
-      setDonorVehicles([])
-    }
-
-    setLoadingVehicles(false)
-  }
+  
 
   const fetchParts = async () => {
     if (!currentStaff?.company_id) {
@@ -170,20 +121,7 @@ function Parts() {
     fetchParts()
   }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
 
-  useEffect(() => {
-    if (currentStaff?.role === 'branch_staff') {
-      fetchDonorVehicles(currentStaff.activeBranchId)
-      setForm((prev) => ({ ...prev, branch_id: currentStaff.activeBranchId }))
-    } else if (canManageBranches) {
-      if (form.branch_id) {
-        fetchDonorVehicles(form.branch_id)
-      } else {
-        setDonorVehicles([])
-      }
-    } else {
-      setDonorVehicles([])
-    }
-  }, [currentStaff?.activeBranchId, currentStaff?.role, form.branch_id, canManageBranches])
+  
 
   // Fetch customers for customer selector
   useEffect(() => {
@@ -278,195 +216,6 @@ function Parts() {
     return <Navigate to="/" replace />
   }
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-    setErrorMessage('')
-    setSuccessMessage('')
-
-    if (!form.part_name.trim() || !form.category.trim() || !form.cost || !form.asking_price) {
-      setErrorMessage('Please fill in part name, category, cost, and asking price.')
-      return
-    }
-
-    const payload = {
-      part_name: form.part_name.trim(),
-      oem_number: form.oem_number.trim() || null,
-      category: form.category.trim(),
-      condition: form.condition,
-      cost: Number(form.cost),
-      asking_price: Number(form.asking_price),
-      currency: form.currency || 'AED',
-      donor_vehicle_id: form.donor_vehicle_id || null,
-      company_id: currentStaff.company_id,
-      branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : form.branch_id || null,
-      status: form.status || 'in_stock',
-    }
-
-    setSubmitting(true)
-    const uploadPartPhoto = async (partId, file) => {
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${currentStaff.company_id}/${partId}.${fileExt}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('part-photos')
-        .upload(filePath, file, { upsert: true })
-
-      if (uploadError) {
-        throw new Error(uploadError.message)
-      }
-
-      const { data: urlData } = supabase.storage
-        .from('part-photos')
-        .getPublicUrl(filePath)
-
-      return urlData.publicUrl
-    }
-
-    if (editingId) {
-      const { data: existingPart, error: lookupError } = await supabase
-        .from('parts')
-        .select('*')
-        .eq('id', editingId)
-        .single()
-
-      if (lookupError) {
-        setErrorMessage(lookupError.message || 'Unable to load existing part data for auditing.')
-        setSubmitting(false)
-        return
-      }
-
-      const snapshot = existingPart ? {
-        id: existingPart.id,
-        part_name: existingPart.part_name,
-        oem_number: existingPart.oem_number,
-        category: existingPart.category,
-        condition: existingPart.condition,
-        cost: existingPart.cost,
-        asking_price: existingPart.asking_price,
-        currency: existingPart.currency,
-        status: existingPart.status,
-        company_id: existingPart.company_id,
-        branch_id: existingPart.branch_id,
-        donor_vehicle_id: existingPart.donor_vehicle_id,
-      } : null
-
-      const { data, error } = await supabase
-        .from('parts')
-        .update(payload)
-        .eq('id', editingId)
-        .select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id, photo_url')
-
-      if (error) {
-        setErrorMessage(error.message)
-      } else if (!data || data.length === 0) {
-        setErrorMessage('Update failed - you may not have permission to modify this record.')
-      } else {
-        const dataRow = data[0]
-        if (photoFile) {
-          try {
-            const photoUrl = await uploadPartPhoto(editingId, photoFile)
-            await supabase.from('parts').update({ photo_url: photoUrl }).eq('id', editingId)
-            dataRow.photo_url = photoUrl
-          } catch (err) {
-            console.error('Photo upload failed:', err)
-            setErrorMessage(`Part saved, but photo upload failed: ${err.message}`)
-          }
-        }
-        if (snapshot && snapshot.donor_vehicle_id && payload.donor_vehicle_id !== snapshot.donor_vehicle_id) {
-          await logAuditEvent({
-            tableName: 'parts',
-            recordId: editingId,
-            action: 'update',
-            performedBy: currentStaff.id,
-            companyId: currentStaff.company_id,
-            snapshot: snapshot,
-          })
-        }
-
-        setParts((prev) => prev.map((p) => (p.id === dataRow.id ? dataRow : p)))
-        setEditingId(null)
-        setForm({
-          part_name: '',
-          oem_number: '',
-          category: '',
-          condition: 'excellent',
-          cost: '',
-          asking_price: '',
-          currency: 'AED',
-          photo_url: '',
-          donor_vehicle_id: '',
-          branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : '',
-          status: 'in_stock',
-        })
-        setPhotoFile(null)
-        setPhotoPreview(null)
-        setShowAddModal(false)
-        setSuccessMessage('Part updated successfully.')
-        requestAnimationFrame(() => listRef.current?.focus())
-      }
-    } else {
-      const { data, error } = await supabase.from('parts').insert([payload]).select('id, part_name, oem_number, category, condition, cost, asking_price, currency, status, company_id, branch_id, photo_url').single()
-
-      if (error) {
-        setErrorMessage(error.message)
-      } else {
-        if (photoFile) {
-          try {
-            const photoUrl = await uploadPartPhoto(data.id, photoFile)
-            await supabase.from('parts').update({ photo_url: photoUrl }).eq('id', data.id)
-            data.photo_url = photoUrl
-          } catch (err) {
-            console.error('Photo upload failed:', err)
-            setErrorMessage(`Part saved, but photo upload failed: ${err.message}`)
-          }
-        }
-        setParts((prev) => [data, ...prev])
-        setForm({
-          part_name: '',
-          oem_number: '',
-          category: '',
-          condition: 'excellent',
-          cost: '',
-          asking_price: '',
-          currency: 'AED',
-          photo_url: '',
-          donor_vehicle_id: '',
-          branch_id: currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : '',
-          status: 'in_stock',
-        })
-        setPhotoFile(null)
-        setPhotoPreview(null)
-        setShowAddModal(false)
-        setSuccessMessage('Part added successfully.')
-        requestAnimationFrame(() => listRef.current?.focus())
-      }
-    }
-
-    setSubmitting(false)
-  }
-
-  const startEditPart = (part) => {
-    setEditingId(part.id)
-    setForm({
-      part_name: part.part_name || '',
-      oem_number: part.oem_number || '',
-      category: part.category || '',
-      condition: part.condition || 'excellent',
-      cost: part.cost || '',
-      asking_price: part.asking_price || '',
-      currency: part.currency || 'AED',
-      photo_url: part.photo_url || '',
-      donor_vehicle_id: part.donor_vehicle_id || '',
-      branch_id: part.branch_id || (currentStaff.role === 'branch_staff' ? currentStaff.activeBranchId : ''),
-      status: part.status || 'in_stock',
-    })
-    setPhotoFile(null)
-    setPhotoPreview(part.photo_url || null)
-    setErrorMessage('')
-    setSuccessMessage('')
-    setShowAddModal(true)
-  }
-
   const handleDeletePart = async (part) => {
     if (!part) return
     if (part.status === 'sold' || part.status === 'transferred') return
@@ -525,8 +274,6 @@ function Parts() {
 
   const openTransferModal = (part) => {
     setTransferTarget(part)
-    setTransferBranchId('')
-    setTransferMessage('')
   }
 
   const openSaleModal = (part) => {
@@ -598,54 +345,6 @@ function Parts() {
     setCustomerSearch('')
     setSaleMessage('')
     setCreatingCustomer(false)
-  }
-
-  const confirmTransfer = async () => {
-    if (!transferTarget || !transferBranchId) {
-      setTransferMessage('Please choose a destination branch.')
-      return
-    }
-
-    setTransfering(true)
-    setTransferMessage('')
-
-    const { error: transferError } = await supabase.from('transfers').insert([
-      {
-        company_id: currentStaff.company_id,
-        from_branch_id: transferTarget.branch_id,
-        to_branch_id: transferBranchId,
-        part_id: transferTarget.id,
-        transferred_by: currentStaff.id,
-      },
-    ])
-
-    if (transferError) {
-      setTransferMessage(transferError.message)
-      setTransfering(false)
-      return
-    }
-
-    const { data: updateData, error: updateError } = await supabase
-      .from('parts')
-      .update({ branch_id: transferBranchId })
-      .eq('id', transferTarget.id)
-      .select('id')
-
-    if (updateError) {
-      setTransferMessage(updateError.message)
-      setTransfering(false)
-      return
-    } else if (!updateData || updateData.length === 0) {
-      setTransferMessage('Update failed - you may not have permission to modify this record.')
-      setTransfering(false)
-      return
-    }
-
-    setParts((prev) => prev.map((part) => (part.id === transferTarget.id ? { ...part, branch_id: transferBranchId } : part)))
-    setTransferTarget(null)
-    setTransferBranchId('')
-    setTransferMessage('Part transferred successfully.')
-    setTransfering(false)
   }
 
   const confirmSale = async () => {
@@ -948,7 +647,10 @@ function Parts() {
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => startEditPart(part)}
+                                  onClick={() => {
+                                    setEditingPart(part)
+                                    setShowAddModal(true)
+                                  }}
                                   className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
                                 >
                                   <PencilLine size={15} />
@@ -1024,186 +726,30 @@ function Parts() {
         </div>
       </div>
 
-      {showAddModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
-            <h3 className="text-xl font-semibold">{editingId ? 'Edit Part' : 'Add Part'}</h3>
-            <form onSubmit={handleSubmit} className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <label className="text-sm text-slate-300">
-                Part Name
-                <input
-                  type="text"
-                  value={form.part_name}
-                  onChange={(event) => setForm((prev) => ({ ...prev, part_name: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                  placeholder="Headlight Assembly"
-                />
-              </label>
-              <label className="text-sm text-slate-300">
-                OEM Number
-                <input
-                  type="text"
-                  value={form.oem_number}
-                  onChange={(event) => setForm((prev) => ({ ...prev, oem_number: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                  placeholder="123456"
-                />
-              </label>
-              <label className="text-sm text-slate-300">
-                Category
-                <input
-                  type="text"
-                  value={form.category}
-                  onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                  placeholder="Body"
-                />
-              </label>
-              <label className="text-sm text-slate-300">
-                Condition
-                <select
-                  value={form.condition}
-                  onChange={(event) => setForm((prev) => ({ ...prev, condition: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                >
-                  <option value="excellent">Excellent</option>
-                  <option value="good">Good</option>
-                  <option value="fair">Fair</option>
-                  <option value="for parts">For Parts</option>
-                </select>
-              </label>
-              <label className="text-sm text-slate-300">
-                Cost
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.cost}
-                  onChange={(event) => setForm((prev) => ({ ...prev, cost: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                  placeholder="120.00"
-                  disabled={editingId && (form.status === 'sold' || form.status === 'transferred')}
-                />
-              </label>
-              <label className="text-sm text-slate-300">
-                Asking Price
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.asking_price}
-                  onChange={(event) => setForm((prev) => ({ ...prev, asking_price: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                  placeholder="180.00"
-                />
-              </label>
-              <label className="text-sm text-slate-300">
-                Currency
-                <select
-                  value={form.currency}
-                  onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                >
-                  {currencyOptions.map((currency) => (
-                    <option key={currency} value={currency}>
-                      {currency}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm text-slate-300">
-                <span className="mb-1.5 block font-medium">Photo (optional)</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) {
-                      setPhotoFile(file)
-                      setPhotoPreview(URL.createObjectURL(file))
-                    }
-                  }}
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500 file:px-3 file:py-1.5 file:text-slate-950 file:font-semibold"
-                />
-                {photoPreview ? (
-                  <img src={photoPreview} alt="Preview" className="mt-3 h-32 w-32 rounded-xl object-cover border border-slate-700" />
-                ) : form.photo_url ? (
-                  <img src={form.photo_url} alt="Current" className="mt-3 h-32 w-32 rounded-xl object-cover border border-slate-700" />
-                ) : null}
-              </label>
-              {canManageBranches ? (
-                <label className="text-sm text-slate-300">
-                  Branch
-                  <select
-                    value={form.branch_id}
-                    onChange={(event) => setForm((prev) => ({ ...prev, branch_id: event.target.value, donor_vehicle_id: '' }))}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                    disabled={loadingBranches}
-                  >
-                    <option value="">Select branch</option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>{branch.name}</option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <label className="text-sm text-slate-300">
-                Donor Vehicle
-                <select
-                  value={form.donor_vehicle_id}
-                  onChange={(event) => setForm((prev) => ({ ...prev, donor_vehicle_id: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                  disabled={loadingVehicles || (canManageBranches && !form.branch_id && currentStaff.role !== 'branch_staff') || (editingId && (form.status === 'sold' || form.status === 'transferred'))}
-                >
-                  <option value="">None</option>
-                  {donorVehicles.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.make} {vehicle.model} ({vehicle.year})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm text-slate-300">
-                Status
-                <select
-                  value={form.status}
-                  onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                >
-                  <option value="in_stock">In Stock</option>
-                  <option value="sold">Sold</option>
-                  <option value="reserved">Reserved</option>
-                  <option value="pending">Pending</option>
-                </select>
-              </label>
-              {errorMessage ? <p className="mt-2 text-sm text-red-400 md:col-span-2 xl:col-span-3">{errorMessage}</p> : null}
-              {successMessage ? <p className="mt-2 text-sm text-emerald-400 md:col-span-2 xl:col-span-3">{successMessage}</p> : null}
-              <div className="mt-2 flex justify-end gap-3 md:col-span-2 xl:col-span-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddModal(false)
-                    setErrorMessage('')
-                    setSuccessMessage('')
-                    setPhotoFile(null)
-                    setPhotoPreview(null)
-                  }}
-                  className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting ? 'Saving...' : editingId ? 'Save Changes' : 'Add Part'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+      <AddEditPartModal
+        isOpen={showAddModal}
+        editingPart={editingPart}
+        branches={branches}
+        loadingBranches={loadingBranches}
+        canManageBranches={canManageBranches}
+        currentStaff={currentStaff}
+        currencyOptions={currencyOptions}
+        onClose={() => {
+          setShowAddModal(false)
+          setEditingPart(null)
+        }}
+        onSaved={(savedPart) => {
+          setParts((prev) => {
+            const exists = prev.some((p) => p.id === savedPart.id)
+            return exists
+              ? prev.map((p) => (p.id === savedPart.id ? savedPart : p))
+              : [savedPart, ...prev]
+          })
+          setShowAddModal(false)
+          setEditingPart(null)
+          requestAnimationFrame(() => listRef.current?.focus())
+        }}
+      />
 
       {saleTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
@@ -1504,53 +1050,16 @@ function Parts() {
         </div>
       ) : null}
 
-      {transferTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
-            <h3 className="text-xl font-semibold">Transfer Part</h3>
-            <p className="mt-2 text-sm text-slate-400">
-              Move {transferTarget.part_name} to another branch.
-            </p>
-            <label className="mt-4 block text-sm text-slate-300">
-              Destination Branch
-              <select
-                value={transferBranchId}
-                onChange={(event) => setTransferBranchId(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              >
-                <option value="">Select destination branch</option>
-                {branches
-                  .filter((branch) => String(branch.id) !== String(transferTarget.branch_id))
-                  .map((branch) => (
-                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                  ))}
-              </select>
-            </label>
-            {transferMessage ? <p className="mt-4 text-sm text-red-400">{transferMessage}</p> : null}
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setTransferTarget(null)
-                  setTransferBranchId('')
-                  setTransferMessage('')
-                }}
-                className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmTransfer}
-                disabled={transfering}
-                className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {transfering ? 'Transferring...' : 'Confirm Transfer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <TransferPartModal
+        part={transferTarget}
+        branches={branches}
+        currentStaff={currentStaff}
+        onClose={() => setTransferTarget(null)}
+        onTransferComplete={(newBranchId) => {
+          setParts((prev) => prev.map((part) => (part.id === transferTarget?.id ? { ...part, branch_id: newBranchId } : part)))
+          setTransferTarget(null)
+        }}
+      />
     </main>
   )
 }

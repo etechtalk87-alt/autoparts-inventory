@@ -1,5 +1,5 @@
 import { createElement } from 'react'
-import { Document, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
+import { Document, Page, StyleSheet, Text, View, Image, pdf } from '@react-pdf/renderer'
 
 const styles = StyleSheet.create({
   page: {
@@ -43,6 +43,12 @@ const styles = StyleSheet.create({
   },
   companyInfo: {
     maxWidth: '60%',
+  },
+  logo: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    marginBottom: 8,
   },
   invoiceCard: {
     backgroundColor: '#eff6ff',
@@ -204,6 +210,9 @@ function InvoiceDocument({ invoice }) {
         createElement(
           View,
           { style: styles.companyInfo },
+          ...(invoice.logoUrl
+            ? [createElement(Image, { key: 'logo', style: styles.logo, src: invoice.logoUrl })]
+            : []),
           createElement(Text, { style: styles.title }, Number(invoice.vatAmount) > 0 ? 'Tax Invoice' : 'Invoice'),
           createElement(Text, { style: styles.company }, invoice.companyName || 'Auto Parts Inventory'),
           createElement(Text, { style: styles.secondary }, branchLine || 'Branch'),
@@ -366,7 +375,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     const { invoiceRow, salesRows } = invoiceData
     const firstSale = salesRows[0]
     const companyPromise = companyId && supabaseClient
-      ? supabaseClient.from('companies').select('name, trn_number, contact_phone, contact_email').eq('id', companyId).maybeSingle()
+      ? supabaseClient.from('companies').select('name, trn_number, contact_phone, contact_email, logo_url').eq('id', companyId).maybeSingle()
       : Promise.resolve({ data: null })
 
     const branchPromise = branchId && supabaseClient
@@ -412,6 +421,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
       customerContact: customerPhone ? `Phone: ${customerPhone}` : '',
       contactPhone: companyData?.contact_phone || null,
       contactEmail: companyData?.contact_email || null,
+      logoUrl: companyData?.logo_url || null,
       paymentStatus: invoiceRow?.payment_status || 'unpaid',
       paymentStatusLabel:
         invoiceRow?.payment_status === 'paid' || invoiceRow?.payment_status === 'paid_in_full'
@@ -427,7 +437,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
   }
 
   const companyPromise = companyId && supabaseClient
-    ? supabaseClient.from('companies').select('name, contact_phone, contact_email, trn_number, vat_enabled').eq('id', companyId).maybeSingle()
+    ? supabaseClient.from('companies').select('name, contact_phone, contact_email, trn_number, vat_enabled, logo_url').eq('id', companyId).maybeSingle()
     : Promise.resolve({ data: null })
 
   const branchPromise = branchId && supabaseClient
@@ -520,6 +530,7 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     customerContact: sale?.customer_contact || '',
     contactPhone: companyData?.contact_phone || null,
     contactEmail: companyData?.contact_email || null,
+    logoUrl: companyData?.logo_url || null,
     subtotal: subtotalCalc.toFixed(2),
     vatAmount: vatAmountCalc.toFixed(2),
     trnNumber: companyData?.trn_number || null,
