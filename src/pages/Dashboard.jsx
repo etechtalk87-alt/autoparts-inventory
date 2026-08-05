@@ -43,6 +43,7 @@ function Dashboard() {
     unlinkedPayments: [],
     vehicleProfit: []
   })
+  const [vehicleProfitPeriod, setVehicleProfitPeriod] = useState('all')
 
   // Trend data from views
   const [salesByCategory, setSalesByCategory] = useState([])
@@ -424,18 +425,40 @@ function Dashboard() {
     return { data, currency, totalValue }
   }, [salesByCategory])
 
-  const vehicleProfitSummary = useMemo(() => {
-    const knownVehicles = (dashboardData.vehicleProfit || []).filter(
-      (v) => v.purchase_price != null
-    )
+  const vehicleProfitFiltered = useMemo(() => {
+    const now = new Date()
+    const vehicles = (dashboardData.vehicleProfit || []).filter((v) => v.purchase_price != null)
 
-    const totalPurchase = knownVehicles.reduce((sum, v) => sum + Number(v.purchase_price), 0)
-    const totalRevenue = knownVehicles.reduce((sum, v) => sum + Number(v.revenue), 0)
+    const filtered = vehicles.filter((v) => {
+      if (vehicleProfitPeriod === 'all') return true
+      const purchaseDate = new Date(v.purchase_date)
+      if (vehicleProfitPeriod === 'month') {
+        return purchaseDate.getMonth() === now.getMonth() && purchaseDate.getFullYear() === now.getFullYear()
+      }
+      if (vehicleProfitPeriod === '3months') {
+        const cutoff = new Date(now)
+        cutoff.setMonth(cutoff.getMonth() - 3)
+        return purchaseDate >= cutoff
+      }
+      if (vehicleProfitPeriod === 'year') {
+        return purchaseDate.getFullYear() === now.getFullYear()
+      }
+      return true
+    })
+
+    const totalPurchase = filtered.reduce((sum, v) => sum + Number(v.purchase_price), 0)
+    const totalRevenue = filtered.reduce((sum, v) => sum + Number(v.revenue), 0)
     const totalProfit = totalRevenue - totalPurchase
-    const currency = knownVehicles[0]?.purchase_currency || 'AED'
+    const currency = filtered[0]?.purchase_currency || 'AED'
 
-    return { totalPurchase, totalRevenue, totalProfit, currency, vehicleCount: knownVehicles.length }
-  }, [dashboardData.vehicleProfit])
+    const chartData = [
+      { name: 'Purchase', value: totalPurchase },
+      { name: 'Revenue', value: totalRevenue },
+      { name: 'Profit', value: totalProfit },
+    ]
+
+    return { totalPurchase, totalRevenue, totalProfit, currency, vehicleCount: filtered.length, chartData }
+  }, [dashboardData.vehicleProfit, vehicleProfitPeriod])
 
   if (loading) {
     return (
@@ -546,16 +569,6 @@ function Dashboard() {
             </div>
             <p className="mt-3 text-sm text-slate-400">All-time sales invoices</p>
           </Link>
-
-          <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Donor Vehicle Profit</p>
-            <p className={`mt-2 text-2xl font-semibold ${vehicleProfitSummary.totalProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {vehicleProfitSummary.currency} {vehicleProfitSummary.totalProfit.toFixed(2)}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Across {vehicleProfitSummary.vehicleCount} vehicle{vehicleProfitSummary.vehicleCount === 1 ? '' : 's'} with known cost
-            </p>
-          </div>
 
           {currentStaff?.role === 'company_admin' ? (
             <Link to="/customers" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
@@ -779,6 +792,43 @@ function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Vehicle Profit</h3>
+              <p className="text-sm text-slate-400">
+                {vehicleProfitFiltered.vehicleCount} vehicle{vehicleProfitFiltered.vehicleCount === 1 ? '' : 's'} with known cost
+              </p>
+            </div>
+            <select
+              value={vehicleProfitPeriod}
+              onChange={(e) => setVehicleProfitPeriod(e.target.value)}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-white outline-none"
+            >
+              <option value="month">This Month</option>
+              <option value="3months">Last 3 Months</option>
+              <option value="year">This Year</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={vehicleProfitFiltered.chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="name" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
+                formatter={(value) => `${vehicleProfitFiltered.currency} ${Number(value).toFixed(2)}`}
+              />
+              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                {vehicleProfitFiltered.chartData.map((entry, index) => (
+                  <Cell key={index} fill={entry.name === 'Profit' ? (entry.value >= 0 ? '#34d399' : '#f87171') : index === 0 ? '#f59e0b' : '#22d3ee'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
         <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
