@@ -33,7 +33,13 @@ function Layout({ children }) {
 
   const navLinks = [
     { to: '/', label: 'Dashboard' },
-    { to: '/donor-vehicles', label: 'Donor Vehicles' },
+    {
+      label: 'Donor Vehicles',
+      children: [
+        { to: '/donor-vehicles', label: 'Donor Vehicles' },
+        { to: '/vehicle-profit', label: 'Vehicle Profit' },
+      ]
+    },
     {
       label: 'Spare Parts',
       children: [

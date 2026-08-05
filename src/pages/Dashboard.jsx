@@ -40,7 +40,8 @@ function Dashboard() {
     partsByBranch: [],
     branchBreakdown: [],
     payables: [],
-    unlinkedPayments: []
+    unlinkedPayments: [],
+    vehicleProfit: []
   })
 
   // Trend data from views
@@ -101,7 +102,8 @@ function Dashboard() {
         branchBreakdownRes,
         customersRes,
         payablesRes,
-        unlinkedPaymentsRes
+        unlinkedPaymentsRes,
+        vehicleProfitRes
       ] = await Promise.all([
         branchesPromise,
         buildQuery('dashboard_sales_today'),
@@ -116,7 +118,8 @@ function Dashboard() {
         buildQuery('dashboard_branch_breakdown'),
         activeCustomersPromise,
         payablesPromise,
-        unlinkedPaymentsPromise
+        unlinkedPaymentsPromise,
+        buildQuery('dashboard_vehicle_profit')
       ])
 
       setBranches(branchesRes.data || [])
@@ -134,7 +137,8 @@ function Dashboard() {
         branchBreakdown: branchBreakdownRes.data || [],
         activeCustomers: customersRes.data || [],
         payables: payablesRes.data || [],
-        unlinkedPayments: unlinkedPaymentsRes.data || []
+        unlinkedPayments: unlinkedPaymentsRes.data || [],
+        vehicleProfit: vehicleProfitRes.data || []
       })
 
       setLoading(false)
@@ -420,6 +424,19 @@ function Dashboard() {
     return { data, currency, totalValue }
   }, [salesByCategory])
 
+  const vehicleProfitSummary = useMemo(() => {
+    const knownVehicles = (dashboardData.vehicleProfit || []).filter(
+      (v) => v.purchase_price != null
+    )
+
+    const totalPurchase = knownVehicles.reduce((sum, v) => sum + Number(v.purchase_price), 0)
+    const totalRevenue = knownVehicles.reduce((sum, v) => sum + Number(v.revenue), 0)
+    const totalProfit = totalRevenue - totalPurchase
+    const currency = knownVehicles[0]?.purchase_currency || 'AED'
+
+    return { totalPurchase, totalRevenue, totalProfit, currency, vehicleCount: knownVehicles.length }
+  }, [dashboardData.vehicleProfit])
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
@@ -529,6 +546,16 @@ function Dashboard() {
             </div>
             <p className="mt-3 text-sm text-slate-400">All-time sales invoices</p>
           </Link>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Donor Vehicle Profit</p>
+            <p className={`mt-2 text-2xl font-semibold ${vehicleProfitSummary.totalProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {vehicleProfitSummary.currency} {vehicleProfitSummary.totalProfit.toFixed(2)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Across {vehicleProfitSummary.vehicleCount} vehicle{vehicleProfitSummary.vehicleCount === 1 ? '' : 's'} with known cost
+            </p>
+          </div>
 
           {currentStaff?.role === 'company_admin' ? (
             <Link to="/customers" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
@@ -797,6 +824,7 @@ function Dashboard() {
             </table>
           </div>
         </div>
+
       </div>
     </main>
   )
