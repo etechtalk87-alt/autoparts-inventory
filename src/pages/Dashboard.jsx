@@ -44,6 +44,7 @@ function Dashboard() {
     vehicleProfit: []
   })
   const [vehicleProfitPeriod, setVehicleProfitPeriod] = useState('all')
+  const [salesTrendPeriod, setSalesTrendPeriod] = useState('12months')
 
   // Trend data from views
   const [salesByCategory, setSalesByCategory] = useState([])
@@ -153,7 +154,16 @@ function Dashboard() {
       if (!currentStaff?.company_id) return
       
       const now = new Date()
-      const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+      let startDate
+      if (salesTrendPeriod === '3months') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+      } else if (salesTrendPeriod === '6months') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+      } else if (salesTrendPeriod === 'year') {
+        startDate = new Date(now.getFullYear(), 0, 1)
+      } else {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+      }
       startDate.setHours(0, 0, 0, 0)
 
       const companyFilter = currentStaff.company_id
@@ -178,7 +188,7 @@ function Dashboard() {
     }
 
     fetchTrendData()
-  }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role])
+  }, [currentStaff?.company_id, currentStaff?.activeBranchId, currentStaff?.role, salesTrendPeriod])
 
   useEffect(() => {
     const fetchCompanyName = async () => {
@@ -366,7 +376,18 @@ function Dashboard() {
     const periods = []
     const base = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    for (let i = 11; i >= 0; i -= 1) {
+    let monthCount
+    if (salesTrendPeriod === '3months') {
+      monthCount = 3
+    } else if (salesTrendPeriod === '6months') {
+      monthCount = 6
+    } else if (salesTrendPeriod === 'year') {
+      monthCount = base.getMonth() + 1
+    } else {
+      monthCount = 12
+    }
+
+    for (let i = monthCount - 1; i >= 0; i -= 1) {
       const start = new Date(base.getFullYear(), base.getMonth() - i, 1)
       const end = new Date(start.getFullYear(), start.getMonth() + 1, 1)
       periods.push({ key: `${start.getFullYear()}-${start.getMonth() + 1}`, label: formatTrendLabel(start), start, end })
@@ -388,7 +409,7 @@ function Dashboard() {
     })
 
     return Object.values(totals)
-  }, [salesDaily])
+  }, [salesDaily, salesTrendPeriod])
 
   const analyticsTrendBars = useMemo(() => {
     const values = analyticsTrendData.map((entry) => ({
@@ -423,7 +444,7 @@ function Dashboard() {
     const totalValue = data.reduce((sum, entry) => sum + entry.value, 0)
 
     return { data, currency, totalValue }
-  }, [salesByCategory])
+  }, [salesByCategory, salesTrendPeriod])
 
   const vehicleProfitFiltered = useMemo(() => {
     const now = new Date()
@@ -717,11 +738,22 @@ function Dashboard() {
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
             <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-              <p className="text-sm text-slate-400">Sales Analytics</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-400">Sales Analytics</p>
+                <select
+                  value={salesTrendPeriod}
+                  onChange={(e) => setSalesTrendPeriod(e.target.value)}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-white outline-none"
+                >
+                  <option value="3months">Last 3 Months</option>
+                  <option value="6months">Last 6 Months</option>
+                  <option value="year">This Year</option>
+                  <option value="12months">Last 12 Months</option>
+                </select>
+              </div>
               <div className="mt-4">
                 <p className="text-sm text-slate-400">Monthly Sales</p>
               </div>
-
               <div className="mt-6 h-[360px]">
                 {analyticsTrendBars.length === 0 ? (
                   <p className="text-sm text-slate-400">No sales data available for the last 12 months.</p>
