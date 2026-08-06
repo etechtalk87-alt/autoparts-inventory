@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { generateReportPdf } from '../lib/reportPdf'
 import { Wallet, Banknote, FileCheck, CircleDollarSign } from 'lucide-react'
 
 function formatCurrency(value, currency = 'AED') {
@@ -76,6 +77,44 @@ function Payables() {
     setPaymentNotes('')
     setPaymentError('')
     setPayingId(payable.id)
+  }
+
+  const handleExportPdf = async () => {
+    const columns = [
+      { key: 'vendor', label: 'Vendor', width: 1.5 },
+      { key: 'vehicle', label: 'Vehicle', width: 2 },
+      { key: 'amount', label: 'Amount', align: 'right', width: 1 },
+      { key: 'paid', label: 'Paid', align: 'right', width: 1 },
+      { key: 'remaining', label: 'Remaining', align: 'right', width: 1 },
+      {
+        key: 'status',
+        label: 'Status',
+        width: 0.8,
+        render: (value, row) => ({
+          text: value,
+          color: row._rawStatus === 'paid' ? '#059669' : row._rawStatus === 'partial' ? '#d97706' : '#dc2626',
+        }),
+      },
+    ]
+
+    const rows = payables.map((payable) => ({
+      vendor: payable.vendors?.full_name || 'Unknown Vendor',
+      vehicle: payable.donor_vehicles
+        ? `${payable.donor_vehicles.year} ${payable.donor_vehicles.make} ${payable.donor_vehicles.model}`
+        : 'Unknown Vehicle',
+      amount: formatCurrency(payable.amount, payable.currency),
+      paid: formatCurrency(payable.amount_paid, payable.currency),
+      remaining: formatCurrency(Number(payable.amount) - Number(payable.amount_paid), payable.currency),
+      status: payable.status === 'paid' ? 'Paid' : payable.status === 'partial' ? 'Partial' : 'Unpaid',
+      _rawStatus: payable.status,
+    }))
+
+    await generateReportPdf({
+      companyName: currentStaff?.companyName || 'Auto Parts Inventory',
+      reportTitle: 'Payables Report',
+      columns,
+      rows,
+    })
   }
 
   const handlePaymentSubmit = async (event) => {
@@ -198,6 +237,13 @@ function Payables() {
               <h2 className="text-xl font-semibold text-white">Vendor Ledgers</h2>
               <p className="mt-1 text-sm text-slate-400">Review pending and completed payments.</p>
             </div>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
+            >
+              Export PDF
+            </button>
           </div>
 
           {loadingPayables ? (

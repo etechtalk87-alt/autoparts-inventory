@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
-import { AlertCircle, CreditCard, ReceiptText, Sparkles } from 'lucide-react'
+import { AlertCircle, CreditCard, ReceiptText, Sparkles, FileText } from 'lucide-react'
+import { generateReportPdf } from '../lib/reportPdf'
 
 function formatCurrency(value, currency = 'AED') {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return '—'
@@ -138,6 +139,52 @@ function Receivables() {
     return Object.entries(acc).map(([currency, amount]) => ({ currency, amount })).sort((a, b) => a.currency.localeCompare(b.currency))
   }, [filtered, unlinkedPayments])
 
+  const handleExportPdf = () => {
+    const columns = [
+      { key: 'invoice', label: 'Invoice #', width: 2 },
+      { key: 'customer', label: 'Customer', width: 1.2 },
+      { key: 'part', label: 'Part', width: 1.2 },
+      { key: 'salePrice', label: 'Sale Price', align: 'right', width: 0.9 },
+      { key: 'paid', label: 'Paid', align: 'right', width: 0.9 },
+      { key: 'balanceDue', label: 'Balance Due', align: 'right', width: 0.9 },
+      {
+        key: 'status',
+        label: 'Status',
+        width: 0.8,
+        render: (value, row) => ({
+          text: value,
+          color: row._rawStatus === 'partial' ? '#d97706' : row._rawStatus === 'credit' ? '#7c3aed' : '#dc2626',
+        }),
+      },
+      { key: 'date', label: 'Date', width: 0.8 },
+    ]
+
+    const rows = filtered.map((sale) => {
+      const currency = sale.parts?.currency || sale.currency || 'AED'
+      const balance = Number(sale.sale_price || 0) - Number(sale.amount_paid || 0)
+      const customerName = sale.customers?.full_name || '—'
+
+      return {
+        invoice: sale.invoice_number || '—',
+        customer: customerName,
+        part: sale.parts?.part_name || '—',
+        salePrice: `${currency} ${Number(sale.sale_price || 0).toFixed(2)}`,
+        paid: `${currency} ${Number(sale.amount_paid || 0).toFixed(2)}`,
+        balanceDue: `${currency} ${balance.toFixed(2)}`,
+        status: sale.payment_status === 'partial' ? 'Partial' : sale.payment_status === 'credit' ? 'Credit' : 'Unpaid',
+        _rawStatus: sale.payment_status,
+        date: new Date(sale.created_at).toLocaleDateString(),
+      }
+    })
+
+    generateReportPdf({
+      companyName: currentStaff?.companyName || 'Auto Parts Inventory',
+      reportTitle: 'Outstanding Receivables Report',
+      columns,
+      rows,
+    })
+  }
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
@@ -170,7 +217,7 @@ function Receivables() {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3 sm:items-end">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                   <ReceiptText size={16} className="text-rose-300" />
@@ -190,6 +237,16 @@ function Receivables() {
                     </span>
                   )) : <span className="text-lg font-semibold text-white">—</span>}
                 </div>
+              </div>
+              <div className="flex items-center sm:justify-end">
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
+                >
+                  <FileText size={18} />
+                  Export PDF
+                </button>
               </div>
             </div>
           </div>

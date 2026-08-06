@@ -3,6 +3,7 @@ import { CalendarRange, FileText, Package2, ReceiptText, Sparkles } from 'lucide
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
+import { generateReportPdf } from '../lib/reportPdf'
 import { supabase } from '../lib/supabaseClient'
 
 function getPaymentStatusColor(status) {
@@ -103,7 +104,7 @@ function Sales() {
           parts:part_id ( part_name, currency, oem_number, condition, donor_vehicle_id ),
           branches:branch_id ( name, location ),
           customers:customer_id ( full_name ),
-          sold_by_staff:sold_by ( id )
+          sold_by_staff:sold_by ( id, full_name )
         `)
         .eq('company_id', currentStaff.company_id)
         .order('created_at', { ascending: false })
@@ -149,6 +150,37 @@ function Sales() {
   }, [invoiceQuery, sales])
 
   const totalPages = Math.max(1, Math.ceil(filteredSales.length / itemsPerPage))
+
+  const handleExportPdf = () => {
+    const rows = filteredSales.map((sale) => ({
+      partName: sale.parts?.part_name ?? '—',
+      branch: sale.branches?.name ?? '—',
+      salePrice: `${sale.parts?.currency || 'AED'} ${Number(sale.sale_price || 0).toFixed(2)}`,
+      customer: sale.customers?.full_name || sale.customer_name || '—',
+      paymentStatus: getPaymentStatusLabel(sale.payment_status),
+      date: new Date(sale.created_at).toLocaleDateString(),
+      soldBy: sale.sold_by_staff?.full_name ?? '—',
+      invoiceNumber: sale.invoice_number || '—',
+    }))
+
+    const columns = [
+      { key: 'partName', label: 'Part', width: 2 },
+      { key: 'branch', label: 'Branch', width: 2 },
+      { key: 'salePrice', label: 'Sale Price', width: 1, align: 'right' },
+      { key: 'customer', label: 'Customer', width: 2 },
+      { key: 'paymentStatus', label: 'Payment Status', width: 1.5 },
+      { key: 'date', label: 'Date', width: 1.2 },
+      { key: 'soldBy', label: 'Sold By', width: 1.5 },
+      { key: 'invoiceNumber', label: 'Invoice', width: 1.5 },
+    ]
+
+    generateReportPdf({
+      companyName: currentStaff?.companyName || 'Auto Parts Inventory',
+      reportTitle: 'Sales Report',
+      columns,
+      rows,
+    })
+  }
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -253,13 +285,23 @@ function Sales() {
                 </select>
               ) : null}
             </div>
-            <Link
-              to="/invoices/new"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
-            >
-              <Package2 size={18} />
-              Create Invoice
-            </Link>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                to="/invoices/new"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
+              >
+                <Package2 size={18} />
+                Create Invoice
+              </Link>
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
+              >
+                <FileText size={18} />
+                Export PDF
+              </button>
+            </div>
           </div>
 
           {loadingSales ? (
