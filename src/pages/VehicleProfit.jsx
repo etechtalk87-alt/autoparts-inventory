@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { generateReportPdf } from '../lib/reportPdf'
 
 function formatCurrency(value, currency = 'AED') {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
@@ -67,6 +68,43 @@ function VehicleProfit() {
       })
   }, [vehicleProfit])
 
+  const handleExportPdf = () => {
+    const columns = [
+      { key: 'vehicle', label: 'Vehicle', width: 1.8 },
+      { key: 'year', label: 'Year', width: 0.7 },
+      { key: 'purchase', label: 'Purchase', align: 'right', width: 1 },
+      { key: 'revenue', label: 'Revenue', align: 'right', width: 1 },
+      {
+        key: 'profit',
+        label: 'Profit',
+        align: 'right',
+        width: 1,
+        render: (value, row) => ({
+          text: value,
+          color: row._rawProfit === null ? '#64748b' : row._rawProfit >= 0 ? '#059669' : '#dc2626',
+        }),
+      },
+      { key: 'remaining', label: 'Remaining Parts', align: 'right', width: 1 },
+    ]
+
+    const rows = vehicleProfitSorted.map((v) => ({
+      vehicle: `${v.make} ${v.model}`,
+      year: v.year || '—',
+      purchase: v.purchase_price != null ? `${v.purchase_currency} ${Number(v.purchase_price).toFixed(2)}` : '—',
+      revenue: `${v.purchase_currency} ${Number(v.revenue).toFixed(2)}`,
+      profit: v.profit !== null ? `${v.purchase_currency} ${v.profit.toFixed(2)}` : 'Unknown',
+      _rawProfit: v.profit,
+      remaining: v.remaining_parts ?? 0,
+    }))
+
+    generateReportPdf({
+      companyName: currentStaff?.companyName || 'Auto Parts Inventory',
+      reportTitle: 'Vehicle Profit Report',
+      columns,
+      rows,
+    })
+  }
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
@@ -92,6 +130,13 @@ function VehicleProfit() {
                 Track profitability for each donor vehicle you've purchased.
               </p>
             </div>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
+            >
+              Export PDF
+            </button>
           </div>
         </section>
 
