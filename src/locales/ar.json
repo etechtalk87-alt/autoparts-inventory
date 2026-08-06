@@ -1,0 +1,23 @@
+
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "donorVehicles": "مركبات التفكيك",
+    "spareParts": "قطع الغيار",
+    "sales": "المبيعات",
+    "receivables": "المستحقات",
+    "admin": "الإدارة",
+    "logout": "تسجيل الخروج"
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "استخدم بيانات اعتماد Supabase الخاصة بك للمتابعة.",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "signIn": "دخول",
+    "signingIn": "جاري تسجيل الدخول...",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "needAccount": "ليس لديك حساب؟",
+    "signUp": "إنشاء حساب"
+  }
+}

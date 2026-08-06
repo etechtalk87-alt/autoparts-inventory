@@ -1,0 +1,24 @@
+
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "donorVehicles": "Donor Vehicles",
+    "spareParts": "Spare Parts",
+    "sales": "Sales",
+    "receivables": "Receivables",
+    "admin": "Admin",
+    "logout": "Logout"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Use your Supabase credentials to continue.",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Login",
+    "signingIn": "Signing in...",
+    "forgotPassword": "Forgot password?",
+    "needAccount": "Need an account?",
+    "signUp": "Sign up"
+  }
+}
+
