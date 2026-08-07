@@ -1,202 +1,235 @@
 import { createElement } from 'react'
-import { Document, Page, StyleSheet, Text, View, Image, pdf } from '@react-pdf/renderer'
+import { Document, Page, StyleSheet, Text, View, Image, Svg, Path, Circle, pdf } from '@react-pdf/renderer'
+
+const COLORS = {
+  charcoal: '#1A1410',
+  gold: '#C9A057',
+  goldBorder: '#D8B07A',
+  cream: '#F9F7F3',
+  white: '#FFFFFF',
+  textPrimary: '#111827',
+  textSecondary: '#6B7280',
+  emerald: '#059669',
+  rose: '#DC2626',
+  amber: '#D97706',
+  purple: '#7C3AED',
+}
 
 const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
-    backgroundColor: '#ffffff',
-    padding: 36,
+    backgroundColor: COLORS.cream,
     fontFamily: 'Helvetica',
   },
-  header: {
+  headerBand: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 28,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingBottom: 16,
+    backgroundColor: COLORS.charcoal,
+    paddingHorizontal: 40,
+    paddingVertical: 28,
+    borderBottomWidth: 3,
+    borderBottomColor: COLORS.gold,
+    borderBottomRightRadius: 70,
   },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: COLORS.gold,
+    marginHorizontal: 16,
+    opacity: 0.5,
   },
-  company: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 6,
-    color: '#111827',
-  },
-  secondary: {
-    fontSize: 11,
-    color: '#475569',
-    marginBottom: 2,
-  },
-  muted: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 2,
-  },
-  companyInfo: {
-    maxWidth: '60%',
-  },
-  logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  invoiceCard: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 14,
-    padding: 14,
-    minWidth: 220,
-    alignItems: 'flex-end',
+  logo: { width: 46, height: 46, borderRadius: 8, marginRight: 14, backgroundColor: COLORS.white },
+  company: { fontSize: 17, fontWeight: '700', color: COLORS.white, letterSpacing: 0.3 },
+  headerInfoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 5 },
+  headerInfoText: { fontSize: 8.5, color: '#D6D0C4' },
+  headerInfoLine: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },
+  headerRight: { alignItems: 'flex-end' },
+  title: { fontSize: 13, fontWeight: '700', color: COLORS.gold, textTransform: 'uppercase', letterSpacing: 2.5 },
+  originalPill: {
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#dbeafe',
+    borderColor: COLORS.gold,
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 12,
   },
-  invoiceLabel: {
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 8,
+  originalPillText: { fontSize: 8, color: COLORS.gold, letterSpacing: 1.5, textTransform: 'uppercase' },
+  body: { paddingHorizontal: 40, paddingVertical: 30 },
+  detailsRow: { flexDirection: 'row', gap: 14, marginBottom: 22, alignItems: 'flex-start' },
+  card: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.goldBorder,
+    borderRadius: 16,
+    padding: 14,
   },
-  invoiceNumber: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 4,
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  iconCircle: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: COLORS.charcoal,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 8,
   },
+  cardLabel: { fontSize: 9, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 1 },
+  cardValue: { fontSize: 12, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 3 },
+  cardSub: { fontSize: 9.5, color: COLORS.textSecondary, marginBottom: 2 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  detailLabel: { fontSize: 9.5, color: COLORS.textSecondary },
+  detailValue: { fontSize: 9.5, fontWeight: '700', color: COLORS.textPrimary },
   statusBadge: {
     marginTop: 10,
     alignSelf: 'flex-start',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 999,
-    backgroundColor: '#dbeafe',
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    color: '#0f172a',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  meta: {
-    alignItems: 'flex-end',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 6,
-    letterSpacing: 0.5,
-  },
-  table: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginTop: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f8fafc',
-    paddingVertical: 12,
+    paddingVertical: 5,
     paddingHorizontal: 12,
   },
-  tableHeaderText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    backgroundColor: '#ffffff',
-  },
-  col1: {
-    flex: 2,
-    fontSize: 11,
-  },
-  col2: {
-    flex: 2,
-    fontSize: 11,
-  },
-  col3: {
+  statusBadgeText: { fontSize: 9, fontWeight: '700', color: COLORS.white, textTransform: 'uppercase', letterSpacing: 0.8, marginLeft: 5 },
+  table: { borderWidth: 1, borderColor: COLORS.goldBorder, borderRadius: 14, overflow: 'hidden' },
+  tableHeader: { flexDirection: 'row', backgroundColor: COLORS.charcoal, paddingVertical: 11, paddingHorizontal: 16 },
+  tableHeaderText: { fontSize: 9, fontWeight: '700', color: COLORS.gold, textTransform: 'uppercase', letterSpacing: 0.8 },
+  tableRow: { flexDirection: 'row', paddingVertical: 13, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#EFE9DD', backgroundColor: COLORS.white },
+  tableRowAlt: { backgroundColor: '#FAF7F0' },
+  colIndex: { width: 24, fontSize: 9.5, color: COLORS.textSecondary },
+  col1: { flex: 2, fontSize: 10.5, color: COLORS.textPrimary, fontWeight: '600' },
+  col2: { flex: 2, fontSize: 9.5, color: COLORS.textSecondary },
+  col3: { flex: 1, fontSize: 10.5, textAlign: 'right', color: COLORS.textPrimary, fontWeight: '700' },
+  totalsRow: { flexDirection: 'row', gap: 14, marginTop: 22, alignItems: 'flex-start' },
+  statusCard: {
     flex: 1,
-    fontSize: 11,
-    textAlign: 'right',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.goldBorder,
+    borderRadius: 16,
+    padding: 16,
   },
-  paymentStatus: {
-    marginTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+  statusCardTitle: { fontSize: 9, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+  statusCardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  statusCardValue: { fontSize: 13, fontWeight: '700', marginLeft: 6 },
+  statusCardNote: { fontSize: 9, color: COLORS.textSecondary },
+  summaryCard: {
+    flex: 1.1,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.goldBorder,
+    borderRadius: 16,
+    padding: 18,
   },
-  summaryBlock: {
-    minWidth: 180,
-    marginTop: 2,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  summaryLabel: {
-    fontSize: 11,
-    color: '#475569',
-  },
-  summaryValue: {
-    fontSize: 11,
-    color: '#111827',
-  },
-  totalValue: {
-    marginTop: 6,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  balanceDue: {
-    marginTop: 10,
-    fontWeight: '700',
-    fontSize: 13,
-    color: '#dc2626',
-  },
-  footer: {
-    marginTop: 30,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 14,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#475569',
-    textAlign: 'center',
-  },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  summaryLabel: { fontSize: 9.5, color: COLORS.textSecondary },
+  summaryValue: { fontSize: 9.5, color: COLORS.textPrimary, fontWeight: '600' },
+  totalDivider: { marginTop: 4, marginBottom: 8, borderTopWidth: 1, borderTopColor: '#EFE9DD' },
+  grandTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 },
+  grandTotalLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textPrimary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  grandTotalValue: { fontSize: 18, fontWeight: '700', color: COLORS.gold },
+  bar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginTop: 8 },
+  barDark: { backgroundColor: COLORS.charcoal },
+  barLabelDark: { fontSize: 9, fontWeight: '700', color: COLORS.white, textTransform: 'uppercase', letterSpacing: 0.5 },
+  barValueGreen: { fontSize: 11, fontWeight: '700', color: '#34D399' },
+  featuresRow: { flexDirection: 'row', marginTop: 26, borderWidth: 1, borderColor: COLORS.goldBorder, borderRadius: 16, backgroundColor: COLORS.white },
+  featureCol: { flex: 1, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 8 },
+  featureColBorder: { borderLeftWidth: 1, borderLeftColor: '#EFE9DD' },
+  featureTitle: { fontSize: 9, fontWeight: '700', color: COLORS.textPrimary, marginTop: 6, textAlign: 'center' },
+  featureDesc: { fontSize: 7.5, color: COLORS.textSecondary, marginTop: 2, textAlign: 'center' },
+  footerBottom: { marginTop: 20, alignItems: 'center' },
+  footerTagline: { fontSize: 10, color: COLORS.gold, fontStyle: 'italic', marginBottom: 4 },
+  footerDisclaimer: { fontSize: 8, color: COLORS.textSecondary },
 })
 
+// Small hand-built icon primitives (lucide-react is web-only, not usable in react-pdf)
+function IconCheck({ color = COLORS.white, size = 11 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Path, { d: 'M20 6L9 17l-5-5', stroke: color, strokeWidth: 3, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }),
+  )
+}
+function IconUser({ color = COLORS.white, size = 12 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Circle, { cx: 12, cy: 8, r: 4, stroke: color, strokeWidth: 2, fill: 'none' }),
+    createElement(Path, { d: 'M4 20c0-4 4-6 8-6s8 2 8 6', stroke: color, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' }),
+  )
+}
+function IconDocument({ color = COLORS.white, size = 12 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Path, { d: 'M6 2h9l5 5v15H6z', stroke: color, strokeWidth: 2, fill: 'none', strokeLinejoin: 'round' }),
+    createElement(Path, { d: 'M9 12h6M9 16h6', stroke: color, strokeWidth: 1.6, strokeLinecap: 'round' }),
+  )
+}
+function IconShield({ color = COLORS.charcoal, size = 18 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Path, { d: 'M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinejoin: 'round' }),
+    createElement(Path, { d: 'M9 12l2 2 4-4', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }),
+  )
+}
+function IconHeadset({ color = COLORS.charcoal, size = 18 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Path, { d: 'M4 13a8 8 0 0116 0', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round' }),
+    createElement(Path, { d: 'M4 13v4a2 2 0 002 2h1v-6H5a1 1 0 00-1 1z', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinejoin: 'round' }),
+    createElement(Path, { d: 'M20 13v4a2 2 0 01-2 2h-1v-6h2a1 1 0 011 1z', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinejoin: 'round' }),
+  )
+}
+function IconClock({ color = COLORS.charcoal, size = 18 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Circle, { cx: 12, cy: 12, r: 9, stroke: color, strokeWidth: 1.8, fill: 'none' }),
+    createElement(Path, { d: 'M12 7v5l3 3', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }),
+  )
+}
+function IconLocation({ color = COLORS.gold, size = 9 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Path, { d: 'M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z', stroke: color, strokeWidth: 2, fill: 'none', strokeLinejoin: 'round' }),
+    createElement(Circle, { cx: 12, cy: 10, r: 2.5, stroke: color, strokeWidth: 2, fill: 'none' }),
+  )
+}
+function IconPhone({ color = COLORS.gold, size = 9 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Path, {
+      d: 'M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c0.3-0.3 0.7-0.4 1-0.2 1.1 0.4 2.3 0.6 3.6 0.6 0.6 0 1 0.4 1 1V20c0 0.6-0.4 1-1 1C10.9 21 3 13.1 3 3.4c0-0.6 0.4-1 1-1h3.4c0.6 0 1 0.4 1 1 0 1.3 0.2 2.5 0.6 3.6 0.1 0.3 0.1 0.7-0.2 1L6.6 10.8z',
+      stroke: color, strokeWidth: 1.6, fill: 'none', strokeLinejoin: 'round',
+    }),
+  )
+}
+function IconIdCard({ color = COLORS.gold, size = 9 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Path, { d: 'M3 5h18v14H3z', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinejoin: 'round' }),
+    createElement(Circle, { cx: 8, cy: 12, r: 2, stroke: color, strokeWidth: 1.6, fill: 'none' }),
+    createElement(Path, { d: 'M14 10h5M14 14h5', stroke: color, strokeWidth: 1.6, strokeLinecap: 'round' }),
+  )
+}
+function IconMail({ color = COLORS.gold, size = 9 }) {
+  return createElement(
+    Svg, { width: size, height: size, viewBox: '0 0 24 24' },
+    createElement(Path, { d: 'M3 5h18v14H3z', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinejoin: 'round' }),
+    createElement(Path, { d: 'M3 6l9 7 9-7', stroke: color, strokeWidth: 1.8, fill: 'none', strokeLinejoin: 'round' }),
+  )
+}
+
+const STATUS_COLORS = {
+  'Paid in Full': COLORS.emerald,
+  'Partial Payment': COLORS.amber,
+  'On Credit': COLORS.purple,
+  'Unpaid': COLORS.rose,
+}
+
 function InvoiceDocument({ invoice }) {
-  const detailLine = [
-    invoice.partName,
-    invoice.condition ? `Condition: ${invoice.condition}` : null,
-    invoice.donorVehicle ? `Vehicle: ${invoice.donorVehicle}` : null,
-  ].filter(Boolean)
   const branchLine = [invoice.branchName, invoice.branchLocation].filter(Boolean).join(' • ')
+  const statusColor = STATUS_COLORS[invoice.paymentStatusLabel] || COLORS.rose
+  const balanceDueNum = Number(invoice.balanceDue || 0)
+
+  const items = invoice.items || [
+    { partName: invoice.partName, condition: invoice.condition, donorVehicle: invoice.donorVehicle, salePrice: invoice.salePrice },
+  ]
 
   return createElement(
     Document,
@@ -204,132 +237,204 @@ function InvoiceDocument({ invoice }) {
     createElement(
       Page,
       { size: 'A4', style: styles.page },
+
+      // Header
       createElement(
         View,
-        { style: styles.header },
+        { style: styles.headerBand },
         createElement(
           View,
-          { style: styles.companyInfo },
-          ...(invoice.logoUrl
-            ? [createElement(Image, { key: 'logo', style: styles.logo, src: invoice.logoUrl })]
-            : []),
-          createElement(Text, { style: styles.title }, Number(invoice.vatAmount) > 0 ? 'Tax Invoice' : 'Invoice'),
-          createElement(Text, { style: styles.company }, invoice.companyName || 'Auto Parts Inventory'),
-          createElement(Text, { style: styles.secondary }, branchLine || 'Branch'),
-          ...(invoice.trnNumber
-            ? [createElement(Text, { key: 'trn', style: styles.secondary }, `TRN: ${invoice.trnNumber}`)]
-            : []),
-        ),
-        createElement(
-          View,
-          { style: styles.invoiceCard },
-          createElement(Text, { style: styles.invoiceLabel }, 'Invoice Details'),
-          createElement(Text, { style: styles.invoiceNumber }, invoice.invoiceNumber),
-          createElement(Text, { style: styles.secondary }, `Date: ${invoice.saleDate}`),
+          { style: styles.headerLeft },
+          ...(invoice.logoUrl ? [createElement(Image, { key: 'logo', style: styles.logo, src: invoice.logoUrl })] : []),
+          ...(invoice.logoUrl ? [createElement(View, { key: 'divider', style: styles.headerDivider })] : []),
           createElement(
             View,
-            { style: styles.statusBadge },
-            createElement(Text, { style: styles.statusBadgeText }, invoice.paymentStatusLabel || 'Unpaid'),
+            null,
+            createElement(Text, { style: styles.company }, invoice.companyName || 'Auto Parts Inventory'),
+            createElement(
+              View,
+              { style: [styles.headerInfoLine, { marginTop: 6 }] },
+              createElement(IconLocation, {}),
+              createElement(Text, { style: styles.headerInfoText }, branchLine || 'Branch'),
+            ),
+            ...(invoice.contactPhone ? [createElement(
+              View,
+              { key: 'phone', style: styles.headerInfoLine },
+              createElement(IconPhone, {}),
+              createElement(Text, { style: styles.headerInfoText }, invoice.contactPhone),
+            )] : []),
+            ...(invoice.trnNumber ? [createElement(
+              View,
+              { key: 'trn', style: styles.headerInfoLine },
+              createElement(IconIdCard, {}),
+              createElement(Text, { style: styles.headerInfoText }, `TRN: ${invoice.trnNumber}`),
+            )] : []),
+            ...(invoice.contactEmail ? [createElement(
+              View,
+              { key: 'email', style: styles.headerInfoLine },
+              createElement(IconMail, {}),
+              createElement(Text, { style: styles.headerInfoText }, invoice.contactEmail),
+            )] : []),
           ),
         ),
-      ),
-      createElement(
-        View,
-        { style: styles.section },
-        createElement(Text, { style: styles.sectionTitle }, 'Bill To'),
-        createElement(Text, { style: [styles.secondary, { fontWeight: '700', color: '#0f172a' }] }, invoice.customerName),
-        ...(invoice.customerContact
-          ? [createElement(Text, { key: 'customer-contact', style: styles.secondary }, invoice.customerContact)]
-          : []),
-      ),
-      createElement(
-        View,
-        { style: styles.table },
         createElement(
           View,
-          { style: styles.tableHeader },
-          createElement(Text, { style: [styles.col1, styles.tableHeaderText] }, 'Item'),
-          createElement(Text, { style: [styles.col2, styles.tableHeaderText] }, 'Details'),
-          createElement(Text, { style: [styles.col3, styles.tableHeaderText] }, 'Amount'),
+          { style: styles.headerRight },
+          createElement(Text, { style: styles.title }, Number(invoice.vatAmount) > 0 ? 'Tax Invoice' : 'Invoice'),
+          createElement(View, { style: styles.originalPill }, createElement(Text, { style: styles.originalPillText }, 'Original')),
         ),
-        ...(invoice.items || [
-          {
-            partName: invoice.partName,
-            condition: invoice.condition,
-            donorVehicle: invoice.donorVehicle,
-            salePrice: invoice.salePrice,
-          },
-        ]).map((item, index) => {
-          const lineDetails = [
-            item.condition ? `Condition: ${item.condition}` : null,
-            item.donorVehicle ? `Vehicle: ${item.donorVehicle}` : null,
-          ].filter(Boolean)
-          return createElement(
+      ),
+
+      createElement(
+        View,
+        { style: styles.body },
+
+        // Bill To + Invoice Details
+        createElement(
+          View,
+          { style: styles.detailsRow },
+          createElement(
             View,
-            { key: `${item.partName}-${index}`, style: styles.tableRow },
-            createElement(Text, { style: styles.col1 }, item.partName),
-            createElement(Text, { style: styles.col2 }, lineDetails.join(' • ')),
-            createElement(Text, { style: styles.col3 }, `${invoice.currency} ${item.salePrice}`),
-          )
-        }),
-      ),
-      createElement(
-        View,
-        { style: styles.paymentStatus },
+            { style: styles.card },
+            createElement(
+              View,
+              { style: styles.cardHeaderRow },
+              createElement(View, { style: styles.iconCircle }, createElement(IconUser, {})),
+              createElement(Text, { style: styles.cardLabel }, 'Bill To'),
+            ),
+            createElement(Text, { style: styles.cardValue }, invoice.customerName),
+            ...(invoice.customerContact ? [createElement(Text, { key: 'c', style: styles.cardSub }, invoice.customerContact)] : []),
+          ),
+          createElement(
+            View,
+            { style: styles.card },
+            createElement(
+              View,
+              { style: styles.cardHeaderRow },
+              createElement(View, { style: styles.iconCircle }, createElement(IconDocument, {})),
+              createElement(Text, { style: styles.cardLabel }, 'Invoice Details'),
+            ),
+            createElement(View, { style: styles.detailRow }, createElement(Text, { style: styles.detailLabel }, 'Invoice No.'), createElement(Text, { style: styles.detailValue }, invoice.invoiceNumber)),
+            createElement(View, { style: styles.detailRow }, createElement(Text, { style: styles.detailLabel }, 'Date'), createElement(Text, { style: styles.detailValue }, invoice.saleDate)),
+            createElement(
+              View,
+              { style: [styles.statusBadge, { backgroundColor: statusColor }] },
+              createElement(IconCheck, { size: 9 }),
+              createElement(Text, { style: styles.statusBadgeText }, invoice.paymentStatusLabel || 'Unpaid'),
+            ),
+          ),
+        ),
+
+        // Items table
         createElement(
           View,
-          null,
-          createElement(Text, { style: styles.muted }, 'Payment Status:'),
-          createElement(Text, { style: styles.secondary }, invoice.paymentStatusLabel || 'Unpaid'),
+          { style: styles.table },
+          createElement(
+            View,
+            { style: styles.tableHeader },
+            createElement(Text, { style: [styles.colIndex, styles.tableHeaderText] }, '#'),
+            createElement(Text, { style: [styles.col1, styles.tableHeaderText] }, 'Item'),
+            createElement(Text, { style: [styles.col2, styles.tableHeaderText] }, 'Details'),
+            createElement(Text, { style: [styles.col3, styles.tableHeaderText] }, 'Amount'),
+          ),
+          ...items.map((item, index) => {
+            const lineDetails = [
+              item.condition ? `Condition: ${item.condition}` : null,
+              item.donorVehicle ? `Vehicle: ${item.donorVehicle}` : null,
+            ].filter(Boolean)
+            return createElement(
+              View,
+              { key: `${item.partName}-${index}`, wrap: false, style: [styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : null] },
+              createElement(Text, { style: styles.colIndex }, String(index + 1)),
+              createElement(Text, { style: styles.col1 }, item.partName),
+              createElement(Text, { style: styles.col2 }, lineDetails.join('  •  ')),
+              createElement(Text, { style: styles.col3 }, `${invoice.currency} ${item.salePrice}`),
+            )
+          }),
         ),
+
+        // Payment status + Financial summary
         createElement(
           View,
-          { style: styles.summaryBlock },
-          ...(Number(invoice.vatAmount) > 0
-            ? [
-                createElement(
-                  View,
-                  { key: 'subtotal', style: styles.summaryRow },
-                  createElement(Text, { style: styles.summaryLabel }, 'Subtotal'),
-                  createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.subtotal}`),
-                ),
-                createElement(
-                  View,
-                  { key: 'vat', style: styles.summaryRow },
-                  createElement(Text, { style: styles.summaryLabel }, 'VAT (5%)'),
-                  createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.vatAmount}`),
-                ),
-              ]
-            : []),
-          invoice.balanceDue !== undefined && invoice.balanceDue > 0
-            ? createElement(
-                View,
-                { key: 'amount-paid', style: styles.summaryRow },
-                createElement(Text, { style: styles.summaryLabel }, 'Amount Paid'),
-                createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${(Number(invoice.totalAmount ?? invoice.salePrice ?? 0) - Number(invoice.balanceDue)).toFixed(2)}`),
-              )
-            : null,
-          invoice.balanceDue !== undefined && invoice.balanceDue > 0
-            ? createElement(Text, { style: styles.balanceDue }, `Balance Due: ${invoice.currency} ${invoice.balanceDue}`)
-            : createElement(Text, { style: [styles.summaryValue, styles.totalValue] }, `Total: ${invoice.currency} ${invoice.totalAmount ?? invoice.salePrice}`),
+          { style: styles.totalsRow },
+          createElement(
+            View,
+            { style: styles.statusCard },
+            createElement(Text, { style: styles.statusCardTitle }, 'Payment Status'),
+            createElement(
+              View,
+              { style: styles.statusCardRow },
+              createElement(View, { style: [styles.iconCircle, { backgroundColor: statusColor, width: 20, height: 20, borderRadius: 10, marginRight: 0 }] }, createElement(IconCheck, { size: 10 })),
+              createElement(Text, { style: [styles.statusCardValue, { color: statusColor }] }, invoice.paymentStatusLabel || 'Unpaid'),
+            ),
+            createElement(Text, { style: styles.statusCardNote }, 'Thank you for your business.'),
+          ),
+          createElement(
+            View,
+            { style: styles.summaryCard },
+            ...(Number(invoice.vatAmount) > 0
+              ? [
+                  createElement(View, { key: 'sub', style: styles.summaryRow }, createElement(Text, { style: styles.summaryLabel }, 'Subtotal'), createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.subtotal}`)),
+                  createElement(View, { key: 'vat', style: styles.summaryRow }, createElement(Text, { style: styles.summaryLabel }, 'VAT (5%)'), createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.vatAmount}`)),
+                ]
+              : []),
+            createElement(View, { style: styles.totalDivider }),
+            createElement(View, { style: styles.grandTotalRow }, createElement(Text, { style: styles.grandTotalLabel }, 'Grand Total'), createElement(Text, { style: styles.grandTotalValue }, `${invoice.currency} ${invoice.totalAmount ?? invoice.salePrice}`)),
+            createElement(
+              View,
+              { style: [styles.bar, styles.barDark] },
+              createElement(Text, { style: styles.barLabelDark }, 'Amount Paid'),
+              createElement(Text, { style: styles.barValueGreen }, `${invoice.currency} ${(Number(invoice.totalAmount ?? invoice.salePrice ?? 0) - balanceDueNum).toFixed(2)}`),
+            ),
+            createElement(
+              View,
+              { style: [styles.bar, { backgroundColor: balanceDueNum > 0 ? '#FEE2E2' : '#D1FAE5' }] },
+              createElement(Text, { style: [styles.barLabelDark, { color: balanceDueNum > 0 ? COLORS.rose : COLORS.emerald }] }, 'Balance Due'),
+              createElement(Text, { style: [styles.barValueGreen, { color: balanceDueNum > 0 ? COLORS.rose : COLORS.emerald }] }, `${invoice.currency} ${balanceDueNum.toFixed(2)}`),
+            ),
+          ),
         ),
-      ),
-      createElement(
-        View,
-        { style: styles.footer },
-        createElement(Text, { style: styles.footerText }, 'Thank you for your business'),
-        ...(invoice.contactPhone || invoice.contactEmail
-          ? [createElement(
-              Text,
-              { key: 'contact', style: [styles.footerText, { marginTop: 4, fontSize: 10 }] },
-              (() => {
-                const parts = []
-                if (invoice.contactPhone) parts.push(`call ${invoice.contactPhone}`)
-                if (invoice.contactEmail) parts.push(`email ${invoice.contactEmail}`)
-                return `Questions? ${parts.join(' or ')}`
-              })()
-            )]
-          : []),
+
+        // Feature footer
+        createElement(
+          View,
+          { style: styles.featuresRow },
+          createElement(
+            View,
+            { style: styles.featureCol },
+            createElement(IconShield, {}),
+            createElement(Text, { style: styles.featureTitle }, '100% Original Parts'),
+            createElement(Text, { style: styles.featureDesc }, 'Quality checked & tested'),
+          ),
+          createElement(
+            View,
+            { style: [styles.featureCol, styles.featureColBorder] },
+            createElement(IconShield, {}),
+            createElement(Text, { style: styles.featureTitle }, 'Warranty Assured'),
+            createElement(Text, { style: styles.featureDesc }, 'Peace of mind guaranteed'),
+          ),
+          createElement(
+            View,
+            { style: [styles.featureCol, styles.featureColBorder] },
+            createElement(IconHeadset, {}),
+            createElement(Text, { style: styles.featureTitle }, 'Customer Support'),
+            createElement(Text, { style: styles.featureDesc }, "We're here to help"),
+          ),
+          createElement(
+            View,
+            { style: [styles.featureCol, styles.featureColBorder] },
+            createElement(IconClock, {}),
+            createElement(Text, { style: styles.featureTitle }, 'Thank You'),
+            createElement(Text, { style: styles.featureDesc }, 'For your trust & support'),
+          ),
+        ),
+
+        createElement(
+          View,
+          { style: styles.footerBottom },
+          createElement(Text, { style: styles.footerTagline }, 'Driven by Quality, Trusted for Reliability.'),
+          createElement(Text, { style: styles.footerDisclaimer }, 'This is a computer generated invoice and does not require a signature.'),
+        ),
       ),
     ),
   )
