@@ -380,7 +380,7 @@ function Sales() {
                         </td>
                         <td className="px-6 py-4 text-slate-300">{sale.branches?.name ?? '—'}</td>
                         <td className="px-6 py-4 font-semibold text-white">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
-                        <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || '—'}</td>
+                        <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || 'Walk-in Customer'}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
                             {getPaymentStatusLabel(sale.payment_status)}

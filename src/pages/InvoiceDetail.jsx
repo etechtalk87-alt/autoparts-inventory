@@ -441,7 +441,7 @@ function InvoiceDetail() {
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Customer</p>
-                <p className="mt-2 text-sm text-slate-200">{invoiceDisplay?.customers?.full_name || invoiceDisplay?.customer_name || sale?.customers?.full_name || sale?.customer_name || '–'}</p>
+                <p className="mt-2 text-sm text-slate-200">{invoiceDisplay?.customers?.full_name || invoiceDisplay?.customer_name || sale?.customers?.full_name || sale?.customer_name || 'Walk-in Customer'}</p>
                 {invoiceDisplay?.customers?.email ? <p className="mt-1 text-sm text-slate-400">{invoiceDisplay.customers.email}</p> : null}
                 {invoiceDisplay?.customers?.phone ? <p className="mt-1 text-sm text-slate-400">{invoiceDisplay.customers.phone}</p> : null}
               </div>

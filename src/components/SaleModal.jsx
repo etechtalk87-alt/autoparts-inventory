@@ -158,6 +158,10 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
       setSaleMessage('Please select or create a customer, or mark this as a Walk-in Sale.')
       return
     }
+    if (isWalkIn && paymentStatus !== 'paid_in_full') {
+      setSaleMessage('Walk-in sales must be paid in full.')
+      return
+    }
 
     let finalAmountPaid = 0
     if (paymentStatus === 'paid_in_full') {
@@ -295,12 +299,20 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                     setCustomerSearch('')
                     setShowCustomerDropdown(false)
                     setShowNewCustomerForm(false)
+                    setPaymentStatus('paid_in_full')
+                    setAmountPaid('')
                   }
                 }}
                 className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-cyan-500"
               />
               <span className="text-sm text-slate-300">Walk-in Sale (no customer record)</span>
             </label>
+
+            {isWalkIn && (
+              <p className="mt-2 text-xs text-slate-500">
+                Walk-in sales must be paid in full, since there's no customer record to follow up with.
+              </p>
+            )}
 
             {!isWalkIn && (
               <>
@@ -452,7 +464,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                     checked={paymentStatus === 'partial'}
                     onChange={(e) => setPaymentStatus(e.target.value)}
                     className="h-4 w-4"
-                    disabled={(!selectedCustomerId && !isWalkIn)}
+                    disabled={(!selectedCustomerId && !isWalkIn) || isWalkIn}
                   />
                   <span className="text-sm text-slate-300">Partial Payment</span>
                 </label>
@@ -467,7 +479,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                       setAmountPaid('')
                     }}
                     className="h-4 w-4"
-                    disabled={(!selectedCustomerId && !isWalkIn)}
+                    disabled={(!selectedCustomerId && !isWalkIn) || isWalkIn}
                   />
                   <span className="text-sm text-slate-300">Full Credit</span>
                 </label>
