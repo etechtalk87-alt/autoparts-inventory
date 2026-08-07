@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -10,8 +11,34 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
+import { supabase } from '../lib/supabaseClient.js'
 
 function LandingPage() {
+  const [pricingTiers, setPricingTiers] = useState([])
+  const [loadingPricing, setLoadingPricing] = useState(true)
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('subscription_plans')
+          .select('id, name, price_aed, description, features, highlighted, sort_order')
+          .order('sort_order')
+
+        if (error) {
+          console.error('Error fetching pricing plans:', error)
+          setPricingTiers([])
+        } else {
+          setPricingTiers(data || [])
+        }
+      } finally {
+        setLoadingPricing(false)
+      }
+    }
+
+    fetchPlans()
+  }, [])
+
   const features = [
     {
       icon: Building2,
@@ -66,33 +93,6 @@ function LandingPage() {
       title: 'Sell, invoice, and track everything in one place',
       description:
         'Turn inventory into completed sales, issue invoices, and keep payments and balances under control.',
-    },
-  ]
-
-  const pricingTiers = [
-    {
-      name: 'Starter',
-      price: 'AED 299',
-      period: '/month',
-      description: 'For single-branch shops getting organized.',
-      features: ['1 branch', 'Up to 3 staff accounts', 'Unlimited parts & invoices', 'Email support'],
-      highlighted: false,
-    },
-    {
-      name: 'Professional',
-      price: 'AED 599',
-      period: '/month',
-      description: 'For growing operations with multiple branches.',
-      features: ['Up to 5 branches', 'Unlimited staff accounts', 'VAT-compliant invoicing', 'Outstanding payables tracking', 'Priority support'],
-      highlighted: true,
-    },
-    {
-      name: 'Business',
-      price: 'Custom',
-      period: '',
-      description: 'For established dealers with custom needs.',
-      features: ['Unlimited branches', 'Unlimited staff accounts', 'Dedicated onboarding', 'Custom integrations', 'Phone & WhatsApp support'],
-      highlighted: false,
     },
   ]
 
@@ -387,49 +387,64 @@ function LandingPage() {
             </p>
           </div>
 
-          <div className="mt-8 grid gap-5 lg:grid-cols-3">
-            {pricingTiers.map((tier) => (
-              <div
-                key={tier.name}
-                className={`rounded-[24px] border p-6 ${tier.highlighted
-                  ? 'border-cyan-400/50 bg-cyan-500/10 shadow-[0_0_0_1px_rgba(34,211,238,0.35),0_20px_80px_-40px_rgba(34,211,238,0.7)]'
-                  : 'border-slate-800 bg-slate-950/60'}`}
-              >
-                {tier.highlighted ? (
-                  <div className="mb-4 inline-flex rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                    Most Popular
-                  </div>
-                ) : null}
+          <div className="mt-8">
+            {loadingPricing ? (
+              <p className="text-sm text-slate-400">Loading plans...</p>
+            ) : pricingTiers.length === 0 ? (
+              <p className="text-sm text-slate-400">Pricing plans will be available soon.</p>
+            ) : (
+              <div className="grid gap-5 lg:grid-cols-3">
+                {pricingTiers.map((tier) => {
+                  const priceValue = tier.price_aed == null || tier.price_aed === ''
+                    ? 'Custom'
+                    : `AED ${Number(tier.price_aed).toLocaleString('en-AE')}`
+                  const hasPrice = tier.price_aed != null && tier.price_aed !== ''
 
-                <h3 className="text-xl font-semibold text-white">{tier.name}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-400">{tier.description}</p>
+                  return (
+                    <div
+                      key={tier.id || tier.name}
+                      className={`rounded-[24px] border p-6 ${tier.highlighted
+                        ? 'border-cyan-400/50 bg-cyan-500/10 shadow-[0_0_0_1px_rgba(34,211,238,0.35),0_20px_80px_-40px_rgba(34,211,238,0.7)]'
+                        : 'border-slate-800 bg-slate-950/60'}`}
+                    >
+                      {tier.highlighted ? (
+                        <div className="mb-4 inline-flex rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+                          Most Popular
+                        </div>
+                      ) : null}
 
-                <div className="mt-6 flex items-end gap-1">
-                  <span className="text-3xl font-semibold text-white">{tier.price}</span>
-                  {tier.period ? <span className="pb-1 text-sm text-slate-400">{tier.period}</span> : null}
-                </div>
+                      <h3 className="text-xl font-semibold text-white">{tier.name}</h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-400">{tier.description}</p>
 
-                <ul className="mt-6 space-y-3 text-sm text-slate-300">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-cyan-500/10 text-cyan-300">
-                        <Check size={14} />
-                      </span>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+                      <div className="mt-6 flex items-end gap-1">
+                        <span className="text-3xl font-semibold text-white">{priceValue}</span>
+                        {hasPrice ? <span className="pb-1 text-sm text-slate-400">/month</span> : null}
+                      </div>
 
-                <Link
-                  to="/signup"
-                  className={`mt-8 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition ${tier.highlighted
-                    ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'
-                    : 'border border-slate-700 bg-slate-900/70 text-slate-100 hover:bg-slate-800'}`}
-                >
-                  Get Started
-                </Link>
+                      <ul className="mt-6 space-y-3 text-sm text-slate-300">
+                        {(Array.isArray(tier.features) ? tier.features : []).map((feature, index) => (
+                          <li key={`${tier.id || tier.name}-${index}`} className="flex items-start gap-2">
+                            <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-cyan-500/10 text-cyan-300">
+                              <Check size={14} />
+                            </span>
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <Link
+                        to="/signup"
+                        className={`mt-8 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition ${tier.highlighted
+                          ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'
+                          : 'border border-slate-700 bg-slate-900/70 text-slate-100 hover:bg-slate-800'}`}
+                      >
+                        Get Started
+                      </Link>
+                    </div>
+                  )
+                })}
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>
