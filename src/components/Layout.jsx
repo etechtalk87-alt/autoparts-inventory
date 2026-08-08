@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { useTranslation } from 'react-i18next'
+import LanguageToggle from './LanguageToggle'
 
 function Layout({ children }) {
   const { signOut, user, currentStaff, activeBranchId, setActiveBranchId } = useAuth()
   const location = useLocation()
+  const { t } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [companyName, setCompanyName] = useState('AutoParts Inventory')
   const [planName, setPlanName] = useState('')
@@ -32,38 +35,38 @@ function Layout({ children }) {
   }, [user?.id])
 
   const navLinks = [
-    { to: '/', label: 'Dashboard' },
+    { to: '/', label: t('nav.dashboard') },
     {
-      label: 'Donor Vehicles',
+      label: t('nav.donorVehicles'),
       children: [
-        { to: '/donor-vehicles', label: 'Donor Vehicles' },
-        { to: '/vehicle-profit', label: 'Vehicle Profit' },
+        { to: '/donor-vehicles', label: t('nav.donorVehicles') },
+        { to: '/vehicle-profit', label: t('nav.vehicleProfit') },
       ]
     },
     {
-      label: 'Spare Parts',
+      label: t('nav.spareParts'),
       children: [
-        { to: '/parts', label: 'Spare Parts' },
-        { to: '/parts/import', label: 'Import Parts' },
-        { to: '/transfers', label: 'Transfers' },
-        ...(currentStaff?.role === 'company_admin' ? [{ to: '/part-templates', label: 'Parts Checklist' }] : []),
+        { to: '/parts', label: t('nav.spareParts') },
+        { to: '/parts/import', label: t('nav.importParts') },
+        { to: '/transfers', label: t('nav.transfers') },
+        ...(currentStaff?.role === 'company_admin' ? [{ to: '/part-templates', label: t('nav.partsChecklist') }] : []),
       ]
     },
-    { to: '/sales', label: 'Sales' },
-    { to: '/receivables', label: 'Receivables' },
+    { to: '/sales', label: t('nav.sales') },
+    { to: '/receivables', label: t('nav.receivables') },
     ...(currentStaff?.role === 'company_admin' ? [{
-      label: 'Admin',
+      label: t('nav.admin'),
       children: [
-        { to: '/branches', label: 'Branches' },
-        { to: '/customers', label: 'Customers' },
-        { to: '/manage-staff', label: 'Manage Staff' },
-        { to: '/payables', label: 'Payables' },
-        { to: '/insights', label: 'AI Insights' },
-        { to: '/billing', label: 'Billing' },
-        { to: '/settings', label: 'Settings' },
+        { to: '/branches', label: t('nav.branches') },
+        { to: '/customers', label: t('nav.customers') },
+        { to: '/manage-staff', label: t('nav.manageStaff') },
+        { to: '/payables', label: t('nav.payables') },
+        { to: '/insights', label: t('nav.aiInsights') },
+        { to: '/billing', label: t('nav.billing') },
+        { to: '/settings', label: t('nav.settings') },
       ]
     }] : []),
-    ...(isPlatformAdmin ? [{ to: '/platform-admin', label: 'Platform Admin' }] : []),
+    ...(isPlatformAdmin ? [{ to: '/platform-admin', label: t('nav.platformAdmin') }] : []),
   ]
 
   useEffect(() => {
@@ -190,8 +193,9 @@ function Layout({ children }) {
                 </select>
               )}
               <span className="max-w-[140px] truncate text-sm text-slate-300">{user?.email}</span>
+              <LanguageToggle />
               <button type="button" onClick={() => signOut()} className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200">
-                Logout
+                {t('nav.logout')}
               </button>
             </div>
           </div>
@@ -252,8 +256,9 @@ function Layout({ children }) {
                     </select>
                   </div>
                 )}
+                <LanguageToggle />
                 <button type="button" onClick={() => signOut()} className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200">
-                  Logout
+                  {t('nav.logout')}
                 </button>
               </div>
             </div>

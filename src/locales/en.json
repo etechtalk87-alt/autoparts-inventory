@@ -3,10 +3,22 @@
   "nav": {
     "dashboard": "Dashboard",
     "donorVehicles": "Donor Vehicles",
+    "vehicleProfit": "Vehicle Profit",
     "spareParts": "Spare Parts",
+    "importParts": "Import Parts",
+    "transfers": "Transfers",
+    "partsChecklist": "Parts Checklist",
     "sales": "Sales",
     "receivables": "Receivables",
     "admin": "Admin",
+    "branches": "Branches",
+    "customers": "Customers",
+    "manageStaff": "Manage Staff",
+    "payables": "Payables",
+    "aiInsights": "AI Insights",
+    "billing": "Billing",
+    "settings": "Settings",
+    "platformAdmin": "Platform Admin",
     "logout": "Logout"
   },
   "login": {

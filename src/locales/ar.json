@@ -3,10 +3,22 @@
   "nav": {
     "dashboard": "لوحة التحكم",
     "donorVehicles": "مركبات التفكيك",
+    "vehicleProfit": "ربحية المركبات",
     "spareParts": "قطع الغيار",
+    "importParts": "استيراد القطع",
+    "transfers": "التحويلات",
+    "partsChecklist": "قائمة القطع",
     "sales": "المبيعات",
     "receivables": "المستحقات",
     "admin": "الإدارة",
+    "branches": "الفروع",
+    "customers": "العملاء",
+    "manageStaff": "إدارة الموظفين",
+    "payables": "المستحقات الدائنة",
+    "aiInsights": "التحليلات الذكية",
+    "billing": "الفوترة",
+    "settings": "الإعدادات",
+    "platformAdmin": "إدارة المنصة",
     "logout": "تسجيل الخروج"
   },
   "login": {
