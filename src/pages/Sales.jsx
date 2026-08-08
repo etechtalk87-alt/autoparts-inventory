@@ -371,62 +371,73 @@ function Sales() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10 bg-slate-900/50">
-                    {pagedSales.map((sale) => (
-                      <tr key={sale.id} className="align-middle transition hover:bg-slate-800/60">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
-                              <Package2 size={16} />
+                    {pagedSales.map((sale) => {
+                      return (
+                        <tr key={sale.id} className="align-middle transition hover:bg-slate-800/60">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
+                                <Package2 size={16} />
+                              </div>
+                              <div className="font-medium text-white">{sale.parts?.part_name ?? '—'}</div>
                             </div>
-                            <div className="font-medium text-white">{sale.parts?.part_name ?? '—'}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-slate-300">{sale.branches?.name ?? '—'}</td>
-                        <td className="px-6 py-4 font-semibold text-white">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
-                        <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || 'Walk-in Customer'}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
-                            {getPaymentStatusLabel(sale.payment_status)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-slate-300">{new Date(sale.created_at).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-slate-300">{sale.sold_by_staff?.id ?? '—'}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-2">
-                            {sale.invoice_number ? (
-                              <Link
-                                to={`/invoices/${encodeURIComponent(sale.invoice_number)}`}
-                                className="text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 hover:underline"
+                          </td>
+                          <td className="px-6 py-4 text-slate-300">{sale.branches?.name ?? '—'}</td>
+                          <td className="px-6 py-4 font-semibold text-white">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
+                          <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || 'Walk-in Customer'}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
+                                {getPaymentStatusLabel(sale.payment_status)}
+                              </span>
+                              {Number(sale.refunded_amount || 0) > 0 ? (
+                                <span className="inline-block rounded-full bg-rose-500/10 border border-rose-500/30 px-2.5 py-1 text-xs font-medium text-rose-300">
+                                  {Number(sale.refunded_amount) >= Number(sale.sale_price)
+                                    ? 'Fully Refunded'
+                                    : `Refunded ${sale.currency || 'AED'} ${Number(sale.refunded_amount).toFixed(2)}`}
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-slate-300">{new Date(sale.created_at).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 text-slate-300">{sale.sold_by_staff?.id ?? '—'}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-2">
+                              {sale.invoice_number ? (
+                                <Link
+                                  to={`/invoices/${encodeURIComponent(sale.invoice_number)}`}
+                                  className="text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 hover:underline"
+                                >
+                                  {sale.invoice_number}
+                                </Link>
+                              ) : (
+                                <span className="text-xs text-slate-400">—</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => downloadInvoicePdf({
+                                  supabaseClient: supabase,
+                                  companyId: sale.company_id,
+                                  branchId: sale.branch_id,
+                                  partId: sale.part_id,
+                                  sale,
+                                })}
+                                className="rounded-xl bg-amber-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
                               >
-                                {sale.invoice_number}
-                              </Link>
-                            ) : (
-                              <span className="text-xs text-slate-400">—</span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => downloadInvoicePdf({
-                                supabaseClient: supabase,
-                                companyId: sale.company_id,
-                                branchId: sale.branch_id,
-                                partId: sale.part_id,
-                                sale,
-                              })}
-                              className="rounded-xl bg-amber-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
-                            >
-                              Download Invoice
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setRefundTarget(sale)}
-                              className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 font-semibold text-rose-300 transition hover:bg-rose-500/20"
-                            >
-                              Process Return
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                                Download Invoice
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRefundTarget(sale)}
+                                className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 font-semibold text-rose-300 transition hover:bg-rose-500/20"
+                              >
+                                Process Return
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

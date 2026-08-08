@@ -38,6 +38,8 @@ function InvoiceDetail() {
   const [error, setError] = useState('')
   const [paymentHistory, setPaymentHistory] = useState([])
   const [loadingPayments, setLoadingPayments] = useState(true)
+  const [refundHistory, setRefundHistory] = useState([])
+  const [loadingRefunds, setLoadingRefunds] = useState(true)
   const [sharing, setSharing] = useState(false)
 
   const handleShare = async () => {
@@ -309,6 +311,42 @@ function InvoiceDetail() {
     fetchPayments()
   }, [currentStaff?.company_id, isMultiItem, invoice?.lineItems, sale?.id])
 
+  useEffect(() => {
+    const fetchRefunds = async () => {
+      const saleIds = isMultiItem ? invoice?.lineItems?.map((item) => item.id) : [sale?.id].filter(Boolean)
+
+      if (!currentStaff?.company_id || saleIds.length === 0) {
+        setRefundHistory([])
+        setLoadingRefunds(false)
+        return
+      }
+
+      setLoadingRefunds(true)
+      let query = supabase
+        .from('refunds')
+        .select('id, amount, currency, reason, part_condition_on_return, created_at, processed_by, staff:processed_by ( full_name )')
+        .eq('company_id', currentStaff.company_id)
+
+      if (isMultiItem) {
+        query = query.in('sale_id', saleIds)
+      } else {
+        query = query.eq('sale_id', saleIds[0])
+      }
+
+      const { data, error: refundsError } = await query.order('created_at', { ascending: false })
+
+      if (!refundsError) {
+        setRefundHistory(data || [])
+      } else {
+        console.error('Error fetching invoice refunds:', refundsError)
+        setRefundHistory([])
+      }
+      setLoadingRefunds(false)
+    }
+
+    fetchRefunds()
+  }, [currentStaff?.company_id, isMultiItem, invoice?.lineItems, sale?.id])
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
@@ -519,6 +557,54 @@ function InvoiceDetail() {
             )}
           </div>
         </section>
+        {refundHistory.length > 0 && (
+          <section className="rounded-[28px] border border-rose-500/20 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Refund History</h2>
+                <p className="mt-1 text-sm text-slate-400">Returns and refunds processed against this invoice.</p>
+              </div>
+              <div className="rounded-full border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">
+                {refundHistory.length} refund{refundHistory.length === 1 ? '' : 's'}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              {refundHistory.map((refund) => (
+                <div key={refund.id} className="rounded-3xl border border-rose-500/20 bg-slate-950/70 p-5 shadow-[0_10px_40px_-30px_rgba(0,0,0,0.7)]">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Date</p>
+                      <p className="text-lg font-semibold text-white">{formatDate(refund.created_at)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount</p>
+                      <p className="text-lg font-semibold text-rose-400">-{formatCurrency(refund.amount, refund.currency)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Part Condition</p>
+                      <p className="text-sm text-slate-200">
+                        {refund.part_condition_on_return === 'resellable' ? '✅ Resellable' : '⚠️ Damaged'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Reason</p>
+                      <p className="mt-2 text-sm text-slate-300">{refund.reason || '—'}</p>
+                    </div>
+                    {refund.processed_by ? (
+                      <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Processed by</p>
+                        <p className="mt-2 text-sm text-slate-300">{refund.staff?.full_name || 'Staff member'}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   )
