@@ -12,6 +12,7 @@
   "dependencies": {
     "@react-pdf/renderer": "^4.0.0",
     "@supabase/supabase-js": "^2.110.6",
+    "buffer": "^6.0.3",
     "i18next": "^26.3.6",
     "lucide-react": "^1.25.0",
     "papaparse": "^5.4.1",
