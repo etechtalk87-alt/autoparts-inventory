@@ -525,7 +525,7 @@ function CreateInvoice() {
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4">
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Status</p>
-                <p className="mt-2 text-xl font-semibold text-white">{createdInvoice.paymentStatus === 'paid_in_full' ? 'Paid in Full' : createdInvoice.paymentStatus === 'partial' ? 'Partial' : createdInvoice.paymentStatus === 'credit' ? 'Credit' : 'Unpaid'}</p>
+                <p className="mt-2 text-xl font-semibold text-white">{createdInvoice.paymentStatus === 'paid' ? 'Paid in Full' : createdInvoice.paymentStatus === 'partial' ? 'Partial' : createdInvoice.paymentStatus === 'credit' ? 'Credit' : 'Unpaid'}</p>
               </div>
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">

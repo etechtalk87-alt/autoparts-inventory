@@ -89,7 +89,7 @@ function InvoiceDetail() {
 
       const { data: invoiceRow, error: invoiceError } = await supabase
         .from('invoices')
-        .select('id, invoice_number, payment_status, amount_paid, currency, total_amount, subtotal, vat_amount, created_at, customer_id, branch_id')
+        .select('id, invoice_number, payment_status, amount_paid, currency, total_amount, subtotal, vat_amount, created_at, customer_id, branch_id, company_id')
         .eq('company_id', currentStaff.company_id)
         .eq('invoice_number', invoiceParam)
         .maybeSingle()
