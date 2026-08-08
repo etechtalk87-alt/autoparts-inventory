@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarRange, FileText, Package2, ReceiptText, Sparkles } from 'lucide-react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import RefundModal from '../components/RefundModal'
 import { useAuth } from '../lib/AuthContext'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
 import { generateReportPdf } from '../lib/reportPdf'
@@ -39,6 +40,7 @@ function getPaymentStatusLabel(status) {
 function Sales() {
   const { currentStaff, loading } = useAuth()
   const [sales, setSales] = useState([])
+  const [refundTarget, setRefundTarget] = useState(null)
   const [branches, setBranches] = useState([])
   const [loadingSales, setLoadingSales] = useState(true)
   const [loadingBranches, setLoadingBranches] = useState(true)
@@ -91,6 +93,7 @@ function Sales() {
           id,
           sale_price,
           amount_paid,
+          refunded_amount,
           payment_status,
           customer_id,
           customer_name,
@@ -413,6 +416,13 @@ function Sales() {
                             >
                               Download Invoice
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => setRefundTarget(sale)}
+                              className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 font-semibold text-rose-300 transition hover:bg-rose-500/20"
+                            >
+                              Process Return
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -450,6 +460,17 @@ function Sales() {
           )}
         </div>
       </div>
+      <RefundModal
+        sale={refundTarget}
+        currentStaff={currentStaff}
+        onClose={() => setRefundTarget(null)}
+        onRefundComplete={({ saleId, newRefundedTotal }) => {
+          setSales((prev) => prev.map((s) =>
+            s.id === saleId ? { ...s, refunded_amount: newRefundedTotal } : s
+          ))
+          setRefundTarget(null)
+        }}
+      />
     </main>
   )
 }
