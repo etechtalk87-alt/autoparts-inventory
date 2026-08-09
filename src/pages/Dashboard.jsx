@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
 import { DollarSign, TrendingUp, Car, Package, Receipt, Users, AlertCircle, Wallet } from 'lucide-react'
@@ -22,6 +23,7 @@ const trendColors = ['#38bdf8', '#60a5fa', '#818cf8', '#a78bfa', '#f472b6', '#fb
 
 function Dashboard() {
   const { user, currentStaff } = useAuth()
+  const { t } = useTranslation()
   const [branches, setBranches] = useState([])
   const [companyName, setCompanyName] = useState('AutoParts Inventory')
   const [loading, setLoading] = useState(true)
@@ -499,15 +501,15 @@ function Dashboard() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
                 <TrendingUp className="h-4 w-4" />
-                Operations overview
+                {t('dashboard.operationsOverview')}
               </div>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight">{companyName}</h1>
               <p className="mt-2 text-sm text-slate-400">
-                Logged in as <span className="font-medium text-white">{user?.email}</span>
+                {t('dashboard.loggedInAs')} <span className="font-medium text-white">{user?.email}</span>
               </p>
             </div>
             <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
-              Live performance snapshot
+              {t('dashboard.livePerformanceSnapshot')}
             </div>
           </div>
         </section>
@@ -516,7 +518,7 @@ function Dashboard() {
           <Link to="/sales" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-slate-400">Today's Sales</p>
+                <p className="text-sm text-slate-400">{t('dashboard.todaysSales')}</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{todaySalesByCurrency.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}</p>
               </div>
               <DollarSign className="h-6 w-6 text-cyan-400" />
@@ -527,7 +529,7 @@ function Dashboard() {
                   {formatCurrency(entry.amount, entry.currency)}
                 </span>
               )) : (
-                <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">No sales today</span>
+                <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">{t('dashboard.noSalesToday')}</span>
               )}
             </div>
           </Link>
@@ -535,13 +537,13 @@ function Dashboard() {
           <Link to="/sales" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-slate-400">This Month's Sales</p>
+                <p className="text-sm text-slate-400">{t('dashboard.thisMonthsSales')}</p>
                 <p className="mt-2 text-3xl font-semibold text-white">
                   {monthlySalesByCurrency.length === 1
                     ? formatCurrency(monthlySalesByCurrency[0].amount, monthlySalesByCurrency[0].currency)
                     : monthlySalesByCurrency.reduce((sum, entry) => sum + entry.amount, 0).toFixed(2)}
                 </p>
-                <p className="mt-1 text-sm text-slate-400">{totalSalesCountThisMonth} {totalSalesCountThisMonth === 1 ? 'sale' : 'sales'} this month</p>
+                <p className="mt-1 text-sm text-slate-400">{totalSalesCountThisMonth} {totalSalesCountThisMonth === 1 ? t('dashboard.saleSingular') : t('dashboard.salePlural')} {t('dashboard.thisMonth')}</p>
               </div>
               <TrendingUp className="h-6 w-6 text-emerald-400" />
             </div>
@@ -550,75 +552,75 @@ function Dashboard() {
           <Link to="/donor-vehicles" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-slate-400">Donor Vehicles Purchased</p>
+                <p className="text-sm text-slate-400">{t('dashboard.donorVehiclesPurchased')}</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{donorVehiclesAddedThisMonth}</p>
               </div>
               <Car className="h-6 w-6 text-sky-400" />
             </div>
-            <p className="mt-3 text-sm text-slate-400">Added this month</p>
+            <p className="mt-3 text-sm text-slate-400">{t('dashboard.addedThisMonth')}</p>
           </Link>
 
           <Link to="/parts" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-slate-400">Available Parts</p>
+                <p className="text-sm text-slate-400">{t('dashboard.availableParts')}</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{totalPartsInStock}</p>
               </div>
               <Package className="h-6 w-6 text-violet-400" />
             </div>
-            <p className="mt-3 text-sm text-slate-400">Currently in stock</p>
+            <p className="mt-3 text-sm text-slate-400">{t('dashboard.currentlyInStock')}</p>
           </Link>
 
           <Link to="/parts?aging=true" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-orange-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-slate-400">Aging Stock</p>
+                <p className="text-sm text-slate-400">{t('dashboard.agingStock')}</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{agingPartsCount}</p>
               </div>
               <AlertCircle className="h-6 w-6 text-orange-400" />
             </div>
-            <p className="mt-3 text-sm text-slate-400">In stock over 60 days</p>
+            <p className="mt-3 text-sm text-slate-400">{t('dashboard.inStockOver60Days')}</p>
           </Link>
 
           <Link to="/sales" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-slate-400">Total Invoices</p>
+                <p className="text-sm text-slate-400">{t('dashboard.totalInvoices')}</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{totalInvoices}</p>
               </div>
               <Receipt className="h-6 w-6 text-amber-400" />
             </div>
-            <p className="mt-3 text-sm text-slate-400">All-time sales invoices</p>
+            <p className="mt-3 text-sm text-slate-400">{t('dashboard.allTimeSalesInvoices')}</p>
           </Link>
 
           {currentStaff?.role === 'company_admin' ? (
             <Link to="/customers" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm text-slate-400">Active Customers</p>
+                  <p className="text-sm text-slate-400">{t('dashboard.activeCustomers')}</p>
                   <p className="mt-2 text-3xl font-semibold text-white">{activeCustomersCount}</p>
                 </div>
                 <Users className="h-6 w-6 text-cyan-300" />
               </div>
-              <p className="mt-3 text-sm text-slate-400">With sales in last 90 days</p>
+              <p className="mt-3 text-sm text-slate-400">{t('dashboard.withSalesLast90Days')}</p>
             </Link>
           ) : (
             <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm text-slate-400">Active Customers</p>
+                  <p className="text-sm text-slate-400">{t('dashboard.activeCustomers')}</p>
                   <p className="mt-2 text-3xl font-semibold text-white">{activeCustomersCount}</p>
                 </div>
                 <Users className="h-6 w-6 text-cyan-300" />
               </div>
-              <p className="mt-3 text-sm text-slate-400">With sales in last 90 days</p>
+              <p className="mt-3 text-sm text-slate-400">{t('dashboard.withSalesLast90Days')}</p>
             </div>
           )}
 
           <Link to="/receivables" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-rose-500/50 hover:bg-slate-800/80">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-slate-400">Outstanding Receivables</p>
+                <p className="text-sm text-slate-400">{t('dashboard.outstandingReceivables')}</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{outstandingReceivablesHeadline}</p>
               </div>
               <AlertCircle className="h-6 w-6 text-rose-400" />
@@ -629,7 +631,7 @@ function Dashboard() {
                   {formatCurrency(entry.amount, entry.currency)}
                 </span>
               )) : (
-                <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">No outstanding balance</span>
+                <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">{t('dashboard.noOutstandingBalance')}</span>
               )}
             </div>
           </Link>
@@ -638,18 +640,18 @@ function Dashboard() {
             <Link to="/payables" className="block rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:border-cyan-500/50 hover:bg-slate-800/80">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm text-slate-400">Accounts Payable</p>
+                  <p className="text-sm text-slate-400">{t('dashboard.accountsPayable')}</p>
                   <p className="mt-2 text-3xl font-semibold text-white">{outstandingPayablesHeadline}</p>
                 </div>
                 <Wallet className="h-6 w-6 text-cyan-400" />
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {outstandingPayablesByCurrency.length > 0 ? outstandingPayablesByCurrency.map((entry) => (
-                  <span key={entry.currency} className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">
+                    <span key={entry.currency} className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">
                     {formatCurrency(entry.amount, entry.currency)}
-                  </span>
+                    </span>
                 )) : (
-                  <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">No outstanding payables</span>
+                  <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">{t('dashboard.noOutstandingPayables')}</span>
                 )}
               </div>
             </Link>
@@ -659,18 +661,18 @@ function Dashboard() {
         {currentStaff?.role === 'company_admin' ? (
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-              <h2 className="text-xl font-semibold">Parts by branch</h2>
-              <div className="mt-4 h-80">
+              <h2 className="text-xl font-semibold">{t('dashboard.partsByBranch')}</h2>
+              <div className="mt-4 h-96" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={partsPerBranch} margin={{ bottom: 100 }}>
+                  <BarChart data={partsPerBranch} margin={{ bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                     <XAxis
                       dataKey="name"
                       stroke="#94a3b8"
-                      tick={{ fill: '#94a3b8', angle: -35, textAnchor: 'end' }}
+                      tick={{ fill: '#94a3b8', angle: -45, textAnchor: 'end', fontSize: 11 }}
                       interval={0}
                       minTickGap={8}
-                      height={70}
+                      height={80}
                     />
                     <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8' }} />
                     <Tooltip />
@@ -681,18 +683,18 @@ function Dashboard() {
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-              <h2 className="text-xl font-semibold">Sales revenue by branch this month</h2>
-              <div className="mt-4 h-80">
+              <h2 className="text-xl font-semibold">{t('dashboard.salesRevenueByBranch')}</h2>
+              <div className="mt-4 h-96" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={salesRevenuePerBranch} margin={{ bottom: 100 }}>
+                  <BarChart data={salesRevenuePerBranch} margin={{ bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                     <XAxis
                       dataKey="name"
                       stroke="#94a3b8"
-                      tick={{ fill: '#94a3b8', angle: -35, textAnchor: 'end' }}
+                      tick={{ fill: '#94a3b8', angle: -45, textAnchor: 'end', fontSize: 11 }}
                       interval={0}
                       minTickGap={8}
-                      height={70}
+                      height={80}
                     />
                     <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8' }} />
                     <Tooltip formatter={(value) => formatCurrency(value)} />
@@ -705,18 +707,18 @@ function Dashboard() {
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-              <h2 className="text-xl font-semibold">Average days in stock by branch</h2>
-              <div className="mt-4 h-80">
+              <h2 className="text-xl font-semibold">{t('dashboard.avgDaysInStockByBranch')}</h2>
+              <div className="mt-4 h-96" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={averageDaysInStockPerBranch} margin={{ bottom: 100 }}>
+                  <BarChart data={averageDaysInStockPerBranch} margin={{ bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                     <XAxis
                       dataKey="name"
                       stroke="#94a3b8"
-                      tick={{ fill: '#94a3b8', angle: -35, textAnchor: 'end' }}
+                      tick={{ fill: '#94a3b8', angle: -45, textAnchor: 'end', fontSize: 11 }}
                       interval={0}
                       minTickGap={8}
-                      height={70}
+                      height={80}
                     />
                     <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8' }} />
                     <Tooltip formatter={(value) => `${value} days`} />
@@ -731,32 +733,32 @@ function Dashboard() {
         <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Sales Analytics</h2>
-              <p className="mt-2 text-sm text-slate-400">Monthly sales trend for the last 12 months.</p>
+              <h2 className="text-xl font-semibold">{t('dashboard.salesAnalytics')}</h2>
+              <p className="mt-2 text-sm text-slate-400">{t('dashboard.monthlySalesTrend')}</p>
             </div>
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
             <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-400">Sales Analytics</p>
+                <p className="text-sm text-slate-400">{t('dashboard.salesAnalytics')}</p>
                 <select
                   value={salesTrendPeriod}
                   onChange={(e) => setSalesTrendPeriod(e.target.value)}
                   className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-white outline-none"
                 >
-                  <option value="3months">Last 3 Months</option>
-                  <option value="6months">Last 6 Months</option>
-                  <option value="year">This Year</option>
-                  <option value="12months">Last 12 Months</option>
+                  <option value="3months">{t('dashboard.last3Months')}</option>
+                  <option value="6months">{t('dashboard.last6Months')}</option>
+                  <option value="year">{t('dashboard.thisYear')}</option>
+                  <option value="12months">{t('dashboard.last12Months')}</option>
                 </select>
               </div>
               <div className="mt-4">
-                <p className="text-sm text-slate-400">Monthly Sales</p>
+                <p className="text-sm text-slate-400">{t('dashboard.monthlySales')}</p>
               </div>
               <div className="mt-6 h-[360px]">
                 {analyticsTrendBars.length === 0 ? (
-                  <p className="text-sm text-slate-400">No sales data available for the last 12 months.</p>
+                  <p className="text-sm text-slate-400">{t('dashboard.noSalesDataLast12Months')}</p>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={analyticsTrendBars} margin={{ top: 24, right: 0, left: 0, bottom: 36 }}>
@@ -787,7 +789,7 @@ function Dashboard() {
             </div>
 
             <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-              <p className="text-sm text-slate-400">Revenue by category</p>
+              <p className="text-sm text-slate-400">{t('dashboard.revenueByCategory')}</p>
               <div className="mt-4 flex h-80 flex-col items-center justify-center gap-4">
                 {analyticsCategoryData.data.length > 0 ? (
                   <>
@@ -819,7 +821,7 @@ function Dashboard() {
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-slate-400">No sales data available for this period.</p>
+                  <p className="text-sm text-slate-400">{t('dashboard.noSalesDataThisPeriod')}</p>
                 )}
               </div>
             </div>
@@ -829,9 +831,9 @@ function Dashboard() {
         <div className="rounded-[24px] border border-white/10 bg-slate-900/70 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-white">Vehicle Profit</h3>
+              <h3 className="text-lg font-semibold text-white">{t('dashboard.vehicleProfit')}</h3>
               <p className="text-sm text-slate-400">
-                {vehicleProfitFiltered.vehicleCount} vehicle{vehicleProfitFiltered.vehicleCount === 1 ? '' : 's'} with known cost
+                {vehicleProfitFiltered.vehicleCount} {t('dashboard.vehiclesWithKnownCost')}
               </p>
             </div>
             <select
@@ -839,16 +841,16 @@ function Dashboard() {
               onChange={(e) => setVehicleProfitPeriod(e.target.value)}
               className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-white outline-none"
             >
-              <option value="month">This Month</option>
-              <option value="3months">Last 3 Months</option>
-              <option value="year">This Year</option>
-              <option value="all">All Time</option>
+              <option value="month">{t('dashboard.thisMonth')}</option>
+              <option value="3months">{t('dashboard.last3Months')}</option>
+              <option value="year">{t('dashboard.thisYear')}</option>
+              <option value="all">{t('dashboard.allTime')}</option>
             </select>
           </div>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={vehicleProfitFiltered.chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="name" stroke="#94a3b8" />
+              <XAxis dataKey="name" stroke="#94a3b8" tickFormatter={(value) => value === 'Purchase' ? t('dashboard.purchase') : value === 'Revenue' ? t('dashboard.revenue') : value === 'Profit' ? t('dashboard.profit') : value} />
               <YAxis stroke="#94a3b8" />
               <Tooltip
                 contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
@@ -866,11 +868,11 @@ function Dashboard() {
         <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-white">Branch breakdown</h2>
-              <p className="mt-1 text-sm text-slate-400">Inventory and sales performance by branch.</p>
+              <h2 className="text-xl font-semibold text-white">{t('dashboard.branchBreakdown')}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t('dashboard.branchBreakdownDesc')}</p>
             </div>
             <div className="rounded-full border border-slate-800/80 bg-slate-900/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-              Updated in real time
+              {t('dashboard.updatedRealTime')}
             </div>
           </div>
 
@@ -878,10 +880,10 @@ function Dashboard() {
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-800/90 bg-slate-900/90 text-slate-400">
-                  <th className="px-4 py-3 text-left font-medium">Branch</th>
-                  <th className="px-4 py-3 text-right font-medium">In-stock</th>
-                  <th className="px-4 py-3 text-right font-medium">Sold</th>
-                  <th className="px-4 py-3 text-right font-medium">Activity</th>
+                  <th className="px-4 py-3 text-left font-medium">{t('dashboard.branch')}</th>
+                  <th className="px-4 py-3 text-right font-medium">{t('dashboard.inStock')}</th>
+                  <th className="px-4 py-3 text-right font-medium">{t('dashboard.sold')}</th>
+                  <th className="px-4 py-3 text-right font-medium">{t('dashboard.activity')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80">
@@ -894,7 +896,7 @@ function Dashboard() {
                       <td className="px-4 py-4 text-right text-slate-200">{branch.inStockCount}</td>
                       <td className="px-4 py-4 text-right text-slate-200">{branch.soldCount}</td>
                       <td className="px-4 py-4 text-right">
-                        <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{soldRatio}% sold</div>
+                        <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{soldRatio}% {t('dashboard.percentSold')}</div>
                         <div className="h-2 overflow-hidden rounded-full bg-slate-800">
                           <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 transition-all duration-300" style={{ width: `${soldRatio}%` }} />
                         </div>
