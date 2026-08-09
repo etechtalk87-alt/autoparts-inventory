@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabaseClient'
 
 export default function RefundModal({ sale, currentStaff, onClose, onRefundComplete }) {
+  const { t } = useTranslation()
   const [refundAmount, setRefundAmount] = useState('')
   const [reason, setReason] = useState('')
   const [partCondition, setPartCondition] = useState('resellable')
@@ -11,6 +13,7 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
   const alreadyRefunded = Number(sale?.refunded_amount || 0)
   const salePrice = Number(sale?.sale_price || 0)
   const maxRefundable = Math.max(0, salePrice - alreadyRefunded)
+  const displayCurrency = sale?.currency || 'AED'
 
   useEffect(() => {
     if (!sale) return
@@ -26,11 +29,16 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
     const amount = Number(refundAmount)
 
     if (!amount || amount <= 0) {
-      setMessage('Please enter a valid refund amount.')
+      setMessage(t('sales.enterValidRefundAmount'))
       return
     }
     if (amount > maxRefundable) {
-      setMessage(`Refund cannot exceed the remaining refundable amount of ${sale.currency || 'AED'} ${maxRefundable.toFixed(2)}.`)
+      setMessage(
+        t('sales.refundExceedsMax', {
+          currency: displayCurrency,
+          max: maxRefundable.toFixed(2),
+        })
+      )
       return
     }
 
@@ -62,7 +70,11 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
       .eq('id', sale.id)
 
     if (saleUpdateError) {
-      setMessage(`Refund recorded, but failed to update sale: ${saleUpdateError.message}`)
+      setMessage(
+        t('sales.refundRecordedButFailed', {
+          error: saleUpdateError.message,
+        })
+      )
       setProcessing(false)
       return
     }
@@ -86,18 +98,20 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
       <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
-        <h3 className="text-xl font-semibold">Process Return</h3>
+        <h3 className="text-xl font-semibold">{t('sales.processReturn')}</h3>
         <p className="mt-2 text-sm text-slate-400">
-          Original sale: {sale.currency || 'AED'} {salePrice.toFixed(2)}
-          {alreadyRefunded > 0 ? ` • Already refunded: ${sale.currency || 'AED'} ${alreadyRefunded.toFixed(2)}` : ''}
+          {t('sales.refundOriginalSale')} {displayCurrency} {salePrice.toFixed(2)}
+          {alreadyRefunded > 0 ? (
+            <> {t('sales.refundAlreadyRefunded')} {displayCurrency} {alreadyRefunded.toFixed(2)}</>
+          ) : null}
         </p>
 
         {maxRefundable <= 0 ? (
-          <p className="mt-4 text-sm text-amber-400">This sale has already been fully refunded.</p>
+          <p className="mt-4 text-sm text-amber-400">{t('sales.refundFullyRefundedNote')}</p>
         ) : (
           <>
             <label className="mt-4 block text-sm text-slate-300">
-              Refund Amount * (max {sale.currency || 'AED'} {maxRefundable.toFixed(2)})
+              {t('sales.refundAmountLabel', { currency: displayCurrency, max: maxRefundable.toFixed(2) })}
               <input
                 type="number"
                 min="0"
@@ -110,18 +124,18 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
             </label>
 
             <label className="mt-4 block text-sm text-slate-300">
-              Reason (optional)
+              {t('sales.refundReasonLabel')}
               <input
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. Wrong part, customer changed mind"
+                placeholder={t('sales.refundReasonPlaceholder')}
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
               />
             </label>
 
             <fieldset className="mt-4">
-              <legend className="text-sm font-medium text-slate-300">Part Condition on Return *</legend>
+              <legend className="text-sm font-medium text-slate-300">{t('sales.partConditionOnReturn')}</legend>
               <div className="mt-2 space-y-2">
                 <label className="flex items-center gap-3">
                   <input
@@ -132,7 +146,7 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
                     onChange={(e) => setPartCondition(e.target.value)}
                     className="h-4 w-4"
                   />
-                  <span className="text-sm text-slate-300">Resellable — return to inventory as In Stock</span>
+                  <span className="text-sm text-slate-300">{t('sales.conditionResellable')}</span>
                 </label>
                 <label className="flex items-center gap-3">
                   <input
@@ -143,7 +157,7 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
                     onChange={(e) => setPartCondition(e.target.value)}
                     className="h-4 w-4"
                   />
-                  <span className="text-sm text-slate-300">Damaged — mark as Scrapped (not resellable)</span>
+                  <span className="text-sm text-slate-300">{t('sales.conditionDamaged')}</span>
                 </label>
               </div>
             </fieldset>
@@ -158,7 +172,7 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
             onClick={onClose}
             className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
           >
-            Cancel
+            {t('sales.cancel')}
           </button>
           {maxRefundable > 0 && (
             <button
@@ -167,7 +181,7 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
               disabled={processing}
               className="rounded-lg bg-rose-500 px-4 py-2 font-semibold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {processing ? 'Processing...' : 'Confirm Refund'}
+              {processing ? t('sales.processing') : t('sales.confirmRefund')}
             </button>
           )}
         </div>

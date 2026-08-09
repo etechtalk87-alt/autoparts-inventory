@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { Download, Home, ReceiptText, Share2 } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
@@ -28,8 +29,25 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: '2-digit' }).format(date)
 }
 
+function getInvoiceStatusLabel(status, t) {
+  switch (status) {
+    case 'paid':
+    case 'paid_in_full':
+      return t('sales.statusPaidInFull')
+    case 'partial':
+      return t('sales.statusPartial')
+    case 'credit':
+      return t('sales.statusCredit')
+    case 'unpaid':
+      return t('sales.statusUnpaid')
+    default:
+      return status || '—'
+  }
+}
+
 function InvoiceDetail() {
   const { currentStaff, loading } = useAuth()
+  const { t } = useTranslation()
   const { invoiceNumber } = useParams()
   const [sale, setSale] = useState(null)
   const [invoice, setInvoice] = useState(null)
@@ -66,14 +84,14 @@ function InvoiceDetail() {
 
     const lineItems = invoice?.lineItems || []
     if (lineItems.length === 0) {
-      return 'No items'
+      return t('invoiceDetail.noItems')
     }
 
     const names = lineItems
       .slice(0, 3)
       .map((item) => item.parts?.part_name || 'Part')
 
-    return names.join(', ') + (lineItems.length > 3 ? ` +${lineItems.length - 3} more` : '')
+    return names.join(', ') + (lineItems.length > 3 ? ` ${t('invoiceDetail.moreItems', { count: lineItems.length - 3 })}` : '')
   }
 
   useEffect(() => {
@@ -351,7 +369,7 @@ function InvoiceDetail() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          Loading invoice details...
+          {t('invoiceDetail.loadingInvoice')}
         </div>
       </main>
     )
@@ -365,7 +383,7 @@ function InvoiceDetail() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          Loading invoice details...
+          {t('invoiceDetail.loadingInvoice')}
         </div>
       </main>
     )
@@ -378,14 +396,14 @@ function InvoiceDetail() {
           <div className="flex flex-col gap-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1 text-sm font-medium text-rose-200">
               <ReceiptText size={16} />
-              Invoice not found
+              {t('invoiceDetail.invoiceNotFound')}
             </div>
-            <h1 className="text-3xl font-semibold text-white">Invoice not found</h1>
-            <p className="text-sm text-slate-400">We could not locate an invoice with number <span className="font-mono text-cyan-300">{invoiceNumber}</span>.</p>
-            <p className="text-sm text-slate-400">{error || 'Please verify the invoice number and try again.'}</p>
+            <h1 className="text-3xl font-semibold text-white">{t('invoiceDetail.invoiceNotFound')}</h1>
+            <p className="text-sm text-slate-400">{t('invoiceDetail.couldNotLocate', { invoiceNumber })}</p>
+            <p className="text-sm text-slate-400">{error || t('invoiceDetail.verifyAndRetry')}</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/sales" className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">Back to Sales</Link>
-              <Link to="/customers" className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900">Customer list</Link>
+              <Link to="/sales" className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">{t('invoiceDetail.backToSales')}</Link>
+              <Link to="/customers" className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900">{t('invoiceDetail.customerList')}</Link>
             </div>
           </div>
         </div>
@@ -406,27 +424,27 @@ function InvoiceDetail() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
                 <ReceiptText size={16} />
-                Invoice detail
+                {t('invoiceDetail.invoiceDetailBadge')}
               </div>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">{invoiceDisplay?.invoice_number}</h1>
-              <p className="mt-3 text-sm leading-6 text-slate-400">Invoice summary, payment progress, and customer information for this invoice.</p>
+              <p className="mt-3 text-sm leading-6 text-slate-400">{t('invoiceDetail.invoiceSummaryDesc')}</p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link to="/sales" className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900">
-                  Back to Sales
+                  {t('invoiceDetail.backToSales')}
                 </Link>
                 <Link to="/customers" className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900">
-                  Back to Customers
+                  {t('invoiceDetail.backToCustomers')}
                 </Link>
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Invoice Date</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.invoiceDate')}</p>
                 <p className="mt-2 text-lg font-semibold text-white">{formatDate(invoiceDisplay?.created_at)}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Status</p>
-                <p className="mt-2 text-lg font-semibold text-slate-200">{invoiceDisplay?.payment_status || '—'}</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.status')}</p>
+                <p className="mt-2 text-lg font-semibold text-slate-200">{getInvoiceStatusLabel(invoiceDisplay?.payment_status, t)}</p>
               </div>
               <button
                 type="button"
@@ -440,7 +458,7 @@ function InvoiceDetail() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
               >
                 <Download size={16} />
-                Download Invoice
+                {t('invoiceDetail.downloadInvoice')}
               </button>
               <button
                 type="button"
@@ -449,7 +467,7 @@ function InvoiceDetail() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
               >
                 <Share2 size={16} />
-                {sharing ? 'Sharing...' : 'Share'}
+                {sharing ? t('invoiceDetail.sharing') : t('invoiceDetail.share')}
               </button>
             </div>
           </div>
@@ -457,44 +475,44 @@ function InvoiceDetail() {
 
         <section className="grid gap-6 lg:grid-cols-3">
           <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-            <h2 className="text-lg font-semibold text-white">Payment summary</h2>
+            <h2 className="text-lg font-semibold text-white">{t('invoiceDetail.paymentSummary')}</h2>
             <div className="mt-6 grid gap-4">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Total amount</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.totalAmount')}</p>
                 <p className="mt-2 text-lg font-semibold text-white">{formatCurrency(invoiceAmount, invoiceDisplay?.currency || sale?.parts?.currency)}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount paid</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.amountPaid')}</p>
                 <p className="mt-2 text-lg font-semibold text-emerald-300">{formatCurrency(invoicePaid, invoiceDisplay?.currency || sale?.parts?.currency)}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Remaining balance</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.remainingBalance')}</p>
                 <p className="mt-2 text-lg font-semibold text-rose-400">{formatCurrency(remaining, invoiceDisplay?.currency || sale?.parts?.currency)}</p>
               </div>
             </div>
           </div>
 
           <div className="lg:col-span-2 rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-            <h2 className="text-lg font-semibold text-white">Invoice details</h2>
+            <h2 className="text-lg font-semibold text-white">{t('invoiceDetail.invoiceDetails')}</h2>
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Customer</p>
-                <p className="mt-2 text-sm text-slate-200">{invoiceDisplay?.customers?.full_name || invoiceDisplay?.customer_name || sale?.customers?.full_name || sale?.customer_name || 'Walk-in Customer'}</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.customer')}</p>
+                <p className="mt-2 text-sm text-slate-200">{invoiceDisplay?.customers?.full_name || invoiceDisplay?.customer_name || sale?.customers?.full_name || sale?.customer_name || t('invoiceDetail.walkInCustomer')}</p>
                 {invoiceDisplay?.customers?.email ? <p className="mt-1 text-sm text-slate-400">{invoiceDisplay.customers.email}</p> : null}
                 {invoiceDisplay?.customers?.phone ? <p className="mt-1 text-sm text-slate-400">{invoiceDisplay.customers.phone}</p> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Branch</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.branch')}</p>
                 <p className="mt-2 text-sm text-slate-200">{invoice?.branches?.name || sale?.branches?.name || '–'}</p>
                 {(invoice?.branches?.location || sale?.branches?.location) ? <p className="mt-1 text-sm text-slate-400">{invoice?.branches?.location || sale?.branches?.location}</p> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Part</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.part')}</p>
                 <p className="mt-2 text-sm text-slate-200">{formatPartDisplay()}</p>
                 {!isMultiItem && sale?.parts?.oem_number ? <p className="mt-1 text-sm text-slate-400">{sale.parts.oem_number}</p> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Sold by</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.soldBy')}</p>
                 <p className="mt-2 text-sm text-slate-200">{isMultiItem ? '–' : (sale?.sold_by_staff?.full_name || sale?.sold_by || '–')}</p>
               </div>
             </div>
@@ -504,34 +522,34 @@ function InvoiceDetail() {
         <section className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">Payment history</h2>
-              <p className="mt-1 text-sm text-slate-400">Track payments applied to this invoice, including partial payments and references.</p>
+              <h2 className="text-lg font-semibold text-white">{t('invoiceDetail.paymentHistory')}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t('invoiceDetail.paymentHistoryDesc')}</p>
             </div>
             <div className="rounded-full border border-white/10 bg-slate-950/60 px-4 py-2 text-sm text-slate-300">
-              {paymentHistory.length} payment{paymentHistory.length === 1 ? '' : 's'}
+              {paymentHistory.length} {paymentHistory.length === 1 ? t('invoiceDetail.paymentSingular') : t('invoiceDetail.paymentPlural')}
             </div>
           </div>
 
           <div className="mt-6 grid gap-4">
             {loadingPayments ? (
-              <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 text-slate-400">Loading payment history...</div>
+              <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 text-slate-400">{t('invoiceDetail.loadingPaymentHistory')}</div>
             ) : paymentHistory.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/70 p-6 text-slate-400">No payments have been recorded for this invoice yet.</div>
+              <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/70 p-6 text-slate-400">{t('invoiceDetail.noPaymentsRecorded')}</div>
             ) : (
               <div className="grid gap-4">
                 {paymentHistory.map((payment) => (
                   <div key={payment.id} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 shadow-[0_10px_40px_-30px_rgba(0,0,0,0.7)]">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Date</p>
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.date')}</p>
                         <p className="text-lg font-semibold text-white">{formatDate(payment.payment_date)}</p>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount</p>
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.amount')}</p>
                         <p className="text-lg font-semibold text-emerald-300">{formatCurrency(payment.amount, payment.currency)}</p>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Method</p>
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.method')}</p>
                         <p className="text-sm text-slate-200">{(() => {
                           const { icon, label } = getPaymentMethodDisplay(payment.payment_method)
                           return `${icon} ${label}`
@@ -541,13 +559,13 @@ function InvoiceDetail() {
 
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Notes</p>
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.notes')}</p>
                         <p className="mt-2 text-sm text-slate-300">{payment.notes || '—'}</p>
                       </div>
                       {payment.recorded_by ? (
                         <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Recorded by</p>
-                          <p className="mt-2 text-sm text-slate-300">{payment.staff?.full_name || 'Staff member'}</p>
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.recordedBy')}</p>
+                          <p className="mt-2 text-sm text-slate-300">{payment.staff?.full_name || t('invoiceDetail.staffMember')}</p>
                         </div>
                       ) : null}
                     </div>
@@ -561,11 +579,11 @@ function InvoiceDetail() {
           <section className="rounded-[28px] border border-rose-500/20 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-white">Refund History</h2>
-                <p className="mt-1 text-sm text-slate-400">Returns and refunds processed against this invoice.</p>
+                <h2 className="text-lg font-semibold text-white">{t('invoiceDetail.refundHistory')}</h2>
+                <p className="mt-1 text-sm text-slate-400">{t('invoiceDetail.refundHistoryDesc')}</p>
               </div>
               <div className="rounded-full border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">
-                {refundHistory.length} refund{refundHistory.length === 1 ? '' : 's'}
+                {refundHistory.length} {refundHistory.length === 1 ? t('invoiceDetail.refundSingular') : t('invoiceDetail.refundPlural')}
               </div>
             </div>
 
@@ -574,29 +592,29 @@ function InvoiceDetail() {
                 <div key={refund.id} className="rounded-3xl border border-rose-500/20 bg-slate-950/70 p-5 shadow-[0_10px_40px_-30px_rgba(0,0,0,0.7)]">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Date</p>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.date')}</p>
                       <p className="text-lg font-semibold text-white">{formatDate(refund.created_at)}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount</p>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.amount')}</p>
                       <p className="text-lg font-semibold text-rose-400">-{formatCurrency(refund.amount, refund.currency)}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Part Condition</p>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.partCondition')}</p>
                       <p className="text-sm text-slate-200">
-                        {refund.part_condition_on_return === 'resellable' ? '✅ Resellable' : '⚠️ Damaged'}
+                        {refund.part_condition_on_return === 'resellable' ? t('invoiceDetail.resellable') : t('invoiceDetail.damaged')}
                       </p>
                     </div>
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Reason</p>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.reason')}</p>
                       <p className="mt-2 text-sm text-slate-300">{refund.reason || '—'}</p>
                     </div>
                     {refund.processed_by ? (
                       <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Processed by</p>
-                        <p className="mt-2 text-sm text-slate-300">{refund.staff?.full_name || 'Staff member'}</p>
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('invoiceDetail.processedBy')}</p>
+                        <p className="mt-2 text-sm text-slate-300">{refund.staff?.full_name || t('invoiceDetail.staffMember')}</p>
                       </div>
                     ) : null}
                   </div>

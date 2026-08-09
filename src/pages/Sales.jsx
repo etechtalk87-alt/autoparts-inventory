@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CalendarRange, FileText, Package2, ReceiptText, Sparkles } from 'lucide-react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import RefundModal from '../components/RefundModal'
@@ -22,16 +23,17 @@ function getPaymentStatusColor(status) {
   }
 }
 
-function getPaymentStatusLabel(status) {
+function getPaymentStatusLabel(status, t) {
   switch (status) {
+    case 'paid':
     case 'paid_in_full':
-      return 'Paid in Full'
+      return t('sales.statusPaidInFull')
     case 'partial':
-      return 'Partial'
+      return t('sales.statusPartial')
     case 'credit':
-      return 'Credit'
+      return t('sales.statusCredit')
     case 'unpaid':
-      return 'Unpaid'
+      return t('sales.statusUnpaid')
     default:
       return status
   }
@@ -39,6 +41,7 @@ function getPaymentStatusLabel(status) {
 
 function Sales() {
   const { currentStaff, loading } = useAuth()
+  const { t } = useTranslation()
   const [sales, setSales] = useState([])
   const [refundTarget, setRefundTarget] = useState(null)
   const [branches, setBranches] = useState([])
@@ -155,31 +158,33 @@ function Sales() {
   const totalPages = Math.max(1, Math.ceil(filteredSales.length / itemsPerPage))
 
   const handleExportPdf = () => {
+    const tEn = (key, options) => t(key, { ...options, lng: 'en' })
+
     const rows = filteredSales.map((sale) => ({
       partName: sale.parts?.part_name ?? '—',
       branch: sale.branches?.name ?? '—',
       salePrice: `${sale.parts?.currency || 'AED'} ${Number(sale.sale_price || 0).toFixed(2)}`,
       customer: sale.customers?.full_name || sale.customer_name || '—',
-      paymentStatus: getPaymentStatusLabel(sale.payment_status),
+      paymentStatus: getPaymentStatusLabel(sale.payment_status, tEn),
       date: new Date(sale.created_at).toLocaleDateString(),
       soldBy: sale.sold_by_staff?.full_name ?? '—',
       invoiceNumber: sale.invoice_number || '—',
     }))
 
     const columns = [
-      { key: 'partName', label: 'Part', width: 2 },
-      { key: 'branch', label: 'Branch', width: 2 },
-      { key: 'salePrice', label: 'Sale Price', width: 1, align: 'right' },
-      { key: 'customer', label: 'Customer', width: 2 },
-      { key: 'paymentStatus', label: 'Payment Status', width: 1.5 },
-      { key: 'date', label: 'Date', width: 1.2 },
-      { key: 'soldBy', label: 'Sold By', width: 1.5 },
-      { key: 'invoiceNumber', label: 'Invoice', width: 1.5 },
+      { key: 'partName', label: tEn('sales.colPart'), width: 2 },
+      { key: 'branch', label: tEn('sales.colBranch'), width: 2 },
+      { key: 'salePrice', label: tEn('sales.colSalePrice'), width: 1, align: 'right' },
+      { key: 'customer', label: tEn('sales.colCustomer'), width: 2 },
+      { key: 'paymentStatus', label: tEn('sales.colPaymentStatus'), width: 1.5 },
+      { key: 'date', label: tEn('sales.colDate'), width: 1.2 },
+      { key: 'soldBy', label: tEn('sales.colSoldBy'), width: 1.5 },
+      { key: 'invoiceNumber', label: tEn('sales.colInvoice'), width: 1.5 },
     ]
 
     generateReportPdf({
-      companyName: currentStaff?.companyName || 'Auto Parts Inventory',
-      reportTitle: 'Sales Report',
+      companyName: currentStaff?.companyName || tEn('sales.companyFallback'),
+      reportTitle: tEn('sales.reportTitle'),
       columns,
       rows,
     })
@@ -199,7 +204,7 @@ function Sales() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          Loading sales...
+          {t('sales.loadingSales')}
         </div>
       </main>
     )
@@ -219,11 +224,11 @@ function Sales() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
                 <Sparkles size={16} />
-                Sales command center
+                {t('sales.salesCommandCenter')}
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Sales History</h1>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{t('sales.salesHistory')}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
-                Review sold parts, customer details, and branch-level sales activity with a more refined operational view.
+                {t('sales.salesHistoryDesc')}
               </p>
             </div>
 
@@ -231,14 +236,14 @@ function Sales() {
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                   <ReceiptText size={16} className="text-cyan-300" />
-                  Visible sales
+                  {t('sales.visibleSales')}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-white">{filteredSales.length}</div>
               </div>
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
                   <FileText size={16} />
-                  Revenue tracked
+                  {t('sales.revenueTracked')}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-white">{revenueTotal.toFixed(2)}</div>
               </div>
@@ -249,14 +254,14 @@ function Sales() {
         <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-white">Sales Records</h2>
-              <p className="mt-1 text-sm text-slate-400">Filter by time range and branch to focus on the right operations.</p>
+              <h2 className="text-xl font-semibold text-white">{t('sales.salesRecords')}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t('sales.salesRecordsDesc')}</p>
             </div>
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="flex flex-col gap-2 md:flex-row md:items-center">
                 <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
                   <CalendarRange size={15} className="text-cyan-300" />
-                  <span>From</span>
+                  <span>{t('sales.from')}</span>
                   <input
                     type="date"
                     value={dateFrom}
@@ -266,7 +271,7 @@ function Sales() {
                 </label>
                 <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
                   <CalendarRange size={15} className="text-cyan-300" />
-                  <span>To</span>
+                  <span>{t('sales.to')}</span>
                   <input
                     type="date"
                     value={dateTo}
@@ -281,7 +286,7 @@ function Sales() {
                   onChange={(event) => setBranchFilter(event.target.value)}
                   className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white outline-none"
                 >
-                  <option value="all">All branches</option>
+                  <option value="all">{t('sales.allBranches')}</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>{branch.name}</option>
                   ))}
@@ -294,7 +299,7 @@ function Sales() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
               >
                 <Package2 size={18} />
-                Create Invoice
+                {t('sales.createInvoice')}
               </Link>
               <button
                 type="button"
@@ -302,15 +307,15 @@ function Sales() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
               >
                 <FileText size={18} />
-                Export PDF
+                {t('sales.exportPdf')}
               </button>
             </div>
           </div>
 
           {loadingSales ? (
-            <div className="p-8 text-slate-400">Loading sales...</div>
+            <div className="p-8 text-slate-400">{t('sales.loadingSales')}</div>
           ) : filteredSales.length === 0 ? (
-            <div className="p-8 text-center text-slate-400">No sales found for the selected scope.</div>
+            <div className="p-8 text-center text-slate-400">{t('sales.noSalesFound')}</div>
           ) : (
             <>
               {invoiceQuery ? (
@@ -319,38 +324,38 @@ function Sales() {
                     <div className="rounded-[28px] border border-cyan-400/20 bg-slate-950/70 p-5">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Selected Invoice</p>
+                          <p className="text-sm uppercase tracking-[0.24em] text-slate-500">{t('sales.selectedInvoice')}</p>
                           <h3 className="mt-2 text-2xl font-semibold text-white">{selectedSale.invoice_number}</h3>
-                          <p className="mt-1 text-sm text-slate-400">Viewing the sale record for this invoice.</p>
+                          <p className="mt-1 text-sm text-slate-400">{t('sales.viewingSaleRecord')}</p>
                         </div>
                         <Link
                           to="/sales"
                           className="rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800"
                         >
-                          Clear selection
+                          {t('sales.clearSelection')}
                         </Link>
                       </div>
                       <div className="mt-4 grid gap-4 sm:grid-cols-3">
                         <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Customer</p>
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('sales.customer')}</p>
                           <p className="mt-2 text-sm text-slate-200">{selectedSale.customers?.full_name || selectedSale.customer_name || '—'}</p>
                         </div>
                         <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Date</p>
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('sales.date')}</p>
                           <p className="mt-2 text-sm text-slate-200">{new Date(selectedSale.created_at).toLocaleDateString()}</p>
                         </div>
                         <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Status</p>
-                          <p className="mt-2 text-sm text-slate-200">{getPaymentStatusLabel(selectedSale.payment_status)}</p>
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('sales.status')}</p>
+                          <p className="mt-2 text-sm text-slate-200">{getPaymentStatusLabel(selectedSale.payment_status, t)}</p>
                         </div>
                       </div>
                     </div>
                   ) : (
                     <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-5 text-slate-300">
-                      <p className="text-sm font-semibold text-white">No invoice found</p>
-                      <p className="mt-2 text-sm">Invoice query <span className="font-mono text-cyan-300">{invoiceQuery}</span> did not match any sale records.</p>
+                      <p className="text-sm font-semibold text-white">{t('sales.noInvoiceFound')}</p>
+                      <p className="mt-2 text-sm">{t('sales.invoiceQueryNoMatch')} <span className="font-mono text-cyan-300">{invoiceQuery}</span></p>
                       <Link to="/sales" className="mt-4 inline-flex rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800">
-                        Back to full sales list
+                        {t('sales.backToFullList')}
                       </Link>
                     </div>
                   )}
@@ -360,14 +365,14 @@ function Sales() {
                 <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                   <thead className="bg-slate-950/70 text-slate-400">
                     <tr>
-                      <th className="px-6 py-3 font-medium">Part</th>
-                      <th className="px-6 py-3 font-medium">Branch</th>
-                      <th className="px-6 py-3 font-medium">Sale Price</th>
-                      <th className="px-6 py-3 font-medium">Customer</th>
-                      <th className="px-6 py-3 font-medium">Payment Status</th>
-                      <th className="px-6 py-3 font-medium">Date</th>
-                      <th className="px-6 py-3 font-medium">Sold By</th>
-                      <th className="px-6 py-3 font-medium">Invoice</th>
+                      <th className="px-6 py-3 font-medium">{t('sales.colPart')}</th>
+                      <th className="px-6 py-3 font-medium">{t('sales.colBranch')}</th>
+                      <th className="px-6 py-3 font-medium">{t('sales.colSalePrice')}</th>
+                      <th className="px-6 py-3 font-medium">{t('sales.colCustomer')}</th>
+                      <th className="px-6 py-3 font-medium">{t('sales.colPaymentStatus')}</th>
+                      <th className="px-6 py-3 font-medium">{t('sales.colDate')}</th>
+                      <th className="px-6 py-3 font-medium">{t('sales.colSoldBy')}</th>
+                      <th className="px-6 py-3 font-medium">{t('sales.colInvoice')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10 bg-slate-900/50">
@@ -384,23 +389,23 @@ function Sales() {
                           </td>
                           <td className="px-6 py-4 text-slate-300">{sale.branches?.name ?? '—'}</td>
                           <td className="px-6 py-4 font-semibold text-white">{`${sale.parts?.currency || 'AED'} ${Number(sale.sale_price).toFixed(2)}`}</td>
-                          <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || 'Walk-in Customer'}</td>
+                          <td className="px-6 py-4 text-slate-300">{sale.customers?.full_name || sale.customer_name || t('sales.walkInCustomer')}</td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getPaymentStatusColor(sale.payment_status)}`}>
-                                {getPaymentStatusLabel(sale.payment_status)}
+                                {getPaymentStatusLabel(sale.payment_status, t)}
                               </span>
                               {Number(sale.refunded_amount || 0) > 0 ? (
                                 <span className="inline-block rounded-full bg-rose-500/10 border border-rose-500/30 px-2.5 py-1 text-xs font-medium text-rose-300">
                                   {Number(sale.refunded_amount) >= Number(sale.sale_price)
-                                    ? 'Fully Refunded'
-                                    : `Refunded ${sale.currency || 'AED'} ${Number(sale.refunded_amount).toFixed(2)}`}
+                                    ? t('sales.fullyRefunded')
+                                    : t('sales.refundedAmount', { currency: sale.currency || 'AED', amount: Number(sale.refunded_amount).toFixed(2) })}
                                 </span>
                               ) : null}
                             </div>
                           </td>
                           <td className="px-6 py-4 text-slate-300">{new Date(sale.created_at).toLocaleDateString()}</td>
-                          <td className="px-6 py-4 text-slate-300">{sale.sold_by_staff?.id ?? '—'}</td>
+                          <td className="px-6 py-4 text-slate-300">{sale.sold_by_staff?.full_name ?? '—'}</td>
                           <td className="px-6 py-4">
                             <div className="flex flex-col gap-2">
                               {sale.invoice_number ? (
@@ -424,14 +429,14 @@ function Sales() {
                                 })}
                                 className="rounded-xl bg-amber-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
                               >
-                                Download Invoice
+                                {t('sales.downloadInvoice')}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setRefundTarget(sale)}
                                 className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 font-semibold text-rose-300 transition hover:bg-rose-500/20"
                               >
-                                Process Return
+                                {t('sales.processReturn')}
                               </button>
                             </div>
                           </td>
@@ -444,7 +449,11 @@ function Sales() {
               {totalPages > 1 ? (
                 <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-slate-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredSales.length)} of {filteredSales.length} sales
+                    {t('sales.showingRange', {
+                      start: (currentPage - 1) * itemsPerPage + 1,
+                      end: Math.min(currentPage * itemsPerPage, filteredSales.length),
+                      total: filteredSales.length,
+                    })}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -453,16 +462,16 @@ function Sales() {
                       disabled={currentPage === 1}
                       className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Previous
+                      {t('sales.previous')}
                     </button>
-                    <span className="text-sm text-slate-300">Page {currentPage} of {totalPages}</span>
+                    <span className="text-sm text-slate-300">{t('sales.pageOf', { current: currentPage, total: totalPages })}</span>
                     <button
                       type="button"
                       onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
                       className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Next
+                      {t('sales.next')}
                     </button>
                   </div>
                 </div>
