@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabaseClient'
 
 export default function TransferPartModal({ part, branches = [], currentStaff, onClose, onTransferComplete }) {
+  const { t } = useTranslation()
   const [branchId, setBranchId] = useState('')
   const [transferring, setTransferring] = useState(false)
   const [message, setMessage] = useState('')
@@ -16,7 +18,7 @@ export default function TransferPartModal({ part, branches = [], currentStaff, o
 
   const confirmTransfer = async () => {
     if (!part || !branchId) {
-      setMessage('Please choose a destination branch.')
+      setMessage(t('parts.chooseDestination'))
       return
     }
 
@@ -52,7 +54,7 @@ export default function TransferPartModal({ part, branches = [], currentStaff, o
     }
 
     if (!updateData || updateData.length === 0) {
-      setMessage('Update failed - you may not have permission to modify this record.')
+      setMessage(t('parts.updateFailedPermission'))
       setTransferring(false)
       return
     }
@@ -64,18 +66,18 @@ export default function TransferPartModal({ part, branches = [], currentStaff, o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
       <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
-        <h3 className="text-xl font-semibold">Transfer Part</h3>
+        <h3 className="text-xl font-semibold">{t('parts.transferPart')}</h3>
         <p className="mt-2 text-sm text-slate-400">
-          Move {part.part_name} to another branch.
+          {t('parts.movePartTo', { partName: part.part_name })}
         </p>
         <label className="mt-4 block text-sm text-slate-300">
-          Destination Branch
+          {t('parts.destinationBranch')}
           <select
             value={branchId}
             onChange={(event) => setBranchId(event.target.value)}
             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
           >
-            <option value="">Select destination branch</option>
+            <option value="">{t('parts.selectDestinationBranch')}</option>
             {branches
               .filter((branch) => String(branch.id) !== String(part.branch_id))
               .map((branch) => (
@@ -92,7 +94,7 @@ export default function TransferPartModal({ part, branches = [], currentStaff, o
             onClick={onClose}
             className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
           >
-            Cancel
+            {t('parts.cancel')}
           </button>
           <button
             type="button"
@@ -100,7 +102,7 @@ export default function TransferPartModal({ part, branches = [], currentStaff, o
             disabled={transferring}
             className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {transferring ? 'Transferring...' : 'Confirm Transfer'}
+            {transferring ? t('parts.transferring') : t('parts.confirmTransfer')}
           </button>
         </div>
       </div>

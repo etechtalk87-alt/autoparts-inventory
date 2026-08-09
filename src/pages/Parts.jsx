@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BadgeCheck, Boxes, Package2, PencilLine, Plus, Search, Sparkles, Trash2, Warehouse } from 'lucide-react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
@@ -32,6 +33,7 @@ function Parts() {
   const [successMessage, setSuccessMessage] = useState('')
   const [transferTarget, setTransferTarget] = useState(null)
   const [saleTarget, setSaleTarget] = useState(null)
+  const { t } = useTranslation()
 
   const canManageBranches = currentStaff?.role === 'company_admin'
 
@@ -133,7 +135,7 @@ function Parts() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          Loading inventory...
+          {t('parts.loadingInventory')}
         </div>
       </main>
     )
@@ -149,11 +151,11 @@ function Parts() {
 
     const allowed = currentStaff.role === 'company_admin' || part.branch_id === currentStaff.activeBranchId
     if (!allowed) {
-      setErrorMessage('You do not have permission to delete this part.')
+      setErrorMessage(t('parts.noPermissionDelete'))
       return
     }
 
-    const ok = window.confirm(`Are you sure you want to delete ${part.part_name}? This cannot be undone.`)
+    const ok = window.confirm(t('parts.confirmDelete', { partName: part.part_name }))
     if (!ok) return
 
     const { data: existingPart, error: lookupError } = await supabase
@@ -163,19 +165,19 @@ function Parts() {
       .single()
 
     if (lookupError) {
-      setErrorMessage(lookupError.message || 'Unable to load part data for auditing.')
+      setErrorMessage(lookupError.message || t('parts.unableLoadAudit'))
       return
     }
 
     const { data, error } = await supabase.from('parts').delete().eq('id', part.id).select('id')
     if (error) {
       if (error.code === '23503') {
-        setErrorMessage('This part cannot be deleted because it has sales history. Parts with existing sales records are protected to preserve invoice accuracy.')
+        setErrorMessage(t('parts.cannotDeleteHasSales'))
       } else {
         setErrorMessage(error.message)
       }
     } else if (!data || data.length === 0) {
-      setErrorMessage('Update failed - you may not have permission to modify this record.')
+      setErrorMessage(t('parts.updateFailedPermission'))
     } else {
       if (existingPart) {
         await logAuditEvent({
@@ -188,7 +190,7 @@ function Parts() {
         })
       }
       setParts((prev) => prev.filter((p) => p.id !== part.id))
-      setSuccessMessage('Part deleted.')
+      setSuccessMessage(t('parts.partDeleted'))
     }
   }
 
@@ -197,6 +199,24 @@ function Parts() {
     sold: 'bg-slate-500/20 text-slate-300',
     reserved: 'bg-amber-500/20 text-amber-400',
     pending: 'bg-cyan-500/20 text-cyan-400',
+    transferred: 'bg-sky-500/20 text-sky-300',
+    scrapped: 'bg-rose-500/20 text-rose-300',
+  }
+
+  const statusLabels = {
+    in_stock: t('parts.statusInStock'),
+    sold: t('parts.statusSold'),
+    reserved: t('parts.statusReserved'),
+    pending: t('parts.statusPending'),
+    transferred: t('parts.statusTransferred'),
+    scrapped: t('parts.statusScrapped'),
+  }
+
+  const conditionLabels = {
+    excellent: t('parts.conditionExcellent'),
+    good: t('parts.conditionGood'),
+    fair: t('parts.conditionFair'),
+    'for parts': t('parts.conditionForParts'),
   }
 
   const openTransferModal = (part) => {
@@ -215,11 +235,11 @@ function Parts() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
                 <Sparkles size={16} />
-                Inventory control center
+                {t('parts.inventoryControlCenter')}
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Spare Parts Inventory</h1>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{t('parts.sparePartsInventory')}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
-                Track spare parts by company and branch, and link them to donor vehicles in a more refined operational workspace.
+                {t('parts.sparePartsDesc')}
               </p>
             </div>
 
@@ -227,16 +247,16 @@ function Parts() {
               <div className="rounded-2xl border border-white/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                   <Boxes size={16} className="text-cyan-300" />
-                  Visible inventory
+                  {t('parts.visibleInventory')}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-white">{filteredParts.length}</div>
               </div>
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
                   <BadgeCheck size={16} />
-                  Branch ready
+                  {t('parts.branchReady')}
                 </div>
-                <div className="mt-2 text-sm text-slate-300">Each part remains aligned to your branch workflow.</div>
+                <div className="mt-2 text-sm text-slate-300">{t('parts.branchReadyDesc')}</div>
               </div>
             </div>
           </div>
@@ -256,8 +276,8 @@ function Parts() {
         <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl focus:outline-none">
           <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-white">Inventory List</h2>
-              <p className="mt-1 text-sm text-slate-400">Search, filter, and manage parts without losing context.</p>
+              <h2 className="text-xl font-semibold text-white">{t('parts.inventoryList')}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t('parts.inventoryListDesc')}</p>
             </div>
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="flex flex-col gap-3 md:flex-row">
@@ -268,7 +288,7 @@ function Parts() {
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     className="bg-transparent text-white outline-none"
-                    placeholder="Search by part name or OEM"
+                    placeholder={t('parts.searchPlaceholder')}
                   />
                 </label>
                 {canManageBranches ? (
@@ -279,7 +299,7 @@ function Parts() {
                       onChange={(event) => setBranchFilter(event.target.value)}
                       className="bg-transparent text-white outline-none"
                     >
-                      <option value="all">All branches</option>
+                      <option value="all">{t('parts.allBranches')}</option>
                       {branches.map((branch) => (
                         <option key={branch.id} value={branch.id}>{branch.name}</option>
                       ))}
@@ -293,7 +313,7 @@ function Parts() {
                     onChange={(event) => setShowAgingOnly(event.target.checked)}
                     className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-cyan-500"
                   />
-                  Show aging stock only
+                  {t('parts.showAgingOnly')}
                 </label>
               </div>
               <button
@@ -306,21 +326,21 @@ function Parts() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
               >
                 <Plus size={18} />
-                Add Part
+                {t('parts.addPart')}
               </button>
             </div>
           </div>
 
           {loadingParts ? (
-            <div className="p-8 text-slate-400">Loading parts...</div>
+            <div className="p-8 text-slate-400">{t('parts.loadingParts')}</div>
           ) : filteredParts.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 p-10 text-center">
               <div className="rounded-2xl border border-dashed border-slate-700 p-5">
                 <Package2 size={28} className="mx-auto text-cyan-300" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">No parts found</h3>
-                <p className="mt-1 text-sm text-slate-400">Try adjusting your search or branch filters to reveal more inventory.</p>
+                <h3 className="text-lg font-semibold text-white">{t('parts.noPartsFound')}</h3>
+                <p className="mt-1 text-sm text-slate-400">{t('parts.adjustFilters')}</p>
               </div>
             </div>
           ) : (
@@ -329,13 +349,13 @@ function Parts() {
                 <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                   <thead className="bg-slate-950/70 text-slate-400">
                     <tr>
-                      <th className="px-6 py-3 font-medium">Part</th>
-                      <th className="px-6 py-3 font-medium">Source Vehicle</th>
-                      <th className="px-6 py-3 font-medium">Condition</th>
-                      <th className="px-6 py-3 font-medium">Cost</th>
-                      <th className="px-6 py-3 font-medium">Asking Price</th>
-                      <th className="px-6 py-3 font-medium">Status</th>
-                      <th className="px-6 py-3 font-medium">Actions</th>
+                      <th className="px-6 py-3 font-medium">{t('parts.colPart')}</th>
+                      <th className="px-6 py-3 font-medium">{t('parts.colSourceVehicle')}</th>
+                      <th className="px-6 py-3 font-medium">{t('parts.colCondition')}</th>
+                      <th className="px-6 py-3 font-medium">{t('parts.colCost')}</th>
+                      <th className="px-6 py-3 font-medium">{t('parts.colAskingPrice')}</th>
+                      <th className="px-6 py-3 font-medium">{t('parts.colStatus')}</th>
+                      <th className="px-6 py-3 font-medium">{t('parts.colActions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10 bg-slate-900/50">
@@ -372,17 +392,17 @@ function Parts() {
                             <span className="text-slate-400">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-slate-300">{part.condition}</td>
+                        <td className="px-6 py-4 text-slate-300">{conditionLabels[part.condition] || part.condition}</td>
                         <td className="px-6 py-4 font-semibold text-white">{`${part.currency || 'AED'} ${Number(part.cost).toFixed(2)}`}</td>
                         <td className="px-6 py-4 font-semibold text-white">{`${part.currency || 'AED'} ${Number(part.asking_price).toFixed(2)}`}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClasses[part.status] || 'bg-slate-500/20 text-slate-300'}`}>
-                              {part.status?.replace('_', ' ')}
+                              {statusLabels[part.status] || part.status}
                             </span>
                             {isAgingStock(part) ? (
                               <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-400">
-                                Aging 60+
+                                {t('parts.aging60Plus')}
                               </span>
                             ) : null}
                           </div>
@@ -400,38 +420,35 @@ function Parts() {
                                   className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
                                 >
                                   <PencilLine size={15} />
-                                  Edit
+                                  {t('parts.edit')}
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePart(part)}
+                                  className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
+                                >
+                                  <Trash2 size={15} />
+                                  {t('parts.delete')}
+                                </button>
+                              </>
+                            )}
 
-                                {part.status !== 'sold' && part.status !== 'transferred' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeletePart(part)}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
-                                  >
-                                    <Trash2 size={15} />
-                                    Delete
-                                  </button>
-                                ) : null}
-
-                                {part.status === 'in_stock' && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => openTransferModal(part)}
-                                      className="rounded-xl bg-cyan-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
-                                    >
-                                      Transfer
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => openSaleModal(part)}
-                                      className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
-                                    >
-                                      Mark as Sold
-                                    </button>
-                                  </>
-                                )}
+                            {part.status === 'in_stock' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openTransferModal(part)}
+                                  className="rounded-xl bg-cyan-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
+                                >
+                                  {t('parts.transfer')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openSaleModal(part)}
+                                  className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
+                                >
+                                  {t('parts.markAsSold')}
+                                </button>
                               </>
                             )}
                           </div>
@@ -444,7 +461,11 @@ function Parts() {
               {totalPages > 1 ? (
                 <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-slate-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredParts.length)} of {filteredParts.length} parts
+                    {t('parts.showingRange', {
+                      start: (currentPage - 1) * itemsPerPage + 1,
+                      end: Math.min(currentPage * itemsPerPage, filteredParts.length),
+                      total: filteredParts.length,
+                    })}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -453,16 +474,16 @@ function Parts() {
                       disabled={currentPage === 1}
                       className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Previous
+                      {t('parts.previous')}
                     </button>
-                    <span className="text-sm text-slate-300">Page {currentPage} of {totalPages}</span>
+                    <span className="text-sm text-slate-300">{t('parts.pageOf', { current: currentPage, total: totalPages })}</span>
                     <button
                       type="button"
                       onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
                       className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Next
+                      {t('parts.next')}
                     </button>
                   </div>
                 </div>

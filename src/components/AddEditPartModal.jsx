@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabaseClient'
 import { logAuditEvent } from '../lib/auditLog'
 
@@ -35,6 +36,7 @@ export default function AddEditPartModal({
   const [successMessage, setSuccessMessage] = useState('')
   const [donorVehicles, setDonorVehicles] = useState([])
   const [loadingVehicles, setLoadingVehicles] = useState(false)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!isOpen) return
@@ -125,7 +127,7 @@ export default function AddEditPartModal({
     setSuccessMessage('')
 
     if (!form.part_name.trim() || !form.category.trim() || !form.cost || !form.asking_price) {
-      setErrorMessage('Please fill in part name, category, cost, and asking price.')
+      setErrorMessage(t('parts.fillRequiredFields'))
       return
     }
 
@@ -153,7 +155,7 @@ export default function AddEditPartModal({
         .single()
 
       if (lookupError) {
-        setErrorMessage(lookupError.message || 'Unable to load existing part data for auditing.')
+        setErrorMessage(lookupError.message || t('parts.unableLoadExistingAudit'))
         setSubmitting(false)
         return
       }
@@ -186,7 +188,7 @@ export default function AddEditPartModal({
       }
 
       if (!data || data.length === 0) {
-        setErrorMessage('Update failed - you may not have permission to modify this record.')
+        setErrorMessage(t('parts.updateFailedPermission'))
         setSubmitting(false)
         return
       }
@@ -215,7 +217,7 @@ export default function AddEditPartModal({
         })
       }
 
-      setSuccessMessage('Part updated successfully.')
+      setSuccessMessage(t('parts.partUpdated'))
       setSubmitting(false)
       onSaved?.(dataRow)
     } else {
@@ -238,11 +240,11 @@ export default function AddEditPartModal({
           data.photo_url = photoUrl
         } catch (err) {
           console.error('Photo upload failed:', err)
-          setErrorMessage(`Part saved, but photo upload failed: ${err.message}`)
+          setErrorMessage(t('parts.photoUploadFailed', { error: err.message }))
         }
       }
 
-      setSuccessMessage('Part added successfully.')
+      setSuccessMessage(t('parts.partAdded'))
       setSubmitting(false)
       onSaved?.(data)
     }
@@ -251,53 +253,53 @@ export default function AddEditPartModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
       <div className="w-full max-w-5xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
-        <h3 className="text-xl font-semibold">{editingPart ? 'Edit Part' : 'Add Part'}</h3>
+        <h3 className="text-xl font-semibold">{editingPart ? t('parts.editPart') : t('parts.addPart')}</h3>
         <form onSubmit={handleSubmit} className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label className="text-sm text-slate-300">
-            Part Name
+            {t('parts.partName')}
             <input
               type="text"
               value={form.part_name}
               onChange={(event) => setForm((prev) => ({ ...prev, part_name: event.target.value }))}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              placeholder="Headlight Assembly"
+              placeholder={t('parts.placeholderPartName')}
             />
           </label>
           <label className="text-sm text-slate-300">
-            OEM Number
+            {t('parts.oemNumber')}
             <input
               type="text"
               value={form.oem_number}
               onChange={(event) => setForm((prev) => ({ ...prev, oem_number: event.target.value }))}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              placeholder="123456"
+              placeholder={t('parts.placeholderOem')}
             />
           </label>
           <label className="text-sm text-slate-300">
-            Category
+            {t('parts.category')}
             <input
               type="text"
               value={form.category}
               onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              placeholder="Body"
+              placeholder={t('parts.placeholderCategory')}
             />
           </label>
           <label className="text-sm text-slate-300">
-            Condition
+            {t('parts.condition')}
             <select
               value={form.condition}
               onChange={(event) => setForm((prev) => ({ ...prev, condition: event.target.value }))}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
             >
-              <option value="excellent">Excellent</option>
-              <option value="good">Good</option>
-              <option value="fair">Fair</option>
-              <option value="for parts">For Parts</option>
+              <option value="excellent">{t('parts.conditionExcellent')}</option>
+              <option value="good">{t('parts.conditionGood')}</option>
+              <option value="fair">{t('parts.conditionFair')}</option>
+              <option value="for parts">{t('parts.conditionForParts')}</option>
             </select>
           </label>
           <label className="text-sm text-slate-300">
-            Cost
+            {t('parts.cost')}
             <input
               type="number"
               min="0"
@@ -305,12 +307,12 @@ export default function AddEditPartModal({
               value={form.cost}
               onChange={(event) => setForm((prev) => ({ ...prev, cost: event.target.value }))}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              placeholder="120.00"
+              placeholder={t('parts.placeholderCost')}
               disabled={editingPart && (form.status === 'sold' || form.status === 'transferred')}
             />
           </label>
           <label className="text-sm text-slate-300">
-            Asking Price
+            {t('parts.askingPrice')}
             <input
               type="number"
               min="0"
@@ -318,11 +320,11 @@ export default function AddEditPartModal({
               value={form.asking_price}
               onChange={(event) => setForm((prev) => ({ ...prev, asking_price: event.target.value }))}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-              placeholder="180.00"
+              placeholder={t('parts.placeholderPrice')}
             />
           </label>
           <label className="text-sm text-slate-300">
-            Currency
+            {t('parts.currency')}
             <select
               value={form.currency}
               onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value }))}
@@ -336,7 +338,7 @@ export default function AddEditPartModal({
             </select>
           </label>
           <label className="block text-sm text-slate-300">
-            <span className="mb-1.5 block font-medium">Photo (optional)</span>
+            <span className="mb-1.5 block font-medium">{t('parts.photoOptional')}</span>
             <input
               type="file"
               accept="image/*"
@@ -350,21 +352,21 @@ export default function AddEditPartModal({
               className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500 file:px-3 file:py-1.5 file:text-slate-950 file:font-semibold"
             />
             {photoPreview ? (
-              <img src={photoPreview} alt="Preview" className="mt-3 h-32 w-32 rounded-xl object-cover border border-slate-700" />
+              <img src={photoPreview} alt={t('parts.altPreview')} className="mt-3 h-32 w-32 rounded-xl object-cover border border-slate-700" />
             ) : form.photo_url ? (
-              <img src={form.photo_url} alt="Current" className="mt-3 h-32 w-32 rounded-xl object-cover border border-slate-700" />
+              <img src={form.photo_url} alt={t('parts.altCurrent')} className="mt-3 h-32 w-32 rounded-xl object-cover border border-slate-700" />
             ) : null}
           </label>
           {canManageBranches ? (
             <label className="text-sm text-slate-300">
-              Branch
+              {t('parts.branch')}
               <select
                 value={form.branch_id}
                 onChange={(event) => setForm((prev) => ({ ...prev, branch_id: event.target.value, donor_vehicle_id: '' }))}
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
                 disabled={loadingBranches}
               >
-                <option value="">Select branch</option>
+                <option value="">{t('parts.selectBranch')}</option>
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>{branch.name}</option>
                 ))}
@@ -372,14 +374,14 @@ export default function AddEditPartModal({
             </label>
           ) : null}
           <label className="text-sm text-slate-300">
-            Donor Vehicle
+            {t('parts.donorVehicle')}
             <select
               value={form.donor_vehicle_id}
               onChange={(event) => setForm((prev) => ({ ...prev, donor_vehicle_id: event.target.value }))}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
               disabled={loadingVehicles || (canManageBranches && !form.branch_id && currentStaff.role !== 'branch_staff') || (editingPart && (form.status === 'sold' || form.status === 'transferred'))}
             >
-              <option value="">None</option>
+              <option value="">{t('parts.none')}</option>
               {donorVehicles.map((vehicle) => (
                 <option key={vehicle.id} value={vehicle.id}>
                   {vehicle.make} {vehicle.model} ({vehicle.year})
@@ -388,16 +390,16 @@ export default function AddEditPartModal({
             </select>
           </label>
           <label className="text-sm text-slate-300">
-            Status
+            {t('parts.status')}
             <select
               value={form.status}
               onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
             >
-              <option value="in_stock">In Stock</option>
-              <option value="sold">Sold</option>
-              <option value="reserved">Reserved</option>
-              <option value="pending">Pending</option>
+              <option value="in_stock">{t('parts.statusInStock')}</option>
+              <option value="sold">{t('parts.statusSold')}</option>
+              <option value="reserved">{t('parts.statusReserved')}</option>
+              <option value="pending">{t('parts.statusPending')}</option>
             </select>
           </label>
           {errorMessage ? <p className="mt-2 text-sm text-red-400 md:col-span-2 xl:col-span-3">{errorMessage}</p> : null}
@@ -408,14 +410,14 @@ export default function AddEditPartModal({
               onClick={onClose}
               className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
             >
-              Cancel
+              {t('parts.cancel')}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? 'Saving...' : editingPart ? 'Save Changes' : 'Add Part'}
+              {submitting ? t('parts.saving') : editingPart ? t('parts.saveChanges') : t('parts.addPart')}
             </button>
           </div>
         </form>

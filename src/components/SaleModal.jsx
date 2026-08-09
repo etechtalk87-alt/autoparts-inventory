@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabaseClient'
 import { downloadInvoicePdf } from '../lib/invoicePdf'
 
@@ -26,8 +27,10 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
   const [amountPaid, setAmountPaid] = useState('')
   const [selling, setSelling] = useState(false)
   const [saleMessage, setSaleMessage] = useState('')
+  const [saleMessageIsSuccess, setSaleMessageIsSuccess] = useState(false)
   const [saleInvoice, setSaleInvoice] = useState(null)
   const [isWalkIn, setIsWalkIn] = useState(false)
+  const { t } = useTranslation()
   const searchTimerRef = useRef(null)
 
   useEffect(() => {
@@ -42,6 +45,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
     setShowNewCustomerForm(false)
     setNewCustomerForm(emptyCustomerForm)
     setSaleMessage('')
+    setSaleMessageIsSuccess(false)
     setSaleInvoice(null)
     setIsWalkIn(false)
   }, [part?.id])
@@ -102,6 +106,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
     setNewCustomerForm(emptyCustomerForm)
     setSaleInvoice(null)
     setSaleMessage('')
+    setSaleMessageIsSuccess(false)
     setIsWalkIn(false)
     onClose?.()
   }
@@ -109,7 +114,8 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
   const handleCreateNewCustomer = async (e) => {
     e.preventDefault()
     if (!newCustomerForm.full_name.trim()) {
-      setSaleMessage('Please enter customer name.')
+      setSaleMessage(t('parts.enterCustomerName'))
+      setSaleMessageIsSuccess(false)
       return
     }
 
@@ -131,7 +137,8 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
       .single()
 
     if (error) {
-      setSaleMessage(`Error creating customer: ${error.message}`)
+      setSaleMessage(t('parts.errorCreatingCustomer', { error: error.message }))
+      setSaleMessageIsSuccess(false)
       setCreatingCustomer(false)
       return
     }
@@ -147,19 +154,23 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
 
   const confirmSale = async () => {
     if (!part) {
-      setSaleMessage('No part selected.')
+      setSaleMessage(t('parts.noPartSelected'))
+      setSaleMessageIsSuccess(false)
       return
     }
     if (!salePrice) {
-      setSaleMessage('Please enter a sale price.')
+      setSaleMessage(t('parts.enterSalePrice'))
+      setSaleMessageIsSuccess(false)
       return
     }
     if (!selectedCustomerId && !isWalkIn) {
-      setSaleMessage('Please select or create a customer, or mark this as a Walk-in Sale.')
+      setSaleMessage(t('parts.selectCustomerOrWalkIn'))
+      setSaleMessageIsSuccess(false)
       return
     }
     if (isWalkIn && paymentStatus !== 'paid_in_full') {
-      setSaleMessage('Walk-in sales must be paid in full.')
+      setSaleMessage(t('parts.walkInMustBePaid'))
+      setSaleMessageIsSuccess(false)
       return
     }
 
@@ -169,7 +180,8 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
     } else if (paymentStatus === 'partial') {
       finalAmountPaid = Number(amountPaid || 0)
       if (finalAmountPaid <= 0 || finalAmountPaid >= Number(salePrice)) {
-        setSaleMessage('Partial payment must be greater than 0 and less than sale price.')
+        setSaleMessage(t('parts.partialMustBeValid'))
+        setSaleMessageIsSuccess(false)
         return
       }
     } else if (paymentStatus === 'credit') {
@@ -211,6 +223,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
 
     if (saleInsertError) {
       setSaleMessage(saleInsertError.message)
+      setSaleMessageIsSuccess(false)
       setSelling(false)
       return
     }
@@ -241,12 +254,14 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
 
     if (updateError) {
       setSaleMessage(updateError.message)
+      setSaleMessageIsSuccess(false)
       setSelling(false)
       return
     }
 
     if (!updateData || updateData.length === 0) {
-      setSaleMessage('Update failed - you may not have permission to modify this record.')
+      setSaleMessage(t('parts.updateFailedPermission'))
+      setSaleMessageIsSuccess(false)
       setSelling(false)
       return
     }
@@ -259,7 +274,8 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
     setCustomerSearch('')
     setIsWalkIn(false)
     setSaleInvoice(saleData)
-    setSaleMessage('Part marked as sold. You can download the invoice below.')
+    setSaleMessage(t('parts.partMarkedSold'))
+    setSaleMessageIsSuccess(true)
     setSelling(false)
 
     onSaleComplete?.(part.id)
@@ -268,15 +284,15 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/30">
-        <h3 className="text-xl font-semibold">Mark Part as Sold</h3>
+        <h3 className="text-xl font-semibold">{t('parts.markPartAsSold')}</h3>
         <p className="mt-2 text-sm text-slate-400">
-          Record the sale for {part.part_name}.
+          {t('parts.recordSaleFor', { partName: part.part_name })}
         </p>
 
         {!saleInvoice ? (
           <>
             <label className="mt-4 block text-sm text-slate-300">
-              Sale Price *
+              {t('parts.salePrice')}
               <input
                 type="number"
                 min="0"
@@ -305,19 +321,19 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                 }}
                 className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-cyan-500"
               />
-              <span className="text-sm text-slate-300">Walk-in Sale (no customer record)</span>
+              <span className="text-sm text-slate-300">{t('parts.walkInSale')}</span>
             </label>
 
             {isWalkIn && (
               <p className="mt-2 text-xs text-slate-500">
-                Walk-in sales must be paid in full, since there's no customer record to follow up with.
+                {t('parts.walkInSaleNote')}
               </p>
             )}
 
             {!isWalkIn && (
               <>
                 <label className="mt-4 block text-sm text-slate-300">
-                  Customer *
+                  {t('parts.customerRequired')}
                   <div className="relative mt-1">
                     <input
                       type="text"
@@ -329,7 +345,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                         setShowCustomerDropdown(true)
                       }}
                       onFocus={() => setShowCustomerDropdown(true)}
-                      placeholder="Search customer by name or phone..."
+                      placeholder={t('parts.searchCustomerPlaceholder')}
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
                     />
                     {showCustomerDropdown && (
@@ -364,7 +380,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                             }}
                             className="w-full px-3 py-2 text-left text-sm text-cyan-400 hover:bg-slate-800 border-t border-slate-700 font-medium"
                           >
-                            + Add '{customerSearch}' as new customer
+                            {t('parts.addAsNewCustomer', { name: customerSearch })}
                           </button>
                         ) : filteredCustomers.length > 0 ? (
                           <button
@@ -375,7 +391,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                             }}
                             className="w-full px-3 py-2 text-left text-sm text-cyan-400 hover:bg-slate-800 border-t border-slate-700 font-medium"
                           >
-                            + Add new customer
+                            {t('parts.addNewCustomer')}
                           </button>
                         ) : null}
                       </div>
@@ -385,9 +401,9 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
 
                 {showNewCustomerForm && (
                   <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950/50 p-4">
-                    <h4 className="font-semibold text-white mb-3">Add New Customer</h4>
+                    <h4 className="font-semibold text-white mb-3">{t('parts.addNewCustomerTitle')}</h4>
                     <label className="block text-sm text-slate-300 mb-3">
-                      Full Name *
+                      {t('parts.fullName')}
                       <input
                         type="text"
                         value={newCustomerForm.full_name}
@@ -396,7 +412,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                       />
                     </label>
                     <label className="block text-sm text-slate-300 mb-3">
-                      Phone
+                      {t('parts.phone')}
                       <input
                         type="tel"
                         value={newCustomerForm.phone}
@@ -405,7 +421,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                       />
                     </label>
                     <label className="block text-sm text-slate-300 mb-3">
-                      Email
+                      {t('parts.email')}
                       <input
                         type="email"
                         value={newCustomerForm.email}
@@ -419,7 +435,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                         onClick={() => setShowNewCustomerForm(false)}
                         className="flex-1 rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-600"
                       >
-                        Cancel
+                        {t('parts.cancel')}
                       </button>
                       <button
                         type="button"
@@ -427,7 +443,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                         disabled={creatingCustomer}
                         className="flex-1 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
                       >
-                        {creatingCustomer ? 'Creating...' : 'Create Customer'}
+                        {creatingCustomer ? t('parts.creating') : t('parts.createCustomer')}
                       </button>
                     </div>
                   </div>
@@ -436,9 +452,9 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
             )}
 
             <fieldset className="mt-4">
-              <legend className="text-sm font-medium text-slate-300">Payment Status *</legend>
+              <legend className="text-sm font-medium text-slate-300">{t('parts.paymentStatusRequired')}</legend>
               {!selectedCustomerId && !isWalkIn ? (
-                <p className="mt-2 text-sm text-slate-400">Select or create a customer to enable payment options.</p>
+                <p className="mt-2 text-sm text-slate-400">{t('parts.selectCustomerForPayment')}</p>
               ) : null}
               <div className="mt-2 space-y-2">
                 <label className={`flex items-center gap-3 ${(!selectedCustomerId && !isWalkIn) ? 'opacity-60' : ''}`}>
@@ -454,7 +470,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                     className="h-4 w-4"
                     disabled={(!selectedCustomerId && !isWalkIn)}
                   />
-                  <span className="text-sm text-slate-300">Paid in Full</span>
+                  <span className="text-sm text-slate-300">{t('parts.paidInFull')}</span>
                 </label>
                 <label className={`flex items-center gap-3 ${(!selectedCustomerId && !isWalkIn) ? 'opacity-60' : ''}`}>
                   <input
@@ -466,7 +482,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                     className="h-4 w-4"
                     disabled={(!selectedCustomerId && !isWalkIn) || isWalkIn}
                   />
-                  <span className="text-sm text-slate-300">Partial Payment</span>
+                  <span className="text-sm text-slate-300">{t('parts.partialPayment')}</span>
                 </label>
                 <label className={`flex items-center gap-3 ${(!selectedCustomerId && !isWalkIn) ? 'opacity-60' : ''}`}>
                   <input
@@ -481,21 +497,21 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
                     className="h-4 w-4"
                     disabled={(!selectedCustomerId && !isWalkIn) || isWalkIn}
                   />
-                  <span className="text-sm text-slate-300">Full Credit</span>
+                  <span className="text-sm text-slate-300">{t('parts.fullCredit')}</span>
                 </label>
               </div>
             </fieldset>
 
             {paymentStatus === 'partial' && (
               <label className="mt-4 block text-sm text-slate-300">
-                Amount Paid *
+                {t('parts.amountPaid')}
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   value={amountPaid}
                   onChange={(event) => setAmountPaid(event.target.value)}
-                  placeholder={`Less than ${Number(salePrice).toFixed(2)}`}
+                  placeholder={t('parts.lessThan', { amount: Number(salePrice).toFixed(2) })}
                   className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
                 />
               </label>
@@ -504,7 +520,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
         ) : null}
 
         {saleMessage ? (
-          <p className={`mt-4 text-sm ${saleMessage.includes('Part marked as sold') ? 'text-emerald-400' : 'text-red-400'}`}>
+          <p className={`mt-4 text-sm ${saleMessageIsSuccess ? 'text-emerald-400' : 'text-red-400'}`}>
             {saleMessage}
           </p>
         ) : null}
@@ -522,14 +538,14 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
               })}
               className="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
             >
-              Download Invoice
+              {t('parts.downloadInvoice')}
             </button>
             <button
               type="button"
               onClick={resetAndClose}
               className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
             >
-              Close
+              {t('parts.close')}
             </button>
           </div>
         ) : (
@@ -539,7 +555,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
               onClick={resetAndClose}
               className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
             >
-              Cancel
+              {t('parts.cancel')}
             </button>
             <button
               type="button"
@@ -547,7 +563,7 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
               disabled={selling}
               className="rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {selling ? 'Saving...' : 'Confirm Sale'}
+              {selling ? t('parts.saving') : t('parts.confirmSale')}
             </button>
           </div>
         )}
