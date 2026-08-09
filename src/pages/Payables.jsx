@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -18,6 +19,7 @@ function formatCurrency(value, currency = 'AED') {
 
 function Payables() {
   const { currentStaff, loading } = useAuth()
+  const { t } = useTranslation()
   const [payables, setPayables] = useState([])
   const [loadingPayables, setLoadingPayables] = useState(true)
 
@@ -80,15 +82,17 @@ function Payables() {
   }
 
   const handleExportPdf = async () => {
+    const tEn = (key, fallback) => t(key, { lng: 'en', defaultValue: fallback })
+
     const columns = [
-      { key: 'vendor', label: 'Vendor', width: 1.5 },
-      { key: 'vehicle', label: 'Vehicle', width: 2 },
-      { key: 'amount', label: 'Amount', align: 'right', width: 1 },
-      { key: 'paid', label: 'Paid', align: 'right', width: 1 },
-      { key: 'remaining', label: 'Remaining', align: 'right', width: 1 },
+      { key: 'vendor', label: tEn('payables.colVendor', 'Vendor'), width: 1.5 },
+      { key: 'vehicle', label: tEn('payables.colVehicle', 'Vehicle'), width: 2 },
+      { key: 'amount', label: tEn('payables.colAmount', 'Amount'), align: 'right', width: 1 },
+      { key: 'paid', label: tEn('payables.colPaid', 'Paid'), align: 'right', width: 1 },
+      { key: 'remaining', label: tEn('payables.colRemaining', 'Remaining'), align: 'right', width: 1 },
       {
         key: 'status',
-        label: 'Status',
+        label: tEn('payables.colStatus', 'Status'),
         width: 0.8,
         render: (value, row) => ({
           text: value,
@@ -98,20 +102,20 @@ function Payables() {
     ]
 
     const rows = payables.map((payable) => ({
-      vendor: payable.vendors?.full_name || 'Unknown Vendor',
+      vendor: payable.vendors?.full_name || tEn('payables.unknownVendor', 'Unknown Vendor'),
       vehicle: payable.donor_vehicles
         ? `${payable.donor_vehicles.year} ${payable.donor_vehicles.make} ${payable.donor_vehicles.model}`
-        : 'Unknown Vehicle',
+        : tEn('payables.unknownVehicle', 'Unknown Vehicle'),
       amount: formatCurrency(payable.amount, payable.currency),
       paid: formatCurrency(payable.amount_paid, payable.currency),
       remaining: formatCurrency(Number(payable.amount) - Number(payable.amount_paid), payable.currency),
-      status: payable.status === 'paid' ? 'Paid' : payable.status === 'partial' ? 'Partial' : 'Unpaid',
+      status: payable.status === 'paid' ? tEn('payables.statusPaid', 'Paid') : payable.status === 'partial' ? tEn('payables.statusPartial', 'Partial') : tEn('payables.statusUnpaid', 'Unpaid'),
       _rawStatus: payable.status,
     }))
 
     await generateReportPdf({
       companyName: currentStaff?.companyName || 'Auto Parts Inventory',
-      reportTitle: 'Payables Report',
+      reportTitle: tEn('payables.reportTitle', 'Payables Report'),
       columns,
       rows,
     })
@@ -127,11 +131,11 @@ function Payables() {
     const amt = Number(paymentAmount)
 
     if (Number.isNaN(amt) || amt <= 0) {
-      setPaymentError('Amount must be greater than zero.')
+      setPaymentError(t('payables.amountMustBeGreaterThanZero', 'Amount must be greater than zero.'))
       return
     }
     if (amt > remaining) {
-      setPaymentError(`Amount cannot exceed the remaining balance of ${formatCurrency(remaining, payable.currency)}`)
+      setPaymentError(t('payables.amountExceedsRemaining', 'Amount cannot exceed the remaining balance of {{amount}}', { amount: formatCurrency(remaining, payable.currency) }))
       return
     }
 
@@ -149,7 +153,7 @@ function Payables() {
     })
 
     if (insertError) {
-      setPaymentError(`Failed to record payment: ${insertError.message}`)
+      setPaymentError(t('payables.failedToRecord', 'Failed to record payment: {{error}}', { error: insertError.message }))
       setSubmittingPayment(false)
       return
     }
@@ -165,7 +169,7 @@ function Payables() {
       .single()
 
     if (updateError) {
-      setPaymentError(`Payment recorded, but failed to update payable status: ${updateError.message}`)
+      setPaymentError(t('payables.recordedButFailedUpdate', 'Payment recorded, but failed to update payable status: {{error}}', { error: updateError.message }))
       setSubmittingPayment(false)
       return
     }
@@ -179,7 +183,7 @@ function Payables() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          Loading payables...
+          {t('payables.loadingPayables', 'Loading payables...')}
         </div>
       </main>
     )
@@ -197,11 +201,11 @@ function Payables() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
                 <Wallet size={16} />
-                Accounts Payable
+                {t('payables.accountsPayable', 'Accounts Payable')}
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Payables</h1>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{t('payables.title', 'Payables')}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
-                Track what you owe vendors for donor vehicles and manage outstanding balances.
+                {t('payables.description', 'Track what you owe vendors for donor vehicles and manage outstanding balances.')}
               </p>
             </div>
 
@@ -209,21 +213,21 @@ function Payables() {
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                   <Banknote size={16} className="text-cyan-300" />
-                  Total Payables
+                  {t('payables.totalPayables', 'Total Payables')}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-white">{stats.totalCount}</div>
               </div>
               <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-rose-200">
                   <CircleDollarSign size={16} />
-                  Outstanding
+                  {t('payables.outstanding', 'Outstanding')}
                 </div>
                 <div className="mt-2 text-lg font-semibold text-white">{formatCurrency(stats.outstanding, stats.currency)}</div>
               </div>
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
                   <FileCheck size={16} />
-                  Fully Paid
+                  {t('payables.fullyPaid', 'Fully Paid')}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-white">{stats.fullyPaid}</div>
               </div>
@@ -234,28 +238,28 @@ function Payables() {
         <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-white">Vendor Ledgers</h2>
-              <p className="mt-1 text-sm text-slate-400">Review pending and completed payments.</p>
+              <h2 className="text-xl font-semibold text-white">{t('payables.vendorLedgers', 'Vendor Ledgers')}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t('payables.vendorLedgersDesc', 'Review pending and completed payments.')}</p>
             </div>
             <button
               type="button"
               onClick={handleExportPdf}
               className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
             >
-              Export PDF
+              {t('payables.exportPdf', 'Export PDF')}
             </button>
           </div>
 
           {loadingPayables ? (
-            <div className="p-8 text-slate-400">Loading payables...</div>
+            <div className="p-8 text-slate-400">{t('payables.loadingPayables', 'Loading payables...')}</div>
           ) : payables.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 p-10 text-center">
               <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5">
                 <Wallet size={28} className="mx-auto text-cyan-300" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">No payables yet</h3>
-                <p className="mt-1 text-sm text-slate-400">When you buy a donor vehicle and assign a vendor, it will appear here.</p>
+                <h3 className="text-lg font-semibold text-white">{t('payables.noPayablesYet', 'No payables yet')}</h3>
+                <p className="mt-1 text-sm text-slate-400">{t('payables.noPayablesDesc', 'When you buy a donor vehicle and assign a vendor, it will appear here.')}</p>
               </div>
             </div>
           ) : (
@@ -263,14 +267,14 @@ function Payables() {
               <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                 <thead className="bg-slate-950/70 text-slate-400">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Vendor</th>
-                    <th className="px-6 py-3 font-medium">Vehicle</th>
-                    <th className="px-6 py-3 font-medium">Amount</th>
-                    <th className="px-6 py-3 font-medium">Paid</th>
-                    <th className="px-6 py-3 font-medium">Remaining</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Actions</th>
+                    <th className="px-6 py-3 font-medium">{t('payables.colVendor', 'Vendor')}</th>
+                    <th className="px-6 py-3 font-medium">{t('payables.colVehicle', 'Vehicle')}</th>
+                    <th className="px-6 py-3 font-medium">{t('payables.colAmount', 'Amount')}</th>
+                    <th className="px-6 py-3 font-medium">{t('payables.colPaid', 'Paid')}</th>
+                    <th className="px-6 py-3 font-medium">{t('payables.colRemaining', 'Remaining')}</th>
+                    <th className="px-6 py-3 font-medium">{t('payables.colStatus', 'Status')}</th>
+                    <th className="px-6 py-3 font-medium">{t('payables.colDate', 'Date')}</th>
+                    <th className="px-6 py-3 font-medium">{t('payables.colActions', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10 bg-slate-900/50">
@@ -279,12 +283,12 @@ function Payables() {
                     return (
                       <tr key={payable.id} className="align-middle transition hover:bg-slate-800/60">
                         <td className="px-6 py-4 font-semibold text-white">
-                          {payable.vendors?.full_name || 'Unknown Vendor'}
+                          {payable.vendors?.full_name || t('payables.unknownVendor', 'Unknown Vendor')}
                         </td>
                         <td className="px-6 py-4 text-slate-300">
                           {payable.donor_vehicles 
                             ? `${payable.donor_vehicles.year} ${payable.donor_vehicles.make} ${payable.donor_vehicles.model}`
-                            : 'Unknown Vehicle'}
+                            : t('payables.unknownVehicle', 'Unknown Vehicle')}
                         </td>
                         <td className="px-6 py-4 text-slate-300">
                           {formatCurrency(payable.amount, payable.currency)}
@@ -301,7 +305,7 @@ function Payables() {
                             payable.status === 'partial' ? 'bg-amber-500/10 text-amber-400' :
                             'bg-rose-500/10 text-rose-400'
                           }`}>
-                            {payable.status === 'paid' ? 'Paid' : payable.status === 'partial' ? 'Partial' : 'Unpaid'}
+                            {payable.status === 'paid' ? t('payables.statusPaid', 'Paid') : payable.status === 'partial' ? t('payables.statusPartial', 'Partial') : t('payables.statusUnpaid', 'Unpaid')}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-slate-400">
@@ -314,7 +318,7 @@ function Payables() {
                               onClick={() => handleRecordPaymentClick(payable)}
                               className="rounded-lg border border-cyan-500 px-3 py-1.5 text-xs font-semibold text-cyan-400 transition hover:bg-cyan-500/10"
                             >
-                              Record Payment
+                              {t('payables.recordPayment', 'Record Payment')}
                             </button>
                           ) : null}
                         </td>
@@ -332,7 +336,7 @@ function Payables() {
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 p-6">
-              <h2 className="text-xl font-semibold text-white">Record Payment</h2>
+              <h2 className="text-xl font-semibold text-white">{t('payables.recordPayment', 'Record Payment')}</h2>
               <button
                 type="button"
                 onClick={() => setPayingId(null)}
@@ -350,7 +354,7 @@ function Payables() {
 
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-slate-300">
-                  Amount
+                  {t('payables.amount', 'Amount')}
                   <input
                     type="number"
                     step="0.01"
@@ -358,27 +362,27 @@ function Payables() {
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
                     className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
-                    placeholder="0.00"
+                    placeholder={t('payables.amountPlaceholder', '0.00')}
                   />
                 </label>
                 <label className="block text-sm font-medium text-slate-300">
-                  Payment Method <span className="text-slate-500">(Optional)</span>
+                  {t('payables.paymentMethodOptional', 'Payment Method (Optional)')}
                   <input
                     type="text"
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
-                    placeholder="e.g. Bank Transfer, Cash"
+                    placeholder={t('payables.methodPlaceholder', 'e.g. Bank Transfer, Cash')}
                   />
                 </label>
                 <label className="block text-sm font-medium text-slate-300">
-                  Notes <span className="text-slate-500">(Optional)</span>
+                  {t('payables.notesOptional', 'Notes (Optional)')}
                   <textarea
                     rows={3}
                     value={paymentNotes}
                     onChange={(e) => setPaymentNotes(e.target.value)}
                     className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
-                    placeholder="Transaction ID, reference, etc."
+                    placeholder={t('payables.notesPlaceholder', 'Transaction ID, reference, etc.')}
                   />
                 </label>
               </div>
@@ -390,14 +394,14 @@ function Payables() {
                   className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800"
                   disabled={submittingPayment}
                 >
-                  Cancel
+                  {t('payables.cancel', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={submittingPayment}
                   className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {submittingPayment ? 'Recording...' : 'Record Payment'}
+                  {submittingPayment ? t('payables.recording', 'Recording...') : t('payables.recordPayment', 'Record Payment')}
                 </button>
               </div>
             </form>
