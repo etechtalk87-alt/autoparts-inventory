@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BadgeCheck, CreditCard, ReceiptText, UsersRound, Wallet2 } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
@@ -80,6 +81,7 @@ function Customers() {
   const [loadingHistory, setLoadingHistory] = useState(false)
 
   const canManageCustomers = currentStaff?.role === 'company_admin'
+  const { t } = useTranslation()
 
   const formatDate = (dateString) => {
     if (!dateString) return '—'
@@ -209,7 +211,7 @@ function Customers() {
     e.preventDefault()
 
     if (!form.full_name.trim()) {
-      setMessage('Full name is required.')
+      setMessage(t('customers.fullNameRequired'))
       setMessageType('error')
       return
     }
@@ -236,7 +238,7 @@ function Customers() {
         setMessage(error.message)
         setMessageType('error')
       } else if (!updateData || updateData.length === 0) {
-        setMessage('Update failed - you may not have permission to modify this record.')
+        setMessage(t('customers.updateFailedPermission'))
         setMessageType('error')
       } else {
         setCustomers((prev) =>
@@ -254,7 +256,7 @@ function Customers() {
               : c
           )
         )
-        setMessage('Customer updated successfully.')
+        setMessage(t('customers.customerUpdated'))
         setMessageType('success')
         setEditingId(null)
         resetForm()
@@ -277,7 +279,7 @@ function Customers() {
         setMessage(error.message)
         setMessageType('error')
       } else {
-        setMessage('Customer added successfully.')
+        setMessage(t('customers.customerAdded'))
         setMessageType('success')
         resetForm()
         const { data } = await supabase
@@ -460,7 +462,7 @@ function Customers() {
 
     const amount = Number(paymentForm.amount)
     if (amount <= 0) {
-      setMessage('Amount must be greater than 0.')
+      setMessage(t('customers.amountMustBeGreaterThanZero'))
       setMessageType('error')
       setSubmitting(false)
       return
@@ -469,7 +471,7 @@ function Customers() {
     if (paymentForm.sale_id) {
       const group = groupedUnpaidSales.find((g) => String(g.key) === String(paymentForm.sale_id))
       if (!group) {
-        setMessage('Selected invoice group is invalid.')
+        setMessage(t('customers.invalidInvoiceGroup'))
         setMessageType('error')
         setSubmitting(false)
         return
@@ -477,7 +479,7 @@ function Customers() {
 
       const groupRemaining = Number(group.totalPrice || 0) - Number(group.totalPaid || 0)
       if (amount > groupRemaining) {
-        setMessage(`Amount exceeds remaining balance of ${group.currency} ${groupRemaining.toFixed(2)} for this invoice.`)
+        setMessage(t('customers.amountExceedsBalance', { currency: group.currency, amount: groupRemaining.toFixed(2) }))
         setMessageType('error')
         setSubmitting(false)
         return
@@ -538,7 +540,7 @@ function Customers() {
           .eq('id', d.id)
 
         if (updateError) {
-          setMessage(`Some payments recorded, but failed to update a sale: ${updateError.message}`)
+          setMessage(t('customers.somePaymentsFailedUpdate', { error: updateError.message }))
           setMessageType('error')
           setSubmitting(false)
           return
@@ -589,7 +591,7 @@ function Customers() {
       }
     }
 
-    setMessage('Payment recorded successfully.')
+    setMessage(t('customers.paymentRecorded'))
     setMessageType('success')
     
     const newBalances = { ...outstandingBalances }
@@ -610,7 +612,7 @@ function Customers() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          Loading customers...
+          {t('customers.loadingCustomers')}
         </div>
       </main>
     )
@@ -624,6 +626,9 @@ function Customers() {
     if (!balanceMap) return sum
     return sum + Object.values(balanceMap).reduce((balanceSum, amount) => balanceSum + Number(amount || 0), 0)
   }, 0)
+  const start = (currentPage - 1) * itemsPerPage + 1
+  const end = Math.min(currentPage * itemsPerPage, visibleCustomers.length)
+  const total = visibleCustomers.length
 
   return (
     <main className="min-h-screen bg-transparent px-4 py-10 text-slate-50">
@@ -633,11 +638,11 @@ function Customers() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
                 <BadgeCheck size={16} />
-                Customer relationship hub
+                {t('customers.relationshipHub')}
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Customers</h1>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{t('customers.title')}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
-                Keep key client details, payment records, and outstanding balances organized in one polished workspace.
+                {t('customers.description')}
               </p>
             </div>
 
@@ -645,14 +650,14 @@ function Customers() {
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                   <UsersRound size={16} className="text-cyan-300" />
-                  Active customers
+                  {t('customers.activeCustomers')}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-white">{customers.length}</div>
               </div>
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
                   <Wallet2 size={16} />
-                  Outstanding value
+                  {t('customers.outstandingValue')}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-white">{totalOutstandingBalance.toFixed(2)}</div>
               </div>
@@ -673,21 +678,21 @@ function Customers() {
             className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
           >
             <UsersRound size={18} />
-            Add Customer
+            {t('customers.addCustomer')}
           </button>
         </div>
 
         {loadingCustomers ? (
           <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-            <p className="text-slate-400">Loading customers...</p>
+            <p className="text-slate-400">{t('customers.loadingCustomers')}</p>
           </div>
         ) : customers.length === 0 ? (
           <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-10 text-center shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
             <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5">
               <UsersRound size={28} className="mx-auto text-cyan-300" />
             </div>
-            <h2 className="mt-4 text-lg font-semibold text-white">No customers yet</h2>
-            <p className="mt-2 text-sm text-slate-400">Add your first customer to begin tracking payments and relationships.</p>
+            <h2 className="mt-4 text-lg font-semibold text-white">{t('customers.noCustomersYet')}</h2>
+            <p className="mt-2 text-sm text-slate-400">{t('customers.addFirstCustomer')}</p>
           </div>
         ) : (
           <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
@@ -695,11 +700,11 @@ function Customers() {
               <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                 <thead className="bg-slate-950/70 text-slate-400">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Customer</th>
-                    <th className="px-6 py-3 font-medium">Phone</th>
-                    <th className="px-6 py-3 font-medium">Outstanding Balance</th>
-                    <th className="px-6 py-3 font-medium">Payment History</th>
-                    {canManageCustomers ? <th className="px-6 py-3 font-medium">Actions</th> : null}
+                    <th className="px-6 py-3 font-medium">{t('customers.colCustomer')}</th>
+                    <th className="px-6 py-3 font-medium">{t('customers.colPhone')}</th>
+                    <th className="px-6 py-3 font-medium">{t('customers.colOutstandingBalance')}</th>
+                    <th className="px-6 py-3 font-medium">{t('customers.colPaymentHistory')}</th>
+                    {canManageCustomers ? <th className="px-6 py-3 font-medium">{t('customers.colActions')}</th> : null}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10 bg-slate-900/50">
@@ -717,14 +722,14 @@ function Customers() {
                               </div>
                               <div>
                                 <div className="font-semibold text-white">{customer.full_name}</div>
-                                <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">Customer profile</div>
+                                <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">{t('customers.customerProfile')}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-slate-300">{customer.phone || '—'}</td>
                           <td className="px-6 py-4">
                             {!balances ? (
-                              <span className="text-slate-400">Calculating...</span>
+                              <span className="text-slate-400">{t('customers.calculating')}</span>
                             ) : hasBalances ? (
                               <div className="flex flex-col gap-1">
                                 {Object.entries(balances)
@@ -752,7 +757,7 @@ function Customers() {
                               className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-sm font-medium text-cyan-200 transition hover:bg-cyan-400/20"
                             >
                               <ReceiptText size={14} />
-                              {showHistoryModal && historyCustomer?.id === customer.id ? 'Hide History' : 'View History'}
+                              {showHistoryModal && historyCustomer?.id === customer.id ? t('customers.hideHistory') : t('customers.viewHistory')}
                             </button>
                           </td>
                           {canManageCustomers ? (
@@ -764,14 +769,14 @@ function Customers() {
                                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600/20 px-3 py-1.5 text-sm font-medium text-emerald-300 transition hover:bg-emerald-600/30 whitespace-nowrap"
                                 >
                                   <CreditCard size={15} />
-                                  Record Payment
+                                  {t('customers.recordPayment')}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => openEditModal(customer)}
                                   className="rounded-xl bg-slate-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-slate-600"
                                 >
-                                  Edit
+                                  {t('customers.edit')}
                                 </button>
                               </div>
                             </td>
@@ -786,7 +791,11 @@ function Customers() {
             {totalPages > 1 ? (
               <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-slate-400">
-                  Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, visibleCustomers.length)} of {visibleCustomers.length} customers
+                  {t('customers.showingRange', { 
+                    start: (currentPage - 1) * itemsPerPage + 1, 
+                    end: Math.min(currentPage * itemsPerPage, visibleCustomers.length), 
+                    total: visibleCustomers.length 
+                  })}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -795,16 +804,16 @@ function Customers() {
                     disabled={currentPage === 1}
                     className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Previous
+                    {t('customers.previous')}
                   </button>
-                  <span className="text-sm text-slate-300">Page {currentPage} of {totalPages}</span>
+                  <span className="text-sm text-slate-300">{t('customers.pageOf', { current: currentPage, total: totalPages })}</span>
                   <button
                     type="button"
                     onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
                     className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Next
+                    {t('customers.next')}
                   </button>
                 </div>
               </div>
@@ -815,10 +824,10 @@ function Customers() {
         {showPaymentModal && paymentCustomer && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
             <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
-              <h2 className="text-xl font-semibold text-white">Record Payment for {paymentCustomer.full_name}</h2>
+              <h2 className="text-xl font-semibold text-white">{t('customers.recordPaymentFor', { name: paymentCustomer.full_name })}</h2>
               
               <div className="mb-4 mt-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="mb-2 text-sm text-slate-400">Current Outstanding Balance:</p>
+                <p className="mb-2 text-sm text-slate-400">{t('customers.currentOutstandingBalance')}</p>
                 {outstandingBalances[paymentCustomer.id] && Object.keys(outstandingBalances[paymentCustomer.id]).some(k => outstandingBalances[paymentCustomer.id][k] > 0) ? (
                   <div className="flex flex-col gap-1">
                     {Object.entries(outstandingBalances[paymentCustomer.id])
@@ -837,7 +846,7 @@ function Customers() {
               <form onSubmit={handleRecordPayment} className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-4">
                   <label className="flex flex-col text-sm text-slate-300">
-                    Amount *
+                    {t('customers.amount')}
                     <input
                       type="number"
                       step="0.01"
@@ -849,7 +858,7 @@ function Customers() {
                     />
                   </label>
                   <label className="flex flex-col text-sm text-slate-300">
-                    Currency *
+                    {t('customers.currency')}
                     <select
                       value={paymentForm.currency}
                       onChange={(e) => setPaymentForm({ ...paymentForm, currency: e.target.value })}
@@ -862,34 +871,34 @@ function Customers() {
                 </div>
 
                 <label className="flex flex-col text-sm text-slate-300">
-                  Payment Method *
+                  {t('customers.paymentMethod')}
                   <select
                     value={paymentForm.payment_method}
                     onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
                     className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   >
-                    <option value="cash">💵 Cash</option>
-                    <option value="bank_transfer">🏦 Bank Transfer</option>
-                    <option value="card">💳 Card</option>
+                    <option value="cash">{t('customers.methodCash')}</option>
+                    <option value="bank_transfer">{t('customers.methodBankTransfer')}</option>
+                    <option value="card">{t('customers.methodCard')}</option>
                   </select>
                 </label>
 
                 <label className="flex flex-col text-sm text-slate-300">
-                  Link to Unpaid Sale (Optional)
+                  {t('customers.linkToUnpaidSale')}
                   <select
                     value={paymentForm.sale_id}
                     onChange={(e) => setPaymentForm({ ...paymentForm, sale_id: e.target.value })}
                     className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   >
-                    <option value="">-- General Payment (Unlinked) --</option>
+                    <option value="">{t('customers.generalPaymentUnlinked')}</option>
                     {loadingUnpaidSales ? (
-                      <option disabled>Loading sales...</option>
+                      <option disabled>{t('customers.loadingSales')}</option>
                     ) : (
                       groupedUnpaidSales.map((group) => {
                         const owed = group.totalPrice - group.totalPaid
                         return (
                           <option key={group.key} value={group.key}>
-                            Invoice #{group.invoiceNumber || group.key} - Owes {group.currency} {owed.toFixed(2)}
+                            {t('customers.invoiceOwes', { number: group.invoiceNumber || group.key, currency: group.currency, amount: owed.toFixed(2) })}
                           </option>
                         )
                       })
@@ -898,13 +907,13 @@ function Customers() {
                 </label>
 
                 <label className="flex flex-col text-sm text-slate-300">
-                  Notes
+                  {t('customers.notes')}
                   <textarea
                     value={paymentForm.notes}
                     onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
                     className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                     rows="2"
-                    placeholder="Reference #, cheque details, etc."
+                    placeholder={t('customers.notesPlaceholder')}
                   />
                 </label>
 
@@ -920,14 +929,14 @@ function Customers() {
                     onClick={closePaymentModal}
                     className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                   >
-                    Cancel
+                    {t('customers.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
                     className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {submitting ? 'Saving...' : 'Record Payment'}
+                    {submitting ? t('customers.saving') : t('customers.recordPayment')}
                   </button>
                 </div>
               </form>
@@ -940,39 +949,39 @@ function Customers() {
             <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Payment History</p>
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">{t('customers.paymentHistoryLabel')}</p>
                   <h2 className="mt-2 text-2xl font-semibold text-white">{historyCustomer.full_name}</h2>
-                  <p className="mt-1 text-sm text-slate-400">Recent payment records for this customer.</p>
+                  <p className="mt-1 text-sm text-slate-400">{t('customers.recentPaymentRecords')}</p>
                 </div>
                 <button
                   type="button"
                   onClick={closeHistoryModal}
                   className="self-start rounded-full border border-white/10 bg-slate-950/80 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900"
                 >
-                  Close
+                  {t('customers.close')}
                 </button>
               </div>
 
               <div className="mt-6 grid gap-4">
                 {loadingHistory ? (
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 text-slate-400">Loading payment history...</div>
+                  <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6 text-slate-400">{t('customers.loadingPaymentHistory')}</div>
                 ) : paymentHistory.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/70 p-6 text-slate-400">No payments recorded yet.</div>
+                  <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/70 p-6 text-slate-400">{t('customers.noPaymentsRecordedYet')}</div>
                 ) : (
                   <div className="grid gap-4">
                     {paymentHistory.map((ph) => (
                       <div key={ph.id} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="space-y-1">
-                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Date</p>
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('customers.date')}</p>
                             <p className="text-lg font-semibold text-white">{formatDate(ph.payment_date)}</p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount</p>
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('customers.amountLabel')}</p>
                             <p className="text-lg font-semibold text-emerald-300">{formatCurrency(ph.amount, ph.currency)}</p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Method</p>
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('customers.method')}</p>
                             <p className="text-sm text-slate-200">{(() => {
                               const { icon, label } = getPaymentMethodDisplay(ph.payment_method)
                               return `${icon} ${label}`
@@ -982,27 +991,27 @@ function Customers() {
 
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
                           <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Linked Sale</p>
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('customers.linkedSale')}</p>
                             {ph.sales?.invoice_number ? (
                               <Link
                                 to={`/invoices/${encodeURIComponent(ph.sales.invoice_number)}`}
                                 className="mt-2 inline-flex flex-col gap-1 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 hover:underline"
                               >
                                 <span>{ph.sales.invoice_number}</span>
-                                <span className="text-xs text-slate-400">View invoice</span>
+                                <span className="text-xs text-slate-400">{t('customers.viewInvoice')}</span>
                               </Link>
                             ) : (
                               <div className="mt-2 text-sm text-slate-300">
-                                <p>General Payment (No invoice linked)</p>
-                                <p className="mt-1 text-xs text-slate-500">Payment date: {formatDate(ph.payment_date)}</p>
+                                <p>{t('customers.generalPaymentNoInvoice')}</p>
+                                <p className="mt-1 text-xs text-slate-500">{t('customers.paymentDateLabel', { date: formatDate(ph.payment_date) })}</p>
                                 {ph.notes ? (
-                                  <p className="mt-1 text-xs text-slate-500">Reference: {ph.notes}</p>
+                                  <p className="mt-1 text-xs text-slate-500">{t('customers.referenceLabel', { notes: ph.notes })}</p>
                                 ) : null}
                               </div>
                             )}
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Notes</p>
+                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{t('customers.notes')}</p>
                             <p className="mt-2 text-sm text-slate-300">{ph.notes || '—'}</p>
                           </div>
                         </div>
@@ -1018,10 +1027,10 @@ function Customers() {
         {showAddModal ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
             <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
-              <h2 className="text-xl font-semibold text-white">{editingId ? 'Edit Customer' : 'Add Customer'}</h2>
+              <h2 className="text-xl font-semibold text-white">{editingId ? t('customers.editCustomer') : t('customers.addCustomerTitle')}</h2>
               <form onSubmit={handleAddCustomer} className="mt-4 flex flex-col gap-4">
                 <label className="flex flex-col text-sm text-slate-300">
-                  Full Name *
+                  {t('customers.fullName')}
                   <input
                     type="text"
                     value={form.full_name}
@@ -1031,7 +1040,7 @@ function Customers() {
                   />
                 </label>
                 <label className="flex flex-col text-sm text-slate-300">
-                  Phone
+                  {t('customers.phone')}
                   <input
                     type="tel"
                     value={form.phone}
@@ -1040,7 +1049,7 @@ function Customers() {
                   />
                 </label>
                 <label className="flex flex-col text-sm text-slate-300">
-                  Email
+                  {t('customers.email')}
                   <input
                     type="email"
                     value={form.email}
@@ -1049,7 +1058,7 @@ function Customers() {
                   />
                 </label>
                 <label className="flex flex-col text-sm text-slate-300">
-                  Address
+                  {t('customers.address')}
                   <input
                     type="text"
                     value={form.address}
@@ -1058,13 +1067,13 @@ function Customers() {
                   />
                 </label>
                 <label className="flex flex-col text-sm text-slate-300">
-                  Country
+                  {t('customers.country')}
                   <select
                     value={form.country}
                     onChange={(e) => setForm({ ...form, country: e.target.value })}
                     className="mt-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                   >
-                    <option value="">Select a country</option>
+                    <option value="">{t('customers.selectCountry')}</option>
                     {COUNTRIES.map((country) => (
                       <option key={country} value={country}>
                         {country}
@@ -1073,7 +1082,7 @@ function Customers() {
                   </select>
                 </label>
                 <label className="flex flex-col text-sm text-slate-300">
-                  Notes
+                  {t('customers.notes')}
                   <textarea
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -1097,14 +1106,14 @@ function Customers() {
                     }}
                     className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                   >
-                    Cancel
+                    {t('customers.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
                     className="rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {submitting ? 'Saving...' : editingId ? 'Update' : 'Add'} Customer
+                    {submitting ? t('customers.saving') : `${editingId ? t('customers.update') : t('customers.add')} ${t('customers.customerSuffix')}`}
                   </button>
                 </div>
               </form>
