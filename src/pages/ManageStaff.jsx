@@ -1,18 +1,27 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../lib/AuthContext'
 
+function formatDate(dateString) {
+  if (!dateString) return '—'
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(dateString))
+}
+
 export default function ManageStaff() {
+  const { t } = useTranslation()
   const { currentStaff, loading: authLoading } = useAuth()
   const navigate = useNavigate()
-
   const [staffList, setStaffList] = useState([])
   const [branches, setBranches] = useState([])
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-
   // Edit panel state
   const [editingMember, setEditingMember] = useState(null)
   const [checkedBranches, setCheckedBranches] = useState([])
@@ -20,7 +29,6 @@ export default function ManageStaff() {
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState('')
   const [validationError, setValidationError] = useState('')
-
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
@@ -31,7 +39,6 @@ export default function ManageStaff() {
   const [inviteSuccess, setInviteSuccess] = useState('')
   const [inviteValidation, setInviteValidation] = useState('')
   const [invitePlanInfo, setInvitePlanInfo] = useState(null)
-
   // Pending invites state
   const [pendingInvites, setPendingInvites] = useState([])
   const [cancellingId, setCancellingId] = useState(null)
@@ -46,20 +53,17 @@ export default function ManageStaff() {
     const fetchAll = async () => {
       setLoading(true)
       setErrorMessage('')
-
       // 1. Fetch all staff in this company
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
         .select('id, full_name, role')
         .eq('company_id', currentStaff.company_id)
         .order('full_name')
-
       if (staffError) {
-        setErrorMessage('Failed to load staff list.')
+        setErrorMessage(t('manageStaff.failedToLoadStaffList'))
         setLoading(false)
         return
       }
-
       const staffRows = staffData ?? []
       setStaffList(staffRows)
 
@@ -69,13 +73,11 @@ export default function ManageStaff() {
         .select('id, name')
         .eq('company_id', currentStaff.company_id)
         .order('name')
-
       if (branchError) {
-        setErrorMessage('Failed to load branches.')
+        setErrorMessage(t('manageStaff.failedToLoadBranches'))
         setLoading(false)
         return
       }
-
       setBranches(branchData ?? [])
 
       // 3. Fetch all staff_branches assignments for these staff members
@@ -84,16 +86,13 @@ export default function ManageStaff() {
           .from('staff_branches')
           .select('staff_id, branch_id')
           .in('staff_id', staffRows.map((s) => s.id))
-
         if (assignmentError) {
-          setErrorMessage('Failed to load branch assignments.')
+          setErrorMessage(t('manageStaff.failedToLoadAssignments'))
           setLoading(false)
           return
         }
-
         setAssignments(assignmentData ?? [])
       }
-
       setLoading(false)
     }
 
@@ -109,7 +108,7 @@ export default function ManageStaff() {
 
     fetchAll()
     fetchPendingInvites()
-  }, [authLoading, currentStaff?.company_id, currentStaff?.role])
+  }, [authLoading, currentStaff?.company_id, currentStaff?.role, t])
 
   const refetchAssignments = async (overrideStaffList) => {
     const ids = (overrideStaffList ?? staffList).map((s) => s.id)
@@ -135,7 +134,6 @@ export default function ManageStaff() {
   }
 
   // ── Edit panel helpers ──────────────────────────────────────
-
   const openEdit = (member) => {
     const currentBranchIds = assignments
       .filter((a) => a.staff_id === member.id)
@@ -164,18 +162,15 @@ export default function ManageStaff() {
 
   const handleSave = async () => {
     if (checkedBranches.length === 0) {
-      setValidationError('A branch staff member must have at least one branch assigned.')
+      setValidationError(t('manageStaff.validationAtLeastOneBranch'))
       return
     }
-
     setSaving(true)
     setSaveError('')
     setSaveSuccess('')
-
     const originalBranchIds = assignments
       .filter((a) => a.staff_id === editingMember.id)
       .map((a) => a.branch_id)
-
     const toAdd = checkedBranches.filter((id) => !originalBranchIds.includes(id))
     const toRemove = originalBranchIds.filter((id) => !checkedBranches.includes(id))
 
@@ -185,12 +180,11 @@ export default function ManageStaff() {
         .from('staff_branches')
         .insert(toAdd.map((branch_id) => ({ staff_id: editingMember.id, branch_id })))
       if (insertError) {
-        setSaveError(`Failed to add branch assignments: ${insertError.message}`)
+        setSaveError(t('manageStaff.failedToAddBranches', { error: insertError.message }))
         setSaving(false)
         return
       }
     }
-
     // Delete removed assignments one by one for precise error reporting
     for (const branch_id of toRemove) {
       const { error: deleteError } = await supabase
@@ -199,21 +193,19 @@ export default function ManageStaff() {
         .eq('staff_id', editingMember.id)
         .eq('branch_id', branch_id)
       if (deleteError) {
-        setSaveError(`Failed to remove branch assignment: ${deleteError.message}`)
+        setSaveError(t('manageStaff.failedToRemoveBranch', { error: deleteError.message }))
         setSaving(false)
         return
       }
     }
-
     await refetchAssignments()
-    setSaveSuccess('Branch assignments saved successfully.')
+    setSaveSuccess(t('manageStaff.branchAssignmentsSaved'))
     setSaving(false)
     // Brief delay so user sees the success message before the panel closes
     setTimeout(() => closeEdit(), 1200)
   }
 
   // ── Invite modal helpers ────────────────────────────────────
-
   const openInvite = async () => {
     setInviteEmail('')
     setInviteRole('branch_staff')
@@ -221,7 +213,6 @@ export default function ManageStaff() {
     setInviteError('')
     setInviteSuccess('')
     setInviteValidation('')
-
     // Attempt to fetch plan info via FK nested select; fallback to separate lookups if necessary
     try {
       const { data: companyData, error: companyError } = await supabase
@@ -229,7 +220,6 @@ export default function ManageStaff() {
         .select('plan_id, subscription_plans(staff_limit, name)')
         .eq('id', currentStaff.company_id)
         .maybeSingle()
-
       if (!companyError && companyData?.subscription_plans) {
         setInvitePlanInfo(companyData.subscription_plans)
       } else if (!companyError && companyData?.plan_id) {
@@ -242,10 +232,9 @@ export default function ManageStaff() {
       } else {
         setInvitePlanInfo(null)
       }
-    } catch (err) {
+    } catch {
       setInvitePlanInfo(null)
     }
-
     setInviteOpen(true)
   }
 
@@ -270,15 +259,14 @@ export default function ManageStaff() {
   const handleInvite = async () => {
     // Validate email
     if (!inviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
-      setInviteValidation('Please enter a valid email address.')
+      setInviteValidation(t('manageStaff.validEmailRequired'))
       return
     }
     // Validate branch selection for branch_staff
     if (inviteRole === 'branch_staff' && inviteBranchIds.length === 0) {
-      setInviteValidation('Please select at least one branch for a Branch Staff invite.')
+      setInviteValidation(t('manageStaff.selectAtLeastOneBranchInvite'))
       return
     }
-
     // Check plan-based staff limit (only applies to branch_staff invites)
     if (inviteRole === 'branch_staff') {
       const { data: companyData, error: companyError } = await supabase
@@ -286,36 +274,33 @@ export default function ManageStaff() {
         .select('plan_id, subscription_plans(staff_limit, name)')
         .eq('id', currentStaff.company_id)
         .maybeSingle()
-
       if (!companyError && companyData?.subscription_plans?.staff_limit !== null && companyData?.subscription_plans?.staff_limit !== undefined) {
         const { count: existingStaffCount } = await supabase
           .from('staff')
           .select('id', { count: 'exact', head: true })
           .eq('company_id', currentStaff.company_id)
           .eq('role', 'branch_staff')
-
         const { count: pendingInviteCount } = await supabase
           .from('staff_invites')
           .select('id', { count: 'exact', head: true })
           .eq('company_id', currentStaff.company_id)
           .eq('role', 'branch_staff')
           .eq('status', 'pending')
-
         const totalCount = (existingStaffCount ?? 0) + (pendingInviteCount ?? 0)
-
         if (totalCount >= companyData.subscription_plans.staff_limit) {
           setInviteValidation(
-            `Your ${companyData.subscription_plans.name} plan allows up to ${companyData.subscription_plans.staff_limit} staff account(s). Please upgrade your plan to invite more staff.`
+            t('manageStaff.planLimitExceeded', {
+              planName: companyData.subscription_plans.name,
+              limit: companyData.subscription_plans.staff_limit,
+            })
           )
           return
         }
       }
     }
-
     setInviting(true)
     setInviteError('')
     setInviteSuccess('')
-
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const response = await fetch(
@@ -340,18 +325,17 @@ export default function ManageStaff() {
         setInviting(false)
         return
       }
-      setInviteSuccess(`Invite sent to ${inviteEmail.trim()}.`)
+      setInviteSuccess(t('manageStaff.inviteSentTo', { email: inviteEmail.trim() }))
       setInviting(false)
       await refetchPendingInvites()
       setTimeout(() => closeInvite(), 1500)
     } catch (err) {
-      setInviteError(`Unexpected error: ${err.message}`)
+      setInviteError(t('manageStaff.unexpectedError', { error: err.message }))
       setInviting(false)
     }
   }
 
   // ── Pending invite helpers ──────────────────────────────────
-
   const handleCancelInvite = async (inviteId) => {
     setCancellingId(inviteId)
     const { error } = await supabase
@@ -365,30 +349,27 @@ export default function ManageStaff() {
   }
 
   // ── Display helpers ─────────────────────────────────────────
-
   const getBranchNamesForStaff = (staffId) => {
     const staffAssignments = assignments.filter((a) => a.staff_id === staffId)
     if (staffAssignments.length === 0) return '—'
     return staffAssignments
       .map((a) => {
         const branch = branches.find((b) => b.id === a.branch_id)
-        return branch?.name ?? 'Unknown branch'
+        return branch?.name ?? t('manageStaff.unknownBranch')
       })
       .join(', ')
   }
-
-  const getBranchNameById = (id) => branches.find((b) => b.id === id)?.name ?? 'Unknown'
-
+  const getBranchNameById = (id) => branches.find((b) => b.id === id)?.name ?? t('manageStaff.unknown')
   const formatRole = (role) => {
-    if (role === 'company_admin') return 'Company Admin'
-    if (role === 'branch_staff') return 'Branch Staff'
+    if (role === 'company_admin') return t('manageStaff.roleCompanyAdmin')
+    if (role === 'branch_staff') return t('manageStaff.roleBranchStaff')
     return role
   }
 
   if (authLoading || loading) {
     return (
       <main className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-slate-400">Loading staff...</p>
+        <p className="text-slate-400">{t('manageStaff.loading')}</p>
       </main>
     )
   }
@@ -398,9 +379,9 @@ export default function ManageStaff() {
       {/* Page header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Manage Staff</h1>
+          <h1 className="text-2xl font-bold text-white">{t('manageStaff.title')}</h1>
           <p className="mt-1 text-sm text-slate-400">
-            View all staff members and their branch assignments. Click <strong>Edit Branches</strong> on any branch staff member to update their access.
+            {t('manageStaff.subtitlePrefix')}<strong>{t('manageStaff.editBranches')}</strong>{t('manageStaff.subtitleSuffix')}
           </p>
         </div>
         <button
@@ -408,7 +389,7 @@ export default function ManageStaff() {
           onClick={openInvite}
           className="shrink-0 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
         >
-          + Invite Staff
+          {t('manageStaff.inviteStaff')}
         </button>
       </div>
 
@@ -423,17 +404,17 @@ export default function ManageStaff() {
         <table className="min-w-full divide-y divide-slate-800 text-sm">
           <thead className="bg-slate-900">
             <tr>
-              <th className="px-6 py-3 text-left font-semibold text-slate-300">Name</th>
-              <th className="px-6 py-3 text-left font-semibold text-slate-300">Role</th>
-              <th className="px-6 py-3 text-left font-semibold text-slate-300">Assigned Branches</th>
-              <th className="px-6 py-3 text-left font-semibold text-slate-300">Actions</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colName')}</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colRole')}</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colAssignedBranches')}</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colActions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 bg-slate-950">
             {staffList.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                  No staff found.
+                  {t('manageStaff.noStaffFound')}
                 </td>
               </tr>
             ) : (
@@ -458,7 +439,7 @@ export default function ManageStaff() {
                   </td>
                   <td className="px-6 py-4 text-slate-300">
                     {member.role === 'company_admin'
-                      ? <span className="italic text-cyan-400/80">All branches</span>
+                      ? <span className="italic text-cyan-400/80">{t('manageStaff.allBranchesLabel')}</span>
                       : getBranchNamesForStaff(member.id)}
                   </td>
                   <td className="px-6 py-4">
@@ -468,7 +449,7 @@ export default function ManageStaff() {
                         onClick={() => openEdit(member)}
                         className="inline-flex items-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-600"
                       >
-                        Edit Branches
+                        {t('manageStaff.editBranches')}
                       </button>
                     )}
                   </td>
@@ -481,25 +462,25 @@ export default function ManageStaff() {
 
       {/* Pending Invites */}
       <div>
-        <h2 className="mb-3 text-lg font-semibold text-white">Pending Invites</h2>
+        <h2 className="mb-3 text-lg font-semibold text-white">{t('manageStaff.pendingInvites')}</h2>
         {pendingInvites.length === 0 ? (
-          <p className="text-sm text-slate-500">No pending invites.</p>
+          <p className="text-sm text-slate-500">{t('manageStaff.noPendingInvites')}</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-800">
             <table className="min-w-full divide-y divide-slate-800 text-sm">
               <thead className="bg-slate-900">
                 <tr>
-                  <th className="px-6 py-3 text-left font-semibold text-slate-300">Email</th>
-                  <th className="px-6 py-3 text-left font-semibold text-slate-300">Role</th>
-                  <th className="px-6 py-3 text-left font-semibold text-slate-300">Branches</th>
-                  <th className="px-6 py-3 text-left font-semibold text-slate-300">Invited</th>
-                  <th className="px-6 py-3 text-left font-semibold text-slate-300">Actions</th>
+                  <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colEmail')}</th>
+                  <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colRole')}</th>
+                  <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colBranches')}</th>
+                  <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colInvited')}</th>
+                  <th className="px-6 py-3 text-left font-semibold text-slate-300">{t('manageStaff.colActions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 bg-slate-950">
                 {pendingInvites.map((invite) => (
                   <tr key={invite.id} className="transition hover:bg-slate-900/50">
-                    <td className="px-6 py-4 text-slate-200">{invite.email}</td>
+                    <td className="px-6 py-4 text-slate-200" dir="ltr">{invite.email}</td>
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -513,13 +494,13 @@ export default function ManageStaff() {
                     </td>
                     <td className="px-6 py-4 text-slate-400">
                       {invite.role === 'company_admin'
-                        ? <span className="italic text-cyan-400/80">All branches</span>
+                        ? <span className="italic text-cyan-400/80">{t('manageStaff.allBranchesLabel')}</span>
                         : (invite.branch_ids?.length > 0
                             ? invite.branch_ids.map(getBranchNameById).join(', ')
                             : '—')}
                     </td>
                     <td className="px-6 py-4 text-slate-500">
-                      {new Date(invite.created_at).toLocaleDateString()}
+                      {formatDate(invite.created_at)}
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -528,7 +509,7 @@ export default function ManageStaff() {
                         onClick={() => handleCancelInvite(invite.id)}
                         className="rounded-lg bg-rose-900/40 px-3 py-1.5 text-xs font-semibold text-rose-300 transition hover:bg-rose-900/70 disabled:opacity-50"
                       >
-                        {cancellingId === invite.id ? 'Cancelling…' : 'Cancel Invite'}
+                        {cancellingId === invite.id ? t('manageStaff.cancelling') : t('manageStaff.cancelInvite')}
                       </button>
                     </td>
                   </tr>
@@ -543,15 +524,14 @@ export default function ManageStaff() {
       {editingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-white">Edit Branch Assignments</h2>
+            <h2 className="text-lg font-bold text-white">{t('manageStaff.editModalTitle')}</h2>
             <p className="mt-1 text-sm text-slate-400">
               <span className="font-medium text-slate-200">{editingMember.full_name}</span>
-              {' '}— select the branches this staff member can access.
+              {t('manageStaff.editModalDescSuffix')}
             </p>
-
             <div className="mt-5 space-y-2">
               {branches.length === 0 ? (
-                <p className="text-sm text-slate-500">No branches found for this company.</p>
+                <p className="text-sm text-slate-500">{t('manageStaff.noBranchesFound')}</p>
               ) : (
                 branches.map((branch) => (
                   <label
@@ -570,7 +550,6 @@ export default function ManageStaff() {
                 ))
               )}
             </div>
-
             {validationError && (
               <p className="mt-4 rounded-lg bg-amber-900/30 px-3 py-2 text-sm text-amber-300">
                 {validationError}
@@ -586,7 +565,6 @@ export default function ManageStaff() {
                 {saveSuccess}
               </p>
             )}
-
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
@@ -594,7 +572,7 @@ export default function ManageStaff() {
                 disabled={saving}
                 className="flex-1 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? t('manageStaff.saving') : t('manageStaff.save')}
               </button>
               <button
                 type="button"
@@ -602,7 +580,7 @@ export default function ManageStaff() {
                 disabled={saving}
                 className="flex-1 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Cancel
+                {t('manageStaff.cancel')}
               </button>
             </div>
           </div>
@@ -613,27 +591,26 @@ export default function ManageStaff() {
       {inviteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-white">Invite Staff Member</h2>
+            <h2 className="text-lg font-bold text-white">{t('manageStaff.inviteModalTitle')}</h2>
             <p className="mt-1 text-sm text-slate-400">
-              They'll receive an email to set up their account and join your company.
+              {t('manageStaff.inviteModalDesc')}
             </p>
-
             <div className="mt-5 space-y-4">
               {/* Email */}
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-400">Email address</label>
+                <label className="mb-1 block text-xs font-medium text-slate-400">{t('manageStaff.emailAddress')}</label>
                 <input
                   type="email"
+                  dir="ltr"
                   value={inviteEmail}
                   onChange={(e) => { setInviteEmail(e.target.value); setInviteValidation('') }}
-                  placeholder="staff@example.com"
+                  placeholder={t('manageStaff.emailPlaceholder')}
                   className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
                 />
               </div>
-
               {/* Role */}
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-400">Role</label>
+                <label className="mb-1 block text-xs font-medium text-slate-400">{t('manageStaff.role')}</label>
                 <select
                   value={inviteRole}
                   onChange={(e) => {
@@ -643,11 +620,10 @@ export default function ManageStaff() {
                   }}
                   className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
                 >
-                  <option value="branch_staff">Branch Staff</option>
-                  <option value="company_admin">Company Admin</option>
+                  <option value="branch_staff">{t('manageStaff.roleBranchStaff')}</option>
+                  <option value="company_admin">{t('manageStaff.roleCompanyAdmin')}</option>
                 </select>
               </div>
-
               {/* Branch checkboxes — only for branch_staff */}
               {inviteRole === 'branch_staff' && (
                 <div>
@@ -655,13 +631,16 @@ export default function ManageStaff() {
                   {invitePlanInfo ? (
                     <div className="mb-3 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
                       <div className="font-medium text-slate-200">{invitePlanInfo.name || 'Plan'}</div>
-                      <div className="mt-1 text-xs text-slate-400">Staff limit: {invitePlanInfo.staff_limit === null ? 'Unlimited' : invitePlanInfo.staff_limit}</div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        {t('manageStaff.staffLimitLabel', {
+                          limit: invitePlanInfo.staff_limit === null ? t('manageStaff.staffLimitUnlimited') : invitePlanInfo.staff_limit,
+                        })}
+                      </div>
                     </div>
                   ) : (
-                    <div className="mb-3 text-sm text-slate-500">Plan info unavailable</div>
+                    <div className="mb-3 text-sm text-slate-500">{t('manageStaff.planInfoUnavailable')}</div>
                   )}
-
-                  <label className="mb-2 block text-xs font-medium text-slate-400">Assign to branches</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-400">{t('manageStaff.assignToBranches')}</label>
                   <div className="space-y-1">
                     {branches.map((branch) => (
                       <label
@@ -681,7 +660,6 @@ export default function ManageStaff() {
                 </div>
               )}
             </div>
-
             {inviteValidation && (
               <p className="mt-4 rounded-lg bg-amber-900/30 px-3 py-2 text-sm text-amber-300">
                 {inviteValidation}
@@ -697,7 +675,6 @@ export default function ManageStaff() {
                 {inviteSuccess}
               </p>
             )}
-
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
@@ -705,7 +682,7 @@ export default function ManageStaff() {
                 disabled={inviting}
                 className="flex-1 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {inviting ? 'Sending…' : 'Send Invite'}
+                {inviting ? t('manageStaff.sending') : t('manageStaff.sendInvite')}
               </button>
               <button
                 type="button"
@@ -713,7 +690,7 @@ export default function ManageStaff() {
                 disabled={inviting}
                 className="flex-1 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Cancel
+                {t('manageStaff.cancel')}
               </button>
             </div>
           </div>

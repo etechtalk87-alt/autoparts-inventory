@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { BadgeCheck, Building2, MapPin, PencilLine, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 
 function Branches() {
+  const { t } = useTranslation()
   const { currentStaff, loading } = useAuth()
   const [branches, setBranches] = useState([])
   const [loadingBranches, setLoadingBranches] = useState(true)
@@ -23,7 +25,6 @@ function Branches() {
       setLoadingBranches(false)
       return
     }
-
     const fetchBranches = async () => {
       setLoadingBranches(true)
       const { data, error } = await supabase
@@ -31,24 +32,21 @@ function Branches() {
         .select('id, name, location, company_id')
         .eq('company_id', currentStaff.company_id)
         .order('name', { ascending: true })
-
       if (error) {
         console.error('Error fetching branches:', error)
         setBranches([])
       } else {
         setBranches(data ?? [])
       }
-
       setLoadingBranches(false)
     }
-
     fetchBranches()
   }, [currentStaff?.company_id])
 
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
-        <p className="text-lg text-slate-300">Loading...</p>
+        <p className="text-lg text-slate-300">{t('branches.loading')}</p>
       </main>
     )
   }
@@ -61,35 +59,32 @@ function Branches() {
     event.preventDefault()
     setErrorMessage('')
     setSuccessMessage('')
-
     if (!form.name.trim() || !form.location.trim()) {
-      setErrorMessage('Please enter both a branch name and location.')
+      setErrorMessage(t('branches.fillNameAndLocation'))
       return
     }
-
     setSubmitting(true)
-
     const { data: companyData, error: companyError } = await supabase
       .from('companies')
       .select('plan_id, subscription_plans(branch_limit, name)')
       .eq('id', currentStaff.company_id)
       .maybeSingle()
-
     if (!companyError && companyData?.subscription_plans?.branch_limit !== null && companyData?.subscription_plans?.branch_limit !== undefined) {
       const { count: currentBranchCount } = await supabase
         .from('branches')
         .select('id', { count: 'exact', head: true })
         .eq('company_id', currentStaff.company_id)
-
       if ((currentBranchCount ?? 0) >= companyData.subscription_plans.branch_limit) {
         setErrorMessage(
-          `Your ${companyData.subscription_plans.name} plan allows up to ${companyData.subscription_plans.branch_limit} branch(es). Please upgrade your plan to add more branches.`
+          t('branches.branchLimitExceeded', {
+            planName: companyData.subscription_plans.name,
+            limit: companyData.subscription_plans.branch_limit,
+          })
         )
         setSubmitting(false)
         return
       }
     }
-
     const { data, error } = await supabase
       .from('branches')
       .insert([
@@ -101,17 +96,15 @@ function Branches() {
       ])
       .select('id, name, location, company_id')
       .single()
-
     if (error) {
       setErrorMessage(error.message)
     } else {
       setBranches((prev) => [data, ...prev])
       setForm({ name: '', location: '' })
       setShowAddModal(false)
-      setSuccessMessage('Branch added successfully.')
+      setSuccessMessage(t('branches.branchAdded'))
       requestAnimationFrame(() => listRef.current?.focus())
     }
-
     setSubmitting(false)
   }
 
@@ -122,18 +115,16 @@ function Branches() {
 
   const handleDeleteBranch = async (branch) => {
     if (!branch) return
-
-    const ok = window.confirm(`Are you sure you want to delete ${branch.name}? This cannot be undone.`)
+    const ok = window.confirm(t('branches.confirmDeleteBranch', { name: branch.name }))
     if (!ok) return
-
     const { data, error } = await supabase.from('branches').delete().eq('id', branch.id).select()
     if (error) {
       setErrorMessage(error.message)
     } else if (!data || data.length === 0) {
-      setErrorMessage('Update failed - you may not have permission to modify this record.')
+      setErrorMessage(t('branches.updateFailedPermission'))
     } else {
       setBranches((prev) => prev.filter((b) => b.id !== branch.id))
-      setSuccessMessage('Branch deleted.')
+      setSuccessMessage(t('branches.branchDeleted'))
     }
   }
 
@@ -146,12 +137,10 @@ function Branches() {
     event.preventDefault()
     setErrorMessage('')
     setSuccessMessage('')
-
     if (!editForm.name.trim() || !editForm.location.trim()) {
-      setErrorMessage('Please enter both a branch name and location.')
+      setErrorMessage(t('branches.fillNameAndLocation'))
       return
     }
-
     const { data, error } = await supabase
       .from('branches')
       .update({
@@ -160,16 +149,15 @@ function Branches() {
       })
       .eq('id', editingId)
       .select('id, name, location, company_id')
-
     if (error) {
       setErrorMessage(error.message)
     } else if (!data || data.length === 0) {
-      setErrorMessage('Update failed - you may not have permission to modify this record.')
+      setErrorMessage(t('branches.updateFailedPermission'))
     } else {
       setBranches((prev) => prev.map((branch) => (branch.id === data[0].id ? data[0] : branch)))
       setEditingId(null)
       setEditForm({ name: '', location: '' })
-      setSuccessMessage('Branch updated successfully.')
+      setSuccessMessage(t('branches.branchUpdated'))
     }
   }
 
@@ -181,30 +169,28 @@ function Branches() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
                 <Sparkles size={16} />
-                Premium branch control
+                {t('branches.badge')}
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Branch Management</h1>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{t('branches.title')}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
-                Create, update, and organize every branch in your company workspace with a polished experience that feels as refined as your operations.
+                {t('branches.subtitle')}
               </p>
             </div>
-
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
                 <div className="text-2xl font-semibold text-white">{branches.length}</div>
-                <div className="mt-1 text-sm text-slate-400">Configured branches</div>
+                <div className="mt-1 text-sm text-slate-400">{t('branches.configuredBranches')}</div>
               </div>
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
                   <BadgeCheck size={16} />
-                  Company-ready
+                  {t('branches.companyReady')}
                 </div>
-                <div className="mt-1 text-sm text-slate-300">Each branch stays scoped to your workspace.</div>
+                <div className="mt-1 text-sm text-slate-300">{t('branches.companyReadyDesc')}</div>
               </div>
             </div>
           </div>
         </section>
-
         {errorMessage ? (
           <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
             {errorMessage}
@@ -215,12 +201,11 @@ function Branches() {
             {successMessage}
           </div>
         ) : null}
-
         <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-35px_rgba(0,0,0,0.9)] backdrop-blur-xl focus:outline-none">
           <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-white">Existing Branches</h2>
-              <p className="mt-1 text-sm text-slate-400">Review and refine your branch network with confidence.</p>
+              <h2 className="text-xl font-semibold text-white">{t('branches.existingBranches')}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t('branches.existingBranchesDesc')}</p>
             </div>
             <button
               type="button"
@@ -232,14 +217,13 @@ function Branches() {
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-400"
             >
               <Plus size={18} />
-              Add Branch
+              {t('branches.addBranch')}
             </button>
           </div>
-
           {loadingBranches ? (
             <div className="flex items-center justify-center gap-3 p-10 text-slate-400">
               <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-cyan-400" />
-              Loading branches...
+              {t('branches.loadingBranches')}
             </div>
           ) : branches.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 p-10 text-center">
@@ -247,8 +231,8 @@ function Branches() {
                 <Building2 size={28} className="mx-auto text-cyan-300" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">No branches yet</h3>
-                <p className="mt-1 text-sm text-slate-400">Add your first branch to start organizing operations across locations.</p>
+                <h3 className="text-lg font-semibold text-white">{t('branches.noBranchesYet')}</h3>
+                <p className="mt-1 text-sm text-slate-400">{t('branches.noBranchesDesc')}</p>
               </div>
               <button
                 type="button"
@@ -260,7 +244,7 @@ function Branches() {
                 className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400"
               >
                 <Plus size={18} />
-                Create branch
+                {t('branches.createBranch')}
               </button>
             </div>
           ) : (
@@ -268,9 +252,9 @@ function Branches() {
               <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                 <thead className="bg-slate-950/70 text-slate-400">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Branch</th>
-                    <th className="px-6 py-3 font-medium">Location</th>
-                    <th className="px-6 py-3 font-medium">Actions</th>
+                    <th className="px-6 py-3 font-medium">{t('branches.colBranch')}</th>
+                    <th className="px-6 py-3 font-medium">{t('branches.colLocation')}</th>
+                    <th className="px-6 py-3 font-medium">{t('branches.colActions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10 bg-slate-900/50">
@@ -291,7 +275,7 @@ function Branches() {
                             </div>
                             <div>
                               <div className="font-semibold text-white">{branch.name}</div>
-                              <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">Branch</div>
+                              <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">{t('branches.branchLabel')}</div>
                             </div>
                           </div>
                         )}
@@ -319,14 +303,14 @@ function Branches() {
                               onClick={handleUpdate}
                               className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-slate-950 transition hover:bg-emerald-400"
                             >
-                              Save
+                              {t('branches.save')}
                             </button>
                             <button
                               type="button"
                               onClick={cancelEditing}
                               className="rounded-xl bg-slate-700 px-3 py-2 font-semibold text-white transition hover:bg-slate-600"
                             >
-                              Cancel
+                              {t('branches.cancel')}
                             </button>
                           </div>
                         ) : (
@@ -337,7 +321,7 @@ function Branches() {
                               className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 font-semibold text-slate-950 transition hover:bg-slate-200"
                             >
                               <PencilLine size={15} />
-                              Edit
+                              {t('branches.edit')}
                             </button>
                             <button
                               type="button"
@@ -345,7 +329,7 @@ function Branches() {
                               className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 font-semibold text-white transition hover:bg-rose-500"
                             >
                               <Trash2 size={15} />
-                              Delete
+                              {t('branches.delete')}
                             </button>
                           </div>
                         )}
@@ -358,39 +342,37 @@ function Branches() {
           )}
         </div>
       </div>
-
       {showAddModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.95)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-semibold text-white">Add Branch</h3>
-                <p className="mt-1 text-sm text-slate-400">Fill in the branch details and save it instantly.</p>
+                <h3 className="text-xl font-semibold text-white">{t('branches.addBranchTitle')}</h3>
+                <p className="mt-1 text-sm text-slate-400">{t('branches.addBranchDesc')}</p>
               </div>
               <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-2.5 text-cyan-200">
                 <Building2 size={20} />
               </div>
             </div>
-
             <form onSubmit={handleCreate} className="mt-6 grid gap-4 md:grid-cols-2">
               <label className="text-sm text-slate-300 md:col-span-2">
-                <span className="mb-1.5 block font-medium">Branch Name</span>
+                <span className="mb-1.5 block font-medium">{t('branches.branchName')}</span>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                   className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
-                  placeholder="North Branch"
+                  placeholder={t('branches.placeholderBranchName')}
                 />
               </label>
               <label className="text-sm text-slate-300 md:col-span-2">
-                <span className="mb-1.5 block font-medium">Location</span>
+                <span className="mb-1.5 block font-medium">{t('branches.location')}</span>
                 <input
                   type="text"
                   value={form.location}
                   onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
                   className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-cyan-400"
-                  placeholder="Nairobi"
+                  placeholder={t('branches.placeholderLocation')}
                 />
               </label>
               {errorMessage ? <p className="text-sm text-rose-400 md:col-span-2">{errorMessage}</p> : null}
@@ -405,14 +387,14 @@ function Branches() {
                   }}
                   className="rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white transition hover:bg-slate-600"
                 >
-                  Cancel
+                  {t('branches.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
                   className="rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {submitting ? 'Saving...' : 'Add Branch'}
+                  {submitting ? t('branches.saving') : t('branches.addBranch')}
                 </button>
               </div>
             </form>
