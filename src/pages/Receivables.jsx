@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -19,17 +20,18 @@ function getStatusColor(status) {
   }
 }
 
-function getStatusLabel(status) {
+function getStatusLabel(status, t) {
   switch (status) {
-    case 'unpaid': return 'Unpaid'
-    case 'partial': return 'Partial'
-    case 'credit': return 'Credit'
+    case 'unpaid': return t('sales.statusUnpaid')
+    case 'partial': return t('sales.statusPartial')
+    case 'credit': return t('sales.statusCredit')
     default: return status
   }
 }
 
 function Receivables() {
   const { currentStaff, loading } = useAuth()
+  const { t } = useTranslation()
   const [sales, setSales] = useState([])
   const [branches, setBranches] = useState([])
   const [loadingSales, setLoadingSales] = useState(true)
@@ -189,7 +191,7 @@ function Receivables() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-6 py-5 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          Loading receivables...
+          {t('receivables.loading')}
         </div>
       </main>
     )
@@ -209,11 +211,11 @@ function Receivables() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-rose-400/20 bg-rose-400/10 px-3 py-1 text-sm font-medium text-rose-200">
                 <Sparkles size={16} />
-                Accounts Receivable
+                {t('receivables.accountsReceivable')}
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Outstanding Receivables</h1>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{t('receivables.title')}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
-                Invoices with an outstanding balance — unpaid, partially paid, or credited customers.
+                {t('receivables.description')}
               </p>
             </div>
 
@@ -221,14 +223,14 @@ function Receivables() {
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                   <ReceiptText size={16} className="text-rose-300" />
-                  Open invoices
+                  {t('receivables.openInvoices')}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-white">{filtered.length}</div>
               </div>
               <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-rose-200">
                   <CreditCard size={16} />
-                  Total outstanding
+                  {t('receivables.totalOutstanding')}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {totals.length > 0 ? totals.map((e) => (
@@ -245,7 +247,7 @@ function Receivables() {
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
                 >
                   <FileText size={18} />
-                  Export PDF
+                  {t('receivables.exportPdf')}
                 </button>
               </div>
             </div>
@@ -255,16 +257,18 @@ function Receivables() {
         {/* Table card */}
         <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <div className="flex flex-col gap-3 border-b border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-400">{filtered.length} outstanding invoice{filtered.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-slate-400">
+              {filtered.length} {filtered.length !== 1 ? t('receivables.outstandingInvoicePlural') : t('receivables.outstandingInvoiceSingular')}
+            </p>
             {canManageBranches && branches.length > 1 && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-400">Branch</span>
+                <span className="text-slate-400">{t('receivables.branch')}</span>
                 <select
                   value={branchFilter}
                   onChange={(e) => setBranchFilter(e.target.value)}
                   className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-white outline-none focus:border-cyan-400"
                 >
-                  <option value="all">All branches</option>
+                  <option value="all">{t('receivables.allBranches')}</option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
@@ -274,15 +278,15 @@ function Receivables() {
           </div>
 
           {loadingSales ? (
-            <div className="p-8 text-slate-400">Loading...</div>
+            <div className="p-8 text-slate-400">{t('receivables.loading')}</div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 p-10 text-center">
               <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5">
                 <AlertCircle size={28} className="mx-auto text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">No outstanding receivables</h3>
-                <p className="mt-1 text-sm text-slate-400">All invoices are fully paid.</p>
+                <h3 className="text-lg font-semibold text-white">{t('receivables.noOutstandingReceivables')}</h3>
+                <p className="mt-1 text-sm text-slate-400">{t('receivables.allInvoicesFullyPaid')}</p>
               </div>
             </div>
           ) : (
@@ -291,15 +295,15 @@ function Receivables() {
                 <table className="min-w-full divide-y divide-white/10 text-left text-sm">
                   <thead className="bg-slate-950/70 text-slate-400">
                     <tr>
-                      <th className="px-6 py-3 font-medium">Invoice #</th>
-                      <th className="px-6 py-3 font-medium">Customer</th>
-                      <th className="px-6 py-3 font-medium">Part</th>
-                      <th className="px-6 py-3 font-medium">Sale Price</th>
-                      <th className="px-6 py-3 font-medium">Paid</th>
-                      <th className="px-6 py-3 font-medium">Balance Due</th>
-                      <th className="px-6 py-3 font-medium">Status</th>
-                      {canManageBranches && <th className="px-6 py-3 font-medium">Branch</th>}
-                      <th className="px-6 py-3 font-medium">Date</th>
+                      <th className="px-6 py-3 font-medium">{t('receivables.colInvoice')}</th>
+                      <th className="px-6 py-3 font-medium">{t('receivables.colCustomer')}</th>
+                      <th className="px-6 py-3 font-medium">{t('receivables.colPart')}</th>
+                      <th className="px-6 py-3 font-medium">{t('receivables.colSalePrice')}</th>
+                      <th className="px-6 py-3 font-medium">{t('receivables.colPaid')}</th>
+                      <th className="px-6 py-3 font-medium">{t('receivables.colBalanceDue')}</th>
+                      <th className="px-6 py-3 font-medium">{t('receivables.colStatus')}</th>
+                      {canManageBranches && <th className="px-6 py-3 font-medium">{t('receivables.colBranch')}</th>}
+                      <th className="px-6 py-3 font-medium">{t('receivables.colDate')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10 bg-slate-900/50">
@@ -322,7 +326,7 @@ function Receivables() {
                           <td className="px-6 py-4 font-bold text-rose-300">{formatCurrency(balance, currency)}</td>
                           <td className="px-6 py-4">
                             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${getStatusColor(sale.payment_status)}`}>
-                              {getStatusLabel(sale.payment_status)}
+                              {getStatusLabel(sale.payment_status, t)}
                             </span>
                           </td>
                           {canManageBranches && <td className="px-6 py-4 text-slate-300">{sale.branches?.name ?? '—'}</td>}
@@ -337,7 +341,11 @@ function Receivables() {
               {totalPages > 1 && (
                 <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-slate-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}
+                    {t('receivables.showingRange', {
+                      start: (currentPage - 1) * itemsPerPage + 1,
+                      end: Math.min(currentPage * itemsPerPage, filtered.length),
+                      total: filtered.length,
+                    })}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -346,16 +354,16 @@ function Receivables() {
                       disabled={currentPage === 1}
                       className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Previous
+                      {t('receivables.previous')}
                     </button>
-                    <span className="text-sm text-slate-300">Page {currentPage} of {totalPages}</span>
+                    <span className="text-sm text-slate-300">{t('receivables.pageOf', { current: currentPage, total: totalPages })}</span>
                     <button
                       type="button"
                       onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
                       disabled={currentPage === totalPages}
                       className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Next
+                      {t('receivables.next')}
                     </button>
                   </div>
                 </div>
