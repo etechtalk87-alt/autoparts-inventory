@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../lib/AuthContext'
 
@@ -10,6 +11,14 @@ const statusStyles = {
   cancelled: 'bg-rose-500/10 text-rose-300 border border-rose-400/20',
   suspended: 'bg-rose-500/10 text-rose-300 border border-rose-400/20',
   default: 'bg-slate-500/10 text-slate-300 border border-slate-600/20',
+}
+
+const statusKeyMap = {
+  trial: 'billing.status.trial',
+  active: 'billing.status.active',
+  past_due: 'billing.status.pastDue',
+  cancelled: 'billing.status.cancelled',
+  suspended: 'billing.status.suspended',
 }
 
 function formatDate(dateString) {
@@ -34,6 +43,7 @@ function formatPrice(value) {
 }
 
 export default function Billing() {
+  const { t } = useTranslation()
   const { currentStaff, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -48,13 +58,13 @@ export default function Billing() {
     return (
       plans.find((plan) => plan.id === subscription.plan_id) || {
         id: subscription.plan_id,
-        name: subscription.subscription_plan || 'Current plan',
+        name: subscription.subscription_plan || t('billing.currentPlan'),
         price_aed: null,
         branch_limit: null,
         staff_limit: null,
       }
     )
-  }, [plans, subscription])
+  }, [plans, subscription, t])
 
   useEffect(() => {
     if (authLoading) return
@@ -92,13 +102,12 @@ export default function Billing() {
       ])
 
       if (companyResult.error) {
-        setError('Failed to load billing status.')
+        setError(t('billing.errors.loadStatus'))
       } else {
         setSubscription(companyResult.data)
       }
-
       if (plansResult.error) {
-        setError((prev) => prev || 'Failed to load subscription plans.')
+        setError((prev) => prev || t('billing.errors.loadPlans'))
       } else {
         setPlans(plansResult.data ?? [])
       }
@@ -111,7 +120,7 @@ export default function Billing() {
     }
 
     fetchData()
-  }, [authLoading, currentStaff?.company_id, currentStaff?.role])
+  }, [authLoading, currentStaff?.company_id, currentStaff?.role, t])
 
   const handleSubscribe = async (planId) => {
     setSubscribing(planId)
@@ -121,7 +130,7 @@ export default function Billing() {
     const session = data?.session
 
     if (!session?.access_token) {
-      setError('Unable to authenticate session.')
+      setError(t('billing.errors.authSession'))
       setSubscribing(null)
       return
     }
@@ -184,7 +193,7 @@ export default function Billing() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-transparent px-4 text-white">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-8 py-6 text-slate-300 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl">
-          Loading billing information...
+          {t('billing.loading')}
         </div>
       </main>
     )
@@ -195,7 +204,10 @@ export default function Billing() {
   }
 
   const status = subscription?.subscription_status ?? 'unknown'
-  const statusLabel = status.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+  const statusLabel = t(
+    statusKeyMap[status] || 'billing.status.unknown',
+    { defaultValue: status.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase()) }
+  )
   const statusClass = statusStyles[status] ?? statusStyles.default
 
   return (
@@ -205,16 +217,16 @@ export default function Billing() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <p className="inline-flex rounded-full bg-cyan-400/10 px-3 py-1 text-sm font-semibold text-cyan-200">
-                Billing
+                {t('billing.badge')}
               </p>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">Company Billing</h1>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">{t('billing.title')}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-400">
-                View your current subscription status and choose the plan that fits your company.
+                {t('billing.subtitle')}
               </p>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm text-slate-300">
-              <div className="font-semibold text-white">Current status</div>
+              <div className="font-semibold text-white">{t('billing.currentStatus')}</div>
               <div className={`mt-3 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>
                 {statusLabel}
               </div>
@@ -226,7 +238,7 @@ export default function Billing() {
                   disabled={openingPortal}
                   className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 disabled:opacity-60"
                 >
-                  {openingPortal ? 'Opening...' : 'Manage Billing'}
+                  {openingPortal ? t('billing.openingPortal') : t('billing.manageBilling')}
                 </button>
               )}
             </div>
@@ -236,24 +248,24 @@ export default function Billing() {
             <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium text-slate-400">Current plan</p>
-                  <p className="mt-1 text-2xl font-semibold text-white">{currentPlan?.name || 'No active plan'}</p>
+                  <p className="text-sm font-medium text-slate-400">{t('billing.currentPlan')}</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">{currentPlan?.name || t('billing.noActivePlan')}</p>
                 </div>
                 <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200">
-                  {subscription?.plan_id ? `Plan ID ${subscription.plan_id}` : 'No plan'}
+                  {subscription?.plan_id ? t('billing.planIdLabel', { id: subscription.plan_id }) : t('billing.noPlan')}
                 </span>
               </div>
 
               <div className="mt-6 grid gap-3 text-sm">
                 <div className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">
-                  <span className="text-slate-400">Billing status</span>
+                  <span className="text-slate-400">{t('billing.billingStatus')}</span>
                   <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass}`}>
                     {statusLabel}
                   </span>
                 </div>
                 {status === 'trial' && subscription?.trial_ends_at && (
                   <div className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">
-                    <span className="text-slate-400">Trial ends</span>
+                    <span className="text-slate-400">{t('billing.trialEnds')}</span>
                     <span className="text-sm text-white">{formatDate(subscription.trial_ends_at)}</span>
                   </div>
                 )}
@@ -261,15 +273,15 @@ export default function Billing() {
             </div>
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-              <p className="text-sm font-medium text-slate-400">Plan details</p>
+              <p className="text-sm font-medium text-slate-400">{t('billing.planDetails')}</p>
               <div className="mt-4 grid gap-3">
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Monthly price</p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t('billing.monthlyPrice')}</p>
                   <p className="mt-2 text-2xl font-semibold text-white">{formatPrice(currentPlan?.price_aed)}</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Branches</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t('billing.branches')}</p>
                     <p className="mt-1 text-lg font-semibold text-white">{currentPlan?.branch_limit ?? '—'}</p>
                     <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
                       <div
@@ -277,10 +289,12 @@ export default function Billing() {
                         style={{ width: currentPlan?.branch_limit ? `${Math.min((usage.branches / currentPlan.branch_limit) * 100, 100)}%` : '100%' }}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{usage.branches} of {currentPlan?.branch_limit ?? '∞'} used</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t('billing.usedOf', { count: usage.branches, limit: currentPlan?.branch_limit ?? '∞' })}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Staff</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t('billing.staff')}</p>
                     <p className="mt-1 text-lg font-semibold text-white">{currentPlan?.staff_limit ?? '—'}</p>
                     <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
                       <div
@@ -288,7 +302,9 @@ export default function Billing() {
                         style={{ width: currentPlan?.staff_limit ? `${Math.min((usage.staff / currentPlan.staff_limit) * 100, 100)}%` : '100%' }}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{usage.staff} of {currentPlan?.staff_limit ?? '∞'} used</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t('billing.usedOf', { count: usage.staff, limit: currentPlan?.staff_limit ?? '∞' })}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -314,33 +330,32 @@ export default function Billing() {
                   <div>
                     <h2 className="text-xl font-semibold text-white">{plan.name}</h2>
                     <p className="mt-2 text-sm text-slate-400">
-                      A complete billing package for your company.
+                      {t('billing.planDescription')}
                     </p>
                   </div>
                   {isCurrent && (
                     <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200">
-                      Current
+                      {t('billing.current')}
                     </span>
                   )}
                 </div>
 
                 <div className="mt-6 space-y-4">
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4">
-                    <p className="text-sm text-slate-400">Price</p>
+                    <p className="text-sm text-slate-400">{t('billing.price')}</p>
                     <p className="mt-2 text-3xl font-semibold text-white">{formatPrice(plan.price_aed)}</p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Branches</p>
-                      <p className="mt-1 text-lg font-semibold text-white">{plan.branch_limit ?? 'Unlimited'}</p>
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t('billing.branches')}</p>
+                      <p className="mt-1 text-lg font-semibold text-white">{plan.branch_limit ?? t('billing.unlimited')}</p>
                     </div>
                     <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Staff</p>
-                      <p className="mt-1 text-lg font-semibold text-white">{plan.staff_limit ?? 'Unlimited'}</p>
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t('billing.staff')}</p>
+                      <p className="mt-1 text-lg font-semibold text-white">{plan.staff_limit ?? t('billing.unlimited')}</p>
                     </div>
                   </div>
                 </div>
-
                 <button
                   type="button"
                   onClick={() => handleSubscribe(plan.id)}
@@ -351,7 +366,7 @@ export default function Billing() {
                       : 'bg-cyan-600 text-white hover:bg-cyan-500'
                   } ${subscribing === plan.id ? 'opacity-70' : ''}`}
                 >
-                  {isCurrent ? 'Current Plan' : subscribing === plan.id ? 'Subscribing…' : 'Subscribe'}
+                  {isCurrent ? t('billing.currentPlanButton') : subscribing === plan.id ? t('billing.subscribing') : t('billing.subscribe')}
                 </button>
               </div>
             )

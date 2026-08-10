@@ -384,6 +384,126 @@
     "pageOf": "Page {{current}} of {{total}}",
     "next": "Next"
   },
+  "billing": {
+    "badge": "Billing",
+    "title": "Company Billing",
+    "subtitle": "View your current subscription status and choose the plan that fits your company.",
+    "currentStatus": "Current status",
+    "manageBilling": "Manage Billing",
+    "openingPortal": "Opening...",
+    "currentPlan": "Current plan",
+    "noActivePlan": "No active plan",
+    "planIdLabel": "Plan ID {{id}}",
+    "noPlan": "No plan",
+    "billingStatus": "Billing status",
+    "trialEnds": "Trial ends",
+    "planDetails": "Plan details",
+    "monthlyPrice": "Monthly price",
+    "branches": "Branches",
+    "staff": "Staff",
+    "usedOf": "{{count}} of {{limit}} used",
+    "planDescription": "A complete billing package for your company.",
+    "current": "Current",
+    "price": "Price",
+    "unlimited": "Unlimited",
+    "currentPlanButton": "Current Plan",
+    "subscribing": "Subscribing…",
+    "subscribe": "Subscribe",
+    "loading": "Loading billing information...",
+    "errors": {
+      "loadStatus": "Failed to load billing status.",
+      "loadPlans": "Failed to load subscription plans.",
+      "authSession": "Unable to authenticate session."
+    },
+    "status": {
+      "trial": "Trial",
+      "active": "Active",
+      "pastDue": "Past Due",
+      "cancelled": "Cancelled",
+      "suspended": "Suspended",
+      "unknown": "Unknown"
+    }
+  },
+  "settings": {
+    "title": "Company Settings",
+    "subtitle": "Manage invoice and tax settings for your company.",
+    "loading": "Loading settings...",
+    "logo": {
+      "title": "Company Logo",
+      "description": "Appears on your invoices. Recommended: square image, at least 200x200px.",
+      "alt": "Company logo"
+    },
+    "invoice": {
+      "title": "Invoice Settings",
+      "vatLabel": "Enable VAT on invoices (5%)",
+      "vatDesc": "When enabled, a 5% VAT line will be applied to all invoices.",
+      "trnLabel": "Tax Registration Number (TRN)",
+      "trnPlaceholder": "e.g. 100123456700003",
+      "trnWarning": "Adding your TRN is required for FTA-compliant tax invoices."
+    },
+    "contact": {
+      "title": "Contact Information",
+      "description": "This appears on your invoices so customers can reach you.",
+      "phoneLabel": "Phone Number",
+      "phonePlaceholder": "+971 50 123 4567 (include country code)",
+      "phoneHint": "Include your country code (e.g. +971 for UAE) so WhatsApp inquiries work correctly.",
+      "emailLabel": "Email Address",
+      "emailPlaceholder": "contact@yourbusiness.com"
+    },
+    "storefront": {
+      "title": "Public Storefront",
+      "description": "Let customers browse your available parts online without logging in.",
+      "enableLabel": "Enable Public Storefront",
+      "enableDesc": "Customers will be able to view your in-stock parts at a public link.",
+      "urlLabel": "Storefront URL",
+      "urlPlaceholder": "your-shop-name"
+    },
+    "errors": {
+      "loadFailed": "Failed to load company settings.",
+      "urlRequired": "Please choose a URL for your storefront.",
+      "logoUploadFailed": "Failed to upload logo: {{error}}",
+      "saveFailed": "Failed to save settings: {{error}}",
+      "urlTaken": "This URL is already taken. Please choose a different one.",
+      "permissionDenied": "Update failed — you may not have permission to modify these settings."
+    },
+    "success": {
+      "saved": "Settings saved successfully."
+    },
+    "save": "Save",
+    "saving": "Saving…",
+    "uploadingLogo": "Uploading logo…"
+  },
+  "insights": {
+    "badge": "AI Insights",
+    "title": "Inventory Insights",
+    "subtitle": "Review simple, data-driven recommendations built from your real sales, stock, and customer activity.",
+    "loading": "Loading insights...",
+    "loadingCards": "Loading insight cards...",
+    "error": "Unable to load insights right now.",
+    "basedOnRealData": "Based on real sales data",
+    "cards": {
+      "sellthrough": {
+        "title": "Sell-through",
+        "comparison": "{{fastMake}} parts sell {{percentage}}% faster than {{slowMake}} parts.",
+        "insufficientData": "Not enough sell-through data yet to compare makes."
+      },
+      "buyMore": {
+        "title": "Buy more",
+        "recommendation": "Consider sourcing more {{make}} donor vehicles — they have the fastest sell-through rate in your inventory.",
+        "insufficientData": "Not enough sell-through data yet to recommend sourcing decisions."
+      },
+      "aging": {
+        "title": "Aging stock",
+        "summary": "Inventory worth {{value}} has not moved in {{days}}+ days.",
+        "none": "No aging stock right now — nice work keeping inventory moving."
+      },
+      "frequency": {
+        "title": "Customer frequency",
+        "summary": "{{name}} is your most frequent customer, buying roughly every {{days}} days.",
+        "insufficientData": "Not enough repeat-purchase data yet to identify frequent customers."
+      }
+    }
+  },
   "customers": {
     "relationshipHub": "Customer relationship hub",
     "title": "Customers",

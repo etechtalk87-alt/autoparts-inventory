@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../lib/AuthContext'
 
 export default function CompanySettings() {
+  const { t } = useTranslation()
   const { currentStaff, loading: authLoading, refreshStaff } = useAuth()
   const navigate = useNavigate()
-
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
-
   const [vatEnabled, setVatEnabled] = useState(false)
   const [trnNumber, setTrnNumber] = useState('')
   const [contactPhone, setContactPhone] = useState('')
@@ -21,7 +21,6 @@ export default function CompanySettings() {
   const [storefrontEnabled, setStorefrontEnabled] = useState(false)
   const [storefrontSlug, setStorefrontSlug] = useState('')
   const [slugError, setSlugError] = useState('')
-
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState('')
@@ -36,7 +35,6 @@ export default function CompanySettings() {
     const fetchSettings = async () => {
       setLoading(true)
       setFetchError('')
-
       const { data, error } = await supabase
         .from('companies')
         .select('id, name, vat_enabled, trn_number, contact_phone, contact_email, logo_url, storefront_enabled, storefront_slug')
@@ -44,7 +42,7 @@ export default function CompanySettings() {
         .single()
 
       if (error) {
-        setFetchError('Failed to load company settings.')
+        setFetchError(t('settings.errors.loadFailed'))
         setLoading(false)
         return
       }
@@ -60,22 +58,18 @@ export default function CompanySettings() {
     }
 
     fetchSettings()
-  }, [authLoading, currentStaff?.company_id, currentStaff?.role])
+  }, [authLoading, currentStaff?.company_id, currentStaff?.role, t])
 
   const uploadLogo = async () => {
     const fileExt = logoFile.name.split('.').pop()
     const filePath = `${currentStaff.company_id}/logo.${fileExt}`
-
     const { error: uploadError } = await supabase.storage
       .from('company-logos')
       .upload(filePath, logoFile, { upsert: true })
-
     if (uploadError) throw new Error(uploadError.message)
-
     const { data: urlData } = supabase.storage
       .from('company-logos')
       .getPublicUrl(filePath)
-
     return urlData.publicUrl
   }
 
@@ -85,19 +79,18 @@ export default function CompanySettings() {
     setSaveSuccess('')
 
     if (storefrontEnabled && !storefrontSlug.trim()) {
-      setSlugError('Please choose a URL for your storefront.')
+      setSlugError(t('settings.errors.urlRequired'))
       setSaving(false)
       return
     }
 
     let finalLogoUrl = logoUrl
-
     if (logoFile) {
       try {
         setUploadingLogo(true)
         finalLogoUrl = await uploadLogo()
       } catch (err) {
-        setSaveError(`Failed to upload logo: ${err.message}`)
+        setSaveError(t('settings.errors.logoUploadFailed', { error: err.message }))
         setSaving(false)
         setUploadingLogo(false)
         return
@@ -121,20 +114,19 @@ export default function CompanySettings() {
 
     if (error) {
       if (error.code === '23505' || /unique/i.test(error.message || '')) {
-        setSlugError('This URL is already taken. Please choose a different one.')
+        setSlugError(t('settings.errors.urlTaken'))
         setSaveError('')
         setSaveSuccess('')
         setSaving(false)
         return
       }
-
-      setSaveError(`Failed to save settings: ${error.message}`)
+      setSaveError(t('settings.errors.saveFailed', { error: error.message }))
       setSaving(false)
       return
     }
 
     if (!data || data.length === 0) {
-      setSaveError('Update failed — you may not have permission to modify these settings.')
+      setSaveError(t('settings.errors.permissionDenied'))
       setSaving(false)
       return
     }
@@ -143,7 +135,7 @@ export default function CompanySettings() {
     setLogoFile(null)
     setLogoPreview(null)
     await refreshStaff()
-    setSaveSuccess('Settings saved successfully.')
+    setSaveSuccess(t('settings.success.saved'))
     setSaving(false)
   }
 
@@ -152,7 +144,7 @@ export default function CompanySettings() {
   if (authLoading || loading) {
     return (
       <main className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-slate-400">Loading settings...</p>
+        <p className="text-slate-400">{t('settings.loading')}</p>
       </main>
     )
   }
@@ -161,9 +153,9 @@ export default function CompanySettings() {
     <main className="space-y-8">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Company Settings</h1>
+        <h1 className="text-2xl font-bold text-white">{t('settings.title')}</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Manage invoice and tax settings for your company.
+          {t('settings.subtitle')}
         </p>
       </div>
 
@@ -176,15 +168,15 @@ export default function CompanySettings() {
       <div className="space-y-6">
         {/* Company Logo card */}
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-          <h2 className="mb-1 text-base font-semibold text-white">Company Logo</h2>
+          <h2 className="mb-1 text-base font-semibold text-white">{t('settings.logo.title')}</h2>
           <p className="mb-5 text-xs text-slate-500">
-            Appears on your invoices. Recommended: square image, at least 200x200px.
+            {t('settings.logo.description')}
           </p>
           <div className="flex items-center gap-4">
             {(logoPreview || logoUrl) && (
               <img
                 src={logoPreview || logoUrl}
-                alt="Company logo"
+                alt={t('settings.logo.alt')}
                 className="h-16 w-16 rounded-lg border border-slate-700 object-cover"
               />
             )}
@@ -205,8 +197,7 @@ export default function CompanySettings() {
 
         {/* Invoice Settings card */}
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-          <h2 className="mb-5 text-base font-semibold text-white">Invoice Settings</h2>
-
+          <h2 className="mb-5 text-base font-semibold text-white">{t('settings.invoice.title')}</h2>
           <div className="space-y-6">
             {/* VAT toggle */}
             <label className="flex cursor-pointer items-center gap-4">
@@ -223,10 +214,10 @@ export default function CompanySettings() {
               />
               <div>
                 <span className="text-sm font-medium text-slate-200">
-                  Enable VAT on invoices (5%)
+                  {t('settings.invoice.vatLabel')}
                 </span>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  When enabled, a 5% VAT line will be applied to all invoices.
+                  {t('settings.invoice.vatDesc')}
                 </p>
               </div>
             </label>
@@ -238,25 +229,25 @@ export default function CompanySettings() {
                   htmlFor="trn-number"
                   className="mb-1.5 block text-xs font-medium text-slate-400"
                 >
-                  Tax Registration Number (TRN)
+                  {t('settings.invoice.trnLabel')}
                 </label>
                 <input
                   type="text"
                   id="trn-number"
+                  dir="ltr"
                   value={trnNumber}
                   onChange={(e) => {
                     setTrnNumber(e.target.value)
                     setSaveError('')
                     setSaveSuccess('')
                   }}
-                  placeholder="e.g. 100123456700003"
+                  placeholder={t('settings.invoice.trnPlaceholder')}
                   className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
                 />
-
                 {/* Soft warning — no hard block */}
                 {showTrnWarning && (
                   <p className="mt-2 rounded-lg bg-amber-900/30 px-3 py-2 text-xs text-amber-300">
-                    Adding your TRN is required for FTA-compliant tax invoices.
+                    {t('settings.invoice.trnWarning')}
                   </p>
                 )}
               </div>
@@ -266,46 +257,47 @@ export default function CompanySettings() {
 
         {/* Contact Information card */}
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-          <h2 className="mb-1 text-base font-semibold text-white">Contact Information</h2>
+          <h2 className="mb-1 text-base font-semibold text-white">{t('settings.contact.title')}</h2>
           <p className="mb-5 text-xs text-slate-500">
-            This appears on your invoices so customers can reach you.
+            {t('settings.contact.description')}
           </p>
-
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="contact-phone" className="mb-1.5 block text-xs font-medium text-slate-400">
-                Phone Number
+                {t('settings.contact.phoneLabel')}
               </label>
               <input
                 type="tel"
                 id="contact-phone"
+                dir="ltr"
                 value={contactPhone}
                 onChange={(e) => {
                   setContactPhone(e.target.value)
                   setSaveError('')
                   setSaveSuccess('')
                 }}
-                placeholder="+971 50 123 4567 (include country code)"
+                placeholder={t('settings.contact.phonePlaceholder')}
                 className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
               />
               <p className="mt-1 text-xs text-slate-500">
-                Include your country code (e.g. +971 for UAE) so WhatsApp inquiries work correctly.
+                {t('settings.contact.phoneHint')}
               </p>
             </div>
             <div>
               <label htmlFor="contact-email" className="mb-1.5 block text-xs font-medium text-slate-400">
-                Email Address
+                {t('settings.contact.emailLabel')}
               </label>
               <input
                 type="email"
                 id="contact-email"
+                dir="ltr"
                 value={contactEmail}
                 onChange={(e) => {
                   setContactEmail(e.target.value)
                   setSaveError('')
                   setSaveSuccess('')
                 }}
-                placeholder="contact@yourbusiness.com"
+                placeholder={t('settings.contact.emailPlaceholder')}
                 className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
               />
             </div>
@@ -313,11 +305,10 @@ export default function CompanySettings() {
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-          <h2 className="mb-1 text-base font-semibold text-white">Public Storefront</h2>
+          <h2 className="mb-1 text-base font-semibold text-white">{t('settings.storefront.title')}</h2>
           <p className="mb-5 text-xs text-slate-500">
-            Let customers browse your available parts online without logging in.
+            {t('settings.storefront.description')}
           </p>
-
           <label className="flex cursor-pointer items-center gap-4">
             <input
               type="checkbox"
@@ -330,23 +321,23 @@ export default function CompanySettings() {
               className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-cyan-500"
             />
             <div>
-              <span className="text-sm font-medium text-slate-200">Enable Public Storefront</span>
+              <span className="text-sm font-medium text-slate-200">{t('settings.storefront.enableLabel')}</span>
               <p className="mt-0.5 text-xs text-slate-500">
-                Customers will be able to view your in-stock parts at a public link.
+                {t('settings.storefront.enableDesc')}
               </p>
             </div>
           </label>
-
           {storefrontEnabled && (
             <div className="mt-4">
               <label htmlFor="storefront-slug" className="mb-1.5 block text-xs font-medium text-slate-400">
-                Storefront URL
+                {t('settings.storefront.urlLabel')}
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" dir="ltr">
                 <span className="text-sm text-slate-500">yourapp.com/store/</span>
                 <input
                   type="text"
                   id="storefront-slug"
+                  dir="ltr"
                   value={storefrontSlug}
                   onChange={(e) => {
                     const cleaned = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')
@@ -355,7 +346,7 @@ export default function CompanySettings() {
                     setSaveError('')
                     setSaveSuccess('')
                   }}
-                  placeholder="your-shop-name"
+                  placeholder={t('settings.storefront.urlPlaceholder')}
                   className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
                 />
               </div>
@@ -385,7 +376,7 @@ export default function CompanySettings() {
           disabled={saving || uploadingLogo}
           className="rounded-lg bg-cyan-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {saving ? 'Saving…' : uploadingLogo ? 'Uploading logo…' : 'Save'}
+          {saving ? t('settings.saving') : uploadingLogo ? t('settings.uploadingLogo') : t('settings.save')}
         </button>
       </div>
     </main>
