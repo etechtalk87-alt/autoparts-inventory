@@ -216,6 +216,58 @@
     "errorGeneric": "Something went wrong. Please try again.",
     "successMessage": "Account created! We've sent a confirmation link to {{email}}. Please check your inbox to verify your email before logging in."
   },
+  "forgotPassword": {
+    "title": "Forgot your password?",
+    "subtitle": "Enter your email and we'll send a reset link.",
+    "email": "Email",
+    "errorEnterEmail": "Please enter your email.",
+    "errorGeneric": "Unable to send password reset email.",
+    "successMessage": "Check your email for a reset link.",
+    "sending": "Sending...",
+    "sendResetLink": "Send reset link",
+    "rememberedPassword": "Remembered your password?",
+    "signIn": "Sign in"
+  },
+  "resetPassword": {
+    "invalidLinkTitle": "Invalid reset link",
+    "invalidLinkSubtitle": "Please request a new password reset link.",
+    "sendAnotherLink": "Send another reset email",
+    "title": "Reset your password",
+    "subtitle": "Enter a new password to complete the reset.",
+    "newPassword": "New Password",
+    "errorEnterPassword": "Please enter a new password.",
+    "errorGeneric": "Unable to update your password.",
+    "successMessage": "Your password has been updated. You can now sign in.",
+    "saving": "Saving...",
+    "updatePassword": "Update password",
+    "backToSignIn": "Back to sign in"
+  },
+  "setPassword": {
+    "title": "Set Password",
+    "subtitle": "Welcome! Please set a password for your new account to continue.",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "errorTooShort": "Password must be at least 8 characters long.",
+    "errorMismatch": "Passwords do not match.",
+    "successMessage": "Password set successfully! Redirecting...",
+    "saving": "Saving...",
+    "setPasswordButton": "Set Password"
+  },
+  "accountSuspended": {
+    "title": "Account Suspended",
+    "message": "Your company's account has been suspended. Please contact support to resolve this issue.",
+    "signOut": "Sign Out"
+  },
+  "setupCompany": {
+    "title": "Set up your company",
+    "subtitle": "Finish account setup by creating your company profile.",
+    "companyName": "Company Name",
+    "fullName": "Full Name",
+    "errorMissingFields": "Please enter a company name and your full name.",
+    "errorGeneric": "Unable to set up your company right now.",
+    "saving": "Saving...",
+    "createCompany": "Create company"
+  },
   "parts": {
     "loadingInventory": "Loading inventory...",
     "inventoryControlCenter": "Inventory control center",
