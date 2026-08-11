@@ -147,8 +147,8 @@ function CreateInvoice() {
   }, [lineItems])
 
   const vatAmount = useMemo(() => {
-    return currentStaff?.vatEnabled ? subtotal * 0.05 : 0
-  }, [subtotal, currentStaff?.vatEnabled])
+    return currentStaff?.vatEnabled ? subtotal * (Number(currentStaff.vatRate ?? 5) / 100) : 0
+  }, [subtotal, currentStaff?.vatEnabled, currentStaff?.vatRate])
 
   const totalAmount = useMemo(() => {
     return subtotal + vatAmount
@@ -333,9 +333,24 @@ function CreateInvoice() {
     }
 
     const invoiceId = invoiceData.id
-    const paidFraction = totalAmount > 0 ? finalAmountPaid / totalAmount : 0
 
-    const amountPaidByItem = lineItems.map((item) => Number((Number(item.sale_price || 0) * paidFraction).toFixed(2)))
+    // Prorate VAT across line items (proportional to each item's share of the subtotal),
+    // with rounding remainder absorbed by the last item — same pattern as payment proration below
+    const itemVatAmounts = lineItems.map((item) => {
+      const itemSubtotal = Number(item.sale_price || 0)
+      const itemShare = subtotal > 0 ? itemSubtotal / subtotal : 0
+      return Number((vatAmount * itemShare).toFixed(2))
+    })
+    const totalVatAssigned = itemVatAmounts.reduce((sum, value) => sum + value, 0)
+    const vatRoundingAdjustment = Number((vatAmount - totalVatAssigned).toFixed(2))
+    if (vatRoundingAdjustment !== 0 && itemVatAmounts.length > 0) {
+      itemVatAmounts[itemVatAmounts.length - 1] = Number((itemVatAmounts[itemVatAmounts.length - 1] + vatRoundingAdjustment).toFixed(2))
+    }
+    const itemTotalAmounts = lineItems.map((item, index) => Number((Number(item.sale_price || 0) + itemVatAmounts[index]).toFixed(2)))
+
+    // Prorate payment across line items based on each item's REAL VAT-inclusive total, not pre-tax price
+    const paidFraction = totalAmount > 0 ? finalAmountPaid / totalAmount : 0
+    const amountPaidByItem = itemTotalAmounts.map((itemTotal) => Number((itemTotal * paidFraction).toFixed(2)))
     const totalAssigned = amountPaidByItem.reduce((sum, value) => sum + value, 0)
     const roundingAdjustment = Number((finalAmountPaid - totalAssigned).toFixed(2))
     if (roundingAdjustment !== 0 && amountPaidByItem.length > 0) {
@@ -348,6 +363,8 @@ function CreateInvoice() {
       part_id: item.part_id,
       sold_by: currentStaff.id,
       sale_price: Number(item.sale_price || 0),
+      vat_amount: itemVatAmounts[index],
+      total_amount: itemTotalAmounts[index],
       customer_id: selectedCustomerId,
       payment_status: paymentStatus === 'paid_in_full' ? 'paid' : paymentStatus,
       amount_paid: amountPaidByItem[index],

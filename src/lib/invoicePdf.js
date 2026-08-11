@@ -375,7 +375,7 @@ function InvoiceDocument({ invoice }) {
             ...(Number(invoice.vatAmount) > 0
               ? [
                   createElement(View, { key: 'sub', style: styles.summaryRow }, createElement(Text, { style: styles.summaryLabel }, 'Subtotal'), createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.subtotal}`)),
-                  createElement(View, { key: 'vat', style: styles.summaryRow }, createElement(Text, { style: styles.summaryLabel }, 'VAT (5%)'), createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.vatAmount}`)),
+                  createElement(View, { key: 'vat', style: styles.summaryRow }, createElement(Text, { style: styles.summaryLabel }, `VAT (${invoice.vatRatePercent ?? 5}%)`), createElement(Text, { style: styles.summaryValue }, `${invoice.currency} ${invoice.vatAmount}`)),
                 ]
               : []),
             createElement(View, { style: styles.totalDivider }),
@@ -538,11 +538,16 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
           : 'Unpaid',
       trnNumber: companyData?.trn_number || null,
       balanceDue: (Number(invoiceRow?.total_amount ?? 0) - Number(invoiceRow?.amount_paid ?? 0)).toFixed(2),
+      vatRatePercent: (() => {
+        const sub = Number(invoiceRow?.subtotal || 0)
+        const vat = Number(invoiceRow?.vat_amount || 0)
+        return sub > 0 ? Math.round((vat / sub) * 1000) / 10 : 5
+      })(),
     }
   }
 
   const companyPromise = companyId && supabaseClient
-    ? supabaseClient.from('companies').select('name, contact_phone, contact_email, trn_number, vat_enabled, logo_url').eq('id', companyId).maybeSingle()
+    ? supabaseClient.from('companies').select('name, contact_phone, contact_email, trn_number, vat_enabled, vat_rate, logo_url').eq('id', companyId).maybeSingle()
     : Promise.resolve({ data: null })
 
   const branchPromise = branchId && supabaseClient
@@ -585,17 +590,29 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     }
   }
 
+  // Fetch the authoritative sale record directly, so the PDF always 
+  // reflects real, saved amounts regardless of which screen triggered it
+  let authoritativeSale = sale
+  if (sale?.id && supabaseClient) {
+    const { data: freshSale } = await supabaseClient
+      .from('sales')
+      .select('sale_price, vat_amount, total_amount, amount_paid, payment_status')
+      .eq('id', sale.id)
+      .maybeSingle()
+    if (freshSale) {
+      authoritativeSale = { ...sale, ...freshSale }
+    }
+  }
+
   // Calculate payment status label and balance due
-  const salePrice = Number(sale?.sale_price ?? 0)
-  const amountPaid = Number(sale?.amount_paid ?? 0)
-  const paymentStatus = sale?.payment_status || 'unpaid'
-  const vatEnabled = companyData?.vat_enabled === true
-  const subtotalCalc = vatEnabled ? salePrice / 1.05 : salePrice
-  const vatAmountCalc = vatEnabled ? salePrice - subtotalCalc : 0
-
+  const salePrice = Number(authoritativeSale?.sale_price ?? 0)
+  const amountPaid = Number(authoritativeSale?.amount_paid ?? 0)
+  const paymentStatus = authoritativeSale?.payment_status || 'unpaid'
+  const vatAmountCalc = Number(authoritativeSale?.vat_amount ?? 0)
+  const totalWithVat = Number(authoritativeSale?.total_amount ?? salePrice)
+  const vatRateValue = salePrice > 0 ? Math.round((vatAmountCalc / salePrice) * 1000) / 10 : Number(companyData?.vat_rate ?? 5)
   let paymentStatusLabel = 'Unpaid'
-  let balanceDue = salePrice
-
+  let balanceDue = totalWithVat
   switch (paymentStatus) {
     case 'paid':
     case 'paid_in_full':
@@ -604,19 +621,19 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
       break
     case 'partial':
       paymentStatusLabel = 'Partial Payment'
-      balanceDue = salePrice - amountPaid
+      balanceDue = totalWithVat - amountPaid
       break
     case 'credit':
       paymentStatusLabel = 'On Credit'
-      balanceDue = salePrice
+      balanceDue = totalWithVat
       break
     case 'unpaid':
       paymentStatusLabel = 'Unpaid'
-      balanceDue = salePrice
+      balanceDue = totalWithVat
       break
     default:
       paymentStatusLabel = 'Unpaid'
-      balanceDue = salePrice
+      balanceDue = totalWithVat
   }
 
   return {
@@ -629,15 +646,17 @@ export async function fetchInvoicePayload({ supabaseClient, companyId, branchId,
     oemNumber: partData?.oem_number || '—',
     condition: partData?.condition || '—',
     donorVehicle: donorVehicleText,
-    salePrice: salePrice.toFixed(2),
+    salePrice: totalWithVat.toFixed(2),
     currency: partData?.currency || sale?.currency || 'AED',
     customerName,
     customerContact: sale?.customer_contact || '',
     contactPhone: companyData?.contact_phone || null,
     contactEmail: companyData?.contact_email || null,
     logoUrl: companyData?.logo_url || null,
-    subtotal: subtotalCalc.toFixed(2),
+    subtotal: salePrice.toFixed(2),
     vatAmount: vatAmountCalc.toFixed(2),
+    totalAmount: totalWithVat.toFixed(2),
+    vatRatePercent: vatRateValue,
     trnNumber: companyData?.trn_number || null,
     paymentStatus,
     paymentStatusLabel,

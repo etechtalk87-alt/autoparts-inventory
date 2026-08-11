@@ -96,6 +96,7 @@ function Sales() {
           id,
           sale_price,
           amount_paid,
+          total_amount,
           refunded_amount,
           payment_status,
           customer_id,

@@ -11,13 +11,13 @@ export default function RefundModal({ sale, currentStaff, onClose, onRefundCompl
   const [message, setMessage] = useState('')
 
   const alreadyRefunded = Number(sale?.refunded_amount || 0)
-  const salePrice = Number(sale?.sale_price || 0)
+  const salePrice = Number(sale?.total_amount ?? sale?.sale_price ?? 0)
   const maxRefundable = Math.max(0, salePrice - alreadyRefunded)
   const displayCurrency = sale?.currency || 'AED'
 
   useEffect(() => {
     if (!sale) return
-    setRefundAmount(maxRefundable > 0 ? maxRefundable.toFixed(2) : '')
+    setRefundAmount('')
     setReason('')
     setPartCondition('resellable')
     setMessage('')

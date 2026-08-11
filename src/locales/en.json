@@ -621,6 +621,10 @@
       "title": "Invoice Settings",
       "vatLabel": "Enable VAT on invoices (5%)",
       "vatDesc": "When enabled, a 5% VAT line will be applied to all invoices.",
+      "vatRateLabel": "VAT Rate",
+      "vatRateCustom": "Custom",
+      "customVatRateLabel": "Custom VAT Rate (%)",
+      "customVatRatePlaceholder": "e.g. 7.5",
       "trnLabel": "Tax Registration Number (TRN)",
       "trnPlaceholder": "e.g. 100123456700003",
       "trnWarning": "Adding your TRN is required for FTA-compliant tax invoices."
@@ -648,7 +652,8 @@
       "logoUploadFailed": "Failed to upload logo: {{error}}",
       "saveFailed": "Failed to save settings: {{error}}",
       "urlTaken": "This URL is already taken. Please choose a different one.",
-      "permissionDenied": "Update failed — you may not have permission to modify these settings."
+      "permissionDenied": "Update failed — you may not have permission to modify these settings.",
+      "invalidVatRate": "Please enter a valid VAT rate between 0 and 100."
     },
     "success": {
       "saved": "Settings saved successfully."

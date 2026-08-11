@@ -11,6 +11,8 @@ export default function CompanySettings() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [vatEnabled, setVatEnabled] = useState(false)
+  const [vatRatePreset, setVatRatePreset] = useState('5')
+  const [customVatRate, setCustomVatRate] = useState('')
   const [trnNumber, setTrnNumber] = useState('')
   const [contactPhone, setContactPhone] = useState('')
   const [contactEmail, setContactEmail] = useState('')
@@ -37,7 +39,7 @@ export default function CompanySettings() {
       setFetchError('')
       const { data, error } = await supabase
         .from('companies')
-        .select('id, name, vat_enabled, trn_number, contact_phone, contact_email, logo_url, storefront_enabled, storefront_slug')
+        .select('id, name, vat_enabled, vat_rate, trn_number, contact_phone, contact_email, logo_url, storefront_enabled, storefront_slug')
         .eq('id', currentStaff.company_id)
         .single()
 
@@ -48,6 +50,13 @@ export default function CompanySettings() {
       }
 
       setVatEnabled(data.vat_enabled ?? false)
+      const fetchedRate = data.vat_rate ?? 5
+      if ([5, 10, 15].includes(fetchedRate)) {
+        setVatRatePreset(String(fetchedRate))
+      } else {
+        setVatRatePreset('custom')
+        setCustomVatRate(String(fetchedRate))
+      }
       setTrnNumber(data.trn_number ?? '')
       setContactPhone(data.contact_phone ?? '')
       setContactEmail(data.contact_email ?? '')
@@ -84,6 +93,16 @@ export default function CompanySettings() {
       return
     }
 
+    let resolvedVatRate = 5
+    if (vatEnabled) {
+      resolvedVatRate = vatRatePreset === 'custom' ? Number(customVatRate) : Number(vatRatePreset)
+      if (!resolvedVatRate || resolvedVatRate < 0 || resolvedVatRate > 100) {
+        setSaveError(t('settings.errors.invalidVatRate'))
+        setSaving(false)
+        return
+      }
+    }
+
     let finalLogoUrl = logoUrl
     if (logoFile) {
       try {
@@ -102,6 +121,7 @@ export default function CompanySettings() {
       .from('companies')
       .update({
         vat_enabled: vatEnabled,
+        vat_rate: resolvedVatRate,
         trn_number: trnNumber.trim() || null,
         contact_phone: contactPhone.trim() || null,
         contact_email: contactEmail.trim() || null,
@@ -250,6 +270,51 @@ export default function CompanySettings() {
                     {t('settings.invoice.trnWarning')}
                   </p>
                 )}
+
+                <div className="mt-4">
+                  <label htmlFor="vat-rate" className="mb-1.5 block text-xs font-medium text-slate-400">
+                    {t('settings.invoice.vatRateLabel')}
+                  </label>
+                  <select
+                    id="vat-rate"
+                    value={vatRatePreset}
+                    onChange={(e) => {
+                      setVatRatePreset(e.target.value)
+                      setSaveError('')
+                      setSaveSuccess('')
+                    }}
+                    className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                  >
+                    <option value="5">5%</option>
+                    <option value="10">10%</option>
+                    <option value="15">15%</option>
+                    <option value="custom">{t('settings.invoice.vatRateCustom')}</option>
+                  </select>
+
+                  {vatRatePreset === 'custom' && (
+                    <div className="mt-3">
+                      <label htmlFor="custom-vat-rate" className="mb-1.5 block text-xs font-medium text-slate-400">
+                        {t('settings.invoice.customVatRateLabel')}
+                      </label>
+                      <input
+                        type="number"
+                        id="custom-vat-rate"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        dir="ltr"
+                        value={customVatRate}
+                        onChange={(e) => {
+                          setCustomVatRate(e.target.value)
+                          setSaveError('')
+                          setSaveSuccess('')
+                        }}
+                        placeholder={t('settings.invoice.customVatRatePlaceholder')}
+                        className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-500"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

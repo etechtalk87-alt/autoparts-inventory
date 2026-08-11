@@ -174,12 +174,17 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
       return
     }
 
+    const preTaxPrice = Number(salePrice)
+    const vatRate = currentStaff?.vatEnabled ? Number(currentStaff.vatRate ?? 5) : 0
+    const vatAmountCalc = currentStaff?.vatEnabled ? Math.round(preTaxPrice * (vatRate / 100) * 100) / 100 : 0
+    const totalWithVat = preTaxPrice + vatAmountCalc
+
     let finalAmountPaid = 0
     if (paymentStatus === 'paid_in_full') {
-      finalAmountPaid = Number(salePrice)
+      finalAmountPaid = totalWithVat
     } else if (paymentStatus === 'partial') {
       finalAmountPaid = Number(amountPaid || 0)
-      if (finalAmountPaid <= 0 || finalAmountPaid >= Number(salePrice)) {
+      if (finalAmountPaid <= 0 || finalAmountPaid >= totalWithVat) {
         setSaleMessage(t('parts.partialMustBeValid'))
         setSaleMessageIsSuccess(false)
         return
@@ -209,7 +214,9 @@ export default function SaleModal({ part, currentStaff, onClose, onSaleComplete 
           branch_id: part.branch_id,
           part_id: part.id,
           sold_by: currentStaff.id,
-          sale_price: Number(salePrice),
+          sale_price: preTaxPrice,
+          vat_amount: vatAmountCalc,
+          total_amount: totalWithVat,
           customer_id: isWalkIn ? null : selectedCustomerId,
           customer_name: null,
           customer_contact: null,

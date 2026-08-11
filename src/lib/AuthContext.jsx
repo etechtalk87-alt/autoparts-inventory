@@ -77,7 +77,7 @@ export function AuthProvider({ children }) {
 
         const { data: companyData } = await supabase
           .from('companies')
-          .select('name, vat_enabled, trn_number, subscription_status')
+          .select('name, vat_enabled, vat_rate, trn_number, subscription_status')
           .eq('id', staffData.company_id)
           .maybeSingle()
 
@@ -93,6 +93,7 @@ export function AuthProvider({ children }) {
           branchIds,
           activeBranchId: effectiveActiveBranchId,
           vatEnabled: companyData?.vat_enabled || false,
+          vatRate: Number(companyData?.vat_rate ?? 5),
           trnNumber: companyData?.trn_number || null,
           companyName: companyData?.name || null,
         })
