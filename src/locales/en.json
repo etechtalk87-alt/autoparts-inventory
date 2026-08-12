@@ -305,6 +305,7 @@
     "confirmDelete": "Are you sure you want to delete {{partName}}? This cannot be undone.",
     "unableLoadAudit": "Unable to load part data for auditing.",
     "cannotDeleteHasSales": "This part cannot be deleted because it has sales history. Parts with existing sales records are protected to preserve invoice accuracy.",
+    "cannotDeleteSoldOrTransferred": "This part cannot be deleted because it has already been sold or transferred. Its record is preserved for sales history and audit purposes.",
     "updateFailedPermission": "Update failed - you may not have permission to modify this record.",
     "partDeleted": "Part deleted.",
     "editPart": "Edit Part",

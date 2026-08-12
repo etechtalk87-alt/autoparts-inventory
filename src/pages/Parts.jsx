@@ -29,11 +29,18 @@ function Parts() {
   const [submitting, setSubmitting] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const listRef = useRef(null)
+  const messageRef = useRef(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [transferTarget, setTransferTarget] = useState(null)
   const [saleTarget, setSaleTarget] = useState(null)
   const { t } = useTranslation()
+
+  useEffect(() => {
+    if (errorMessage || successMessage) {
+      messageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [errorMessage, successMessage])
 
   const canManageBranches = currentStaff?.role === 'company_admin'
 
@@ -147,7 +154,10 @@ function Parts() {
 
   const handleDeletePart = async (part) => {
     if (!part) return
-    if (part.status === 'sold' || part.status === 'transferred') return
+    if (part.status === 'sold' || part.status === 'transferred') {
+      setErrorMessage(t('parts.cannotDeleteSoldOrTransferred'))
+      return
+    }
 
     const allowed = currentStaff.role === 'company_admin' || part.branch_id === currentStaff.activeBranchId
     if (!allowed) {
@@ -262,16 +272,18 @@ function Parts() {
           </div>
         </section>
 
-        {errorMessage ? (
-          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-            {errorMessage}
-          </div>
-        ) : null}
-        {successMessage ? (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-            {successMessage}
-          </div>
-        ) : null}
+        <div ref={messageRef}>
+          {errorMessage ? (
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {errorMessage}
+            </div>
+          ) : null}
+          {successMessage ? (
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+              {successMessage}
+            </div>
+          ) : null}
+        </div>
 
         <div ref={listRef} tabIndex={-1} className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/70 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl focus:outline-none">
           <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
